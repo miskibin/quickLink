@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "quickLink (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "quickLink (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

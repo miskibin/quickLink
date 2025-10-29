@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="quickLink.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:quickLink"
+    xmlns:models="using:quickLink.Models"
+    xmlns:converters="using:quickLink.Converters"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid x:Name="RootGrid" Background="Transparent" CornerRadius="16" KeyDown="OnRootKeyDown">
+        
+        <!-- Modern semi-transparent background -->
+        <Border CornerRadius="16" 
+     Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" 
+  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+     BorderThickness="1"
+   Opacity="0.95">
+        <Border.Shadow>
+  <ThemeShadow />
+        </Border.Shadow>
+        </Border>
+      
+        <Grid Margin="16" x:Name="ContentGrid">
+       <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+ <RowDefinition Height="*"/>
+   </Grid.RowDefinitions>
+
+ <!-- Minimalistic Search Box -->
+         <TextBox x:Name="SearchBox"
+   Grid.Row="0"
+     PlaceholderText="Search..."
+       FontSize="14"
+    CornerRadius="8"
+      BorderThickness="0"
+   Background="{ThemeResource LayerFillColorDefaultBrush}"
+        Padding="12,8"
+Margin="0,0,0,8"
+    TextChanged="OnSearchTextChanged">
+        <TextBox.KeyboardAccelerators>
+           <KeyboardAccelerator Key="Escape" Invoked="OnEscapePressed"/>
+           <KeyboardAccelerator Key="Enter" Invoked="OnEnterPressed"/>
+ <KeyboardAccelerator Key="Space" Modifiers="Control" Invoked="OnToggleVisibility"/>
+          <KeyboardAccelerator Key="Down" Invoked="OnDownArrow"/>
+    <KeyboardAccelerator Key="Up" Invoked="OnUpArrow"/>
+      </TextBox.KeyboardAccelerators>
+  </TextBox>
+
+    <!-- List View (hidden when editing) -->
+    <ListView x:Name="ItemsList"
+      Grid.Row="1"
+  SelectionMode="Single"
+       IsItemClickEnabled="False"
+  CanReorderItems="False"
+  CanDragItems="False"
+Background="Transparent"
+            Padding="0"
+          MaxHeight="220"
+    Visibility="Visible">
+           <ListView.ItemContainerStyle>
+  <Style TargetType="ListViewItem">
+     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+   <Setter Property="Padding" Value="0"/>
+  <Setter Property="Margin" Value="0,0,0,2"/>
+   <Setter Property="MinHeight" Value="0"/>
+  <Setter Property="CornerRadius" Value="6"/>
+  <Setter Property="Background" Value="Transparent"/>
+      </Style>
+ </ListView.ItemContainerStyle>
+  <ListView.ItemTemplate>
+  <DataTemplate x:DataType="models:ClipboardItem">
+   <Grid Background="Transparent"
+         Padding="8,6">
+    <Grid.ColumnDefinitions>
+  <ColumnDefinition Width="Auto"/>
+   <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+   </Grid.ColumnDefinitions>
+
+       <!-- Icon based on IsLink property -->
+ <Grid Grid.Column="0" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center">
+     <FontIcon FontFamily="Segoe Fluent Icons"
+      Glyph="&#xE71B;"
+  FontSize="16"
+Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+   Visibility="{x:Bind IsLink, Mode=OneWay}"/>
+          <FontIcon FontFamily="Segoe Fluent Icons"
+ Glyph="&#xE8A5;"
+       FontSize="16"
+          Foreground="{ThemeResource AccentFillColorDefaultBrush}"/>
+   </Grid>
+
+   <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+           <TextBlock Text="{x:Bind DisplayTitle, Mode=OneWay}"
+      FontWeight="SemiBold"
+            FontSize="13"
+       TextTrimming="CharacterEllipsis"
+           Opacity="0.9"/>
+      <TextBlock Text="{x:Bind Value, Mode=OneWay}"
+Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+  FontSize="11"
+     TextTrimming="CharacterEllipsis"
+  MaxLines="1"
+   Opacity="0.6"/>
+          </StackPanel>
+
+      <StackPanel Grid.Column="2" 
+  Orientation="Horizontal" 
+     Spacing="2" 
+    VerticalAlignment="Center">
+<Button Width="28" Height="28" 
+     Padding="0" 
+     CornerRadius="4"
+   Background="Transparent" 
+      BorderThickness="0"
+      Click="OnEditClicked" 
+        Tag="{x:Bind}">
+         <FontIcon FontFamily="Segoe Fluent Icons" 
+   Glyph="&#xE70F;" 
+   FontSize="12"
+Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Button>
+ <Button Width="28" Height="28" 
+          Padding="0" 
+   CornerRadius="4"
+   Background="Transparent" 
+         BorderThickness="0"
+  Click="OnDeleteClicked" 
+Tag="{x:Bind}">
+         <FontIcon FontFamily="Segoe Fluent Icons" 
+          Glyph="&#xE74D;" 
+       FontSize="12"
+   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+   </Button>
+      </StackPanel>
+     </Grid>
+    </DataTemplate>
+            </ListView.ItemTemplate>
+  <ListView.KeyboardAccelerators>
+     <KeyboardAccelerator Key="Enter" Invoked="OnEnterPressed"/>
+    <KeyboardAccelerator Key="Escape" Invoked="OnEscapePressed"/>
+       </ListView.KeyboardAccelerators>
+            <ListView.Footer>
+   <!-- Add New Item as list item -->
+      <Grid Background="Transparent"
+   Padding="8,6"
+            Margin="0,2,0,0"
+        Tapped="OnAddNewTapped">
+  <Grid.ColumnDefinitions>
+     <ColumnDefinition Width="Auto"/>
+<ColumnDefinition Width="*"/>
+   </Grid.ColumnDefinitions>
+
+       <FontIcon Grid.Column="0"
+ FontFamily="Segoe Fluent Icons"
+  Glyph="&#xE710;"
+    FontSize="16"
+      Margin="0,0,10,0"
+    Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+         VerticalAlignment="Center"/>
+
+        <TextBlock Grid.Column="1"
+     Text="Add new item"
+       FontWeight="SemiBold"
+     FontSize="13"
+       Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+       VerticalAlignment="Center"/>
+    </Grid>
+  </ListView.Footer>
+      </ListView>
+
+      <!-- Inline Edit View -->
+  <StackPanel x:Name="EditPanel"
+     Grid.Row="1"
+     Spacing="12"
+Visibility="Collapsed"
+  Background="Transparent">
+ <TextBox x:Name="EditTitle"
+    PlaceholderText="Title (optional)"
+  FontSize="13"
+       CornerRadius="6"
+       Background="{ThemeResource LayerFillColorDefaultBrush}"
+  BorderThickness="0"
+     Padding="10,8"
+      MaxLength="100"/>
+
+   <TextBox x:Name="EditValue"
+ PlaceholderText="Paste text or URL..."
+    FontSize="13"
+  CornerRadius="6"
+        Background="{ThemeResource LayerFillColorDefaultBrush}"
+     BorderThickness="0"
+  Padding="10,8"
+   TextWrapping="Wrap"
+          AcceptsReturn="True"
+  MinHeight="80"
+      MaxHeight="120"/>
+
+  <CheckBox x:Name="EditEncrypt"
+        Content="Encrypt"
+ FontSize="12"/>
+
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+   <Button Content="Cancel"
+   Click="OnCancelEdit"
+   CornerRadius="6"
+  Padding="16,8"
+  FontSize="12"/>
+   <Button Content="Save"
+   Click="OnSaveEdit"
+Style="{StaticResource AccentButtonStyle}"
+       CornerRadius="6"
+  Padding="16,8"
+   FontSize="12"/>
+       </StackPanel>
+        </StackPanel>
+
+      <!-- Minimal Loading Indicator -->
+ <Grid x:Name="LoadingOverlay" 
+  Grid.RowSpan="2"
+Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+  CornerRadius="16"
+         Visibility="Collapsed">
+ <ProgressRing IsActive="True" Width="40" Height="40"/>
+</Grid>
+  </Grid>
+    </Grid>
+</Window>

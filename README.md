@@ -2,6 +2,9 @@
 
 A fast clipboard manager for Windows with global hotkey support.
 
+<img width="597" height="299" alt="image" src="https://github.com/user-attachments/assets/df21541e-932f-4c2a-bd5c-4c89a30d6369" />
+
+
 ## Download
 
 Get the latest release from the [Releases page](https://github.com/miskibin/quickLink/releases).

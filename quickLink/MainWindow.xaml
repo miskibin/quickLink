@@ -41,7 +41,8 @@
    Background="{ThemeResource LayerFillColorDefaultBrush}"
         Padding="12,8"
 Margin="0,0,0,8"
-    TextChanged="OnSearchTextChanged">
+    TextChanged="OnSearchTextChanged"
+                  TabIndex="0">
         <TextBox.KeyboardAccelerators>
            <KeyboardAccelerator Key="Escape" Invoked="OnEscapePressed"/>
            <KeyboardAccelerator Key="Enter" Invoked="OnEnterPressed"/>
@@ -206,31 +207,57 @@ Tag="{x:Bind}">
     <KeyboardAccelerator Key="Escape" Invoked="OnEscapePressed"/>
        </ListView.KeyboardAccelerators>
             <ListView.Footer>
-   <!-- Add New Item as list item -->
+   <!-- Footer with Add New Item and Settings buttons -->
       <Grid Background="Transparent"
-   Padding="8,6"
-            Margin="0,2,0,0"
-        Tapped="OnAddNewTapped">
-  <Grid.ColumnDefinitions>
-     <ColumnDefinition Width="Auto"/>
-<ColumnDefinition Width="*"/>
-   </Grid.ColumnDefinitions>
-
-       <FontIcon Grid.Column="0"
- FontFamily="Segoe Fluent Icons"
-  Glyph="&#xE710;"
-    FontSize="16"
-      Margin="0,0,10,0"
-    Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-         VerticalAlignment="Center"/>
-
-        <TextBlock Grid.Column="1"
-     Text="Add new item"
-       FontWeight="SemiBold"
-     FontSize="13"
-       Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-       VerticalAlignment="Center"/>
-    </Grid>
+            Margin="0,2,0,0">
+          <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          
+          <!-- Add New Item Button -->
+          <Button Grid.Column="0"
+                  x:Name="AddNewButton"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Left"
+                  Padding="8,6"
+                  CornerRadius="6"
+                  Click="OnAddNewTapped"
+                  TabIndex="1">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                  <FontIcon FontFamily="Segoe Fluent Icons"
+                           Glyph="&#xE710;"
+                           FontSize="16"
+                           Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                           VerticalAlignment="Center"/>
+                  <TextBlock Text="Add new item"
+                            FontWeight="SemiBold"
+                            FontSize="13"
+                            Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                            VerticalAlignment="Center"/>
+              </StackPanel>
+          </Button>
+          
+          <!-- Settings Button -->
+          <Button Grid.Column="1"
+                  x:Name="SettingsButton"
+                  Background="Transparent"
+                  BorderThickness="0"
+                  Width="32"
+                  Height="32"
+                  Padding="0"
+                  CornerRadius="6"
+                  Click="OnSettingsClicked"
+                  TabIndex="2"
+                  ToolTipService.ToolTip="Settings">
+              <FontIcon FontFamily="Segoe Fluent Icons"
+                       Glyph="&#xE713;"
+                       FontSize="16"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+          </Button>
+      </Grid>
   </ListView.Footer>
       </ListView>
 
@@ -279,6 +306,69 @@ Style="{StaticResource AccentButtonStyle}"
    FontSize="12"/>
        </StackPanel>
         </StackPanel>
+
+      <!-- Settings View -->
+      <StackPanel x:Name="SettingsPanel"
+                  Grid.Row="1"
+                  Spacing="12"
+                  Visibility="Collapsed"
+                  Background="Transparent">
+          
+          <!-- Start with system -->
+          <CheckBox x:Name="StartWithSystemCheckBox"
+                   Content="Launch on system startup"
+                   FontSize="13"
+                   Checked="OnStartWithSystemChanged"
+                   Unchecked="OnStartWithSystemChanged"
+                   TabIndex="10"/>
+          
+          <!-- Hotkey customization -->
+          <StackPanel Spacing="6">
+              <TextBlock Text="Press your desired key combination"
+                        FontSize="11"
+                        Opacity="0.6"/>
+              <Grid>
+                  <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="Auto"/>
+                  </Grid.ColumnDefinitions>
+                  
+                  <TextBox x:Name="HotkeyTextBox"
+                          Grid.Column="0"
+                          PlaceholderText="Click and press keys..."
+                          FontSize="13"
+                          CornerRadius="6"
+                          Background="{ThemeResource LayerFillColorDefaultBrush}"
+                          BorderThickness="0"
+                          Padding="10,8"
+                          IsReadOnly="True"
+                          PreviewKeyDown="OnHotkeyKeyDown"
+                          Margin="0,0,8,0"
+                          TabIndex="11"/>
+                  
+                  <Button Grid.Column="1"
+                         Content="Reset"
+                         Click="OnResetHotkey"
+                         CornerRadius="6"
+                         Padding="16,8"
+                         FontSize="12"
+                         TabIndex="12"/>
+              </Grid>
+              <TextBlock x:Name="HotkeyStatusText"
+                        FontSize="11"
+                        Opacity="0.6"
+                        Margin="0,2,0,0"/>
+          </StackPanel>
+          
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+              <Button Content="Close"
+                     Click="OnCloseSettings"
+                     CornerRadius="6"
+                     Padding="16,8"
+                     FontSize="12"
+                     TabIndex="13"/>
+          </StackPanel>
+      </StackPanel>
 
       <!-- Minimal Loading Indicator -->
  <Grid x:Name="LoadingOverlay" 

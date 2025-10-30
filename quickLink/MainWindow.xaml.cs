@@ -24,6 +24,9 @@ namespace quickLink
         private const int WM_HOTKEY = 0x0312;
         private ClipboardItem? _editingItem;
         private bool _isEditing;
+        private bool _isInSettings;
+        private Windows.System.VirtualKeyModifiers _newHotkeyModifiers;
+        private Windows.System.VirtualKey _newHotkeyKey;
 
         public MainWindow()
         {
@@ -31,6 +34,10 @@ namespace quickLink
             _clipboardService = new ClipboardService();
             _allItems = new ObservableCollection<ClipboardItem>();
             _filteredItems = new ObservableCollection<ClipboardItem>();
+            
+            // Initialize default hotkey
+            _newHotkeyModifiers = Windows.System.VirtualKeyModifiers.Control;
+            _newHotkeyKey = Windows.System.VirtualKey.Space;
 
             InitializeComponent();
 
@@ -191,7 +198,11 @@ namespace quickLink
 
         private void OnEscapePressed(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            if (_isEditing)
+            if (_isInSettings)
+            {
+                HideSettingsPanel();
+            }
+            else if (_isEditing)
             {
                 HideEditPanel();
             }
@@ -256,7 +267,7 @@ namespace quickLink
             args.Handled = true;
         }
 
-        private void OnAddNewTapped(object sender, TappedRoutedEventArgs e)
+        private void OnAddNewTapped(object sender, RoutedEventArgs e)
         {
             ShowEditPanel(null);
         }
@@ -363,6 +374,197 @@ namespace quickLink
         public void HideWindow()
         {
             AppWindow.Hide();
+        }
+
+        private void OnSettingsClicked(object sender, RoutedEventArgs e)
+        {
+            ShowSettingsPanel();
+        }
+
+        private void ShowSettingsPanel()
+        {
+            _isInSettings = true;
+            
+            // Load current settings
+            LoadSettings();
+            
+            SearchBox.Visibility = Visibility.Collapsed;
+            ItemsList.Visibility = Visibility.Collapsed;
+            EditPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Visible;
+        }
+
+        private void HideSettingsPanel()
+        {
+            _isInSettings = false;
+            SearchBox.Visibility = Visibility.Visible;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            ItemsList.Visibility = Visibility.Visible;
+            SearchBox.Focus(FocusState.Programmatic);
+        }
+
+        private async void LoadSettings()
+        {
+            // Load startup setting
+            try
+            {
+                var startupTask = await Windows.ApplicationModel.StartupTask.GetAsync("QuickLinkStartup");
+                StartWithSystemCheckBox.IsChecked = startupTask.State == Windows.ApplicationModel.StartupTaskState.Enabled;
+            }
+            catch
+            {
+                // Startup task not available
+                StartWithSystemCheckBox.IsChecked = false;
+                StartWithSystemCheckBox.IsEnabled = false;
+            }
+            
+            // Display current hotkey
+            UpdateHotkeyDisplay();
+        }
+
+        private async void OnStartWithSystemChanged(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var startupTask = await Windows.ApplicationModel.StartupTask.GetAsync("QuickLinkStartup");
+                
+                if (StartWithSystemCheckBox.IsChecked == true)
+                {
+                    var state = await startupTask.RequestEnableAsync();
+                    if (state != Windows.ApplicationModel.StartupTaskState.Enabled)
+                    {
+                        StartWithSystemCheckBox.IsChecked = false;
+                        // Could show a message that startup was disabled by user/policy
+                    }
+                }
+                else
+                {
+                    startupTask.Disable();
+                }
+            }
+            catch
+            {
+                StartWithSystemCheckBox.IsChecked = false;
+            }
+        }
+
+        private void OnHotkeyKeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            e.Handled = true;
+            
+            var key = e.Key;
+            
+            // Check for Enter to apply the current hotkey
+            if (key == Windows.System.VirtualKey.Enter && _newHotkeyKey != Windows.System.VirtualKey.None)
+            {
+                ApplyHotkeyChange();
+                return;
+            }
+            
+            var modifiers = Windows.System.VirtualKeyModifiers.None;
+            
+            // Use InputKeyboardSource to get key states
+            try
+            {
+                var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
+                if ((ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down)
+                    modifiers |= Windows.System.VirtualKeyModifiers.Control;
+                    
+                var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
+                if ((shiftState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down)
+                    modifiers |= Windows.System.VirtualKeyModifiers.Shift;
+                    
+                var altState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu);
+                if ((altState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down)
+                    modifiers |= Windows.System.VirtualKeyModifiers.Menu;
+            }
+            catch
+            {
+                // If we can't get key states, just use what we have
+            }
+            
+            // Ignore modifier-only keys
+            if (key == Windows.System.VirtualKey.Control || 
+                key == Windows.System.VirtualKey.Shift || 
+                key == Windows.System.VirtualKey.Menu ||
+                key == Windows.System.VirtualKey.LeftControl ||
+                key == Windows.System.VirtualKey.RightControl ||
+                key == Windows.System.VirtualKey.LeftShift ||
+                key == Windows.System.VirtualKey.RightShift ||
+                key == Windows.System.VirtualKey.LeftMenu ||
+                key == Windows.System.VirtualKey.RightMenu)
+            {
+                return;
+            }
+            
+            // Require at least one modifier
+            if (modifiers == Windows.System.VirtualKeyModifiers.None)
+            {
+                HotkeyStatusText.Text = "Please use at least one modifier key (Ctrl, Shift, Alt)";
+                return;
+            }
+            
+            _newHotkeyModifiers = modifiers;
+            _newHotkeyKey = key;
+            
+            UpdateHotkeyDisplay();
+            HotkeyStatusText.Text = "Press Enter to apply the new hotkey";
+        }
+
+        private void UpdateHotkeyDisplay()
+        {
+            var parts = new System.Collections.Generic.List<string>();
+            
+            if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control))
+                parts.Add("Ctrl");
+            if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Shift))
+                parts.Add("Shift");
+            if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Menu))
+                parts.Add("Alt");
+            
+            if (_newHotkeyKey != Windows.System.VirtualKey.None)
+                parts.Add(_newHotkeyKey.ToString());
+            
+            HotkeyTextBox.Text = parts.Any() ? string.Join(" + ", parts) : "Ctrl + Space (default)";
+        }
+
+        private void OnResetHotkey(object sender, RoutedEventArgs e)
+        {
+            _newHotkeyModifiers = Windows.System.VirtualKeyModifiers.Control;
+            _newHotkeyKey = Windows.System.VirtualKey.Space;
+            UpdateHotkeyDisplay();
+            ApplyHotkeyChange();
+            HotkeyStatusText.Text = "Reset to default (Ctrl + Space) and applied";
+        }
+
+        private void ApplyHotkeyChange()
+        {
+            try
+            {
+                // Convert WinUI modifiers to Win32 modifiers
+                uint modifiers = 0;
+                if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control))
+                    modifiers |= 0x0002; // MOD_CONTROL
+                if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Shift))
+                    modifiers |= 0x0004; // MOD_SHIFT
+                if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Menu))
+                    modifiers |= 0x0001; // MOD_ALT
+
+                uint vKey = (uint)_newHotkeyKey;
+
+                // Re-register the hotkey
+                _hotkeyService.RegisterHotkey(_windowHandle, modifiers, vKey);
+                HotkeyStatusText.Text = "Hotkey updated successfully!";
+            }
+            catch (Exception ex)
+            {
+                HotkeyStatusText.Text = $"Failed to update hotkey: {ex.Message}";
+            }
+        }
+
+        private void OnCloseSettings(object sender, RoutedEventArgs e)
+        {
+            HideSettingsPanel();
         }
 
         private void ConfigureWindowStyle()

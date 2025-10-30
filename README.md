@@ -2,7 +2,6 @@
 
 A fast clipboard manager for Windows with global hotkey support.
 
-<img width="1204" height="661" alt="image" src="https://github.com/user-attachments/assets/e77721f2-d155-478d-9589-591631a05c15" />
 
 ![2025-10-30 20-00-10](https://github.com/user-attachments/assets/cc0d0edc-f90a-407b-b23c-133546bc0099)
 
@@ -88,9 +87,6 @@ The workflow will automatically detect these secrets and sign your packages if t
 
 This application supports the following platforms:
 - x64 (64-bit Intel/AMD)
-- x86 (32-bit Intel/AMD)
-- ARM64 (ARM 64-bit)
 
-## License
 
-[Add your license information here]
+<img width="1204" height="661" alt="image" src="https://github.com/user-attachments/assets/e77721f2-d155-478d-9589-591631a05c15" />

@@ -28,9 +28,9 @@ namespace quickLink.ViewModels
      _allItems = new ObservableCollection<ClipboardItem>();
    _filteredItems = new ObservableCollection<ClipboardItem>();
 
-  AddCommand = new RelayCommand(async () => await AddItemAsync());
+  AddCommand = new RelayCommand(() => { _ = AddItemAsync(); });
        ExecuteCommand = new RelayCommand(async () => await ExecuteSelectedItemAsync(), () => SelectedItem != null);
-        EditCommand = new RelayCommand<ClipboardItem>(async (item) => await EditItemAsync(item));
+        EditCommand = new RelayCommand<ClipboardItem>((item) => { _ = EditItemAsync(item); });
   DeleteCommand = new RelayCommand<ClipboardItem>(async (item) => await DeleteItemAsync(item));
       }
 
@@ -133,21 +133,23 @@ _allItems.Clear();
       }
  }
 
-     private async Task AddItemAsync()
+     private Task AddItemAsync()
    {
    var dialog = new Views.AddEditDialog();
        // Dialog will be shown by the caller (MainWindow)
        OnAddEditDialogRequested(dialog);
+       return Task.CompletedTask;
       }
 
-private async Task EditItemAsync(ClipboardItem? item)
+private Task EditItemAsync(ClipboardItem? item)
  {
-       if (item == null) return;
+       if (item == null) return Task.CompletedTask;
 
   var dialog = new Views.AddEditDialog();
    dialog.ViewModel.SetEditMode(item.Title, item.Value, item.IsEncrypted);
    dialog.Tag = item; // Store original item for reference
 OnAddEditDialogRequested(dialog);
+       return Task.CompletedTask;
  }
 
    private async Task DeleteItemAsync(ClipboardItem? item)

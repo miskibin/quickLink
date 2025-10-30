@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         configuration: [Release]
-        platform: [x64, x86, ARM64]
+        platform: [x64]
     runs-on: windows-latest
     env:
       Project_Path: quickLink/quickLink.csproj

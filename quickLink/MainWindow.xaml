@@ -10,13 +10,26 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid x:Name="RootGrid" Background="Transparent" CornerRadius="16" KeyDown="OnRootKeyDown">
+    <Window.SystemBackdrop>
+        <DesktopAcrylicBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid x:Name="RootGrid" Background="Transparent" KeyDown="OnRootKeyDown">
         
-        <Grid Margin="16" x:Name="ContentGrid">
-       <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
- <RowDefinition Height="*"/>
-   </Grid.RowDefinitions>
+        <!-- Modern semi-transparent background with rounded corners -->
+        <Border CornerRadius="16" 
+                Background="#40000000" 
+                BorderBrush="#30FFFFFF" 
+                BorderThickness="1">
+            <Border.Shadow>
+                <ThemeShadow />
+            </Border.Shadow>
+      
+            <Grid Margin="16" x:Name="ContentGrid">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
  <!-- Minimalistic Search Box -->
          <TextBox x:Name="SearchBox"
@@ -215,6 +228,7 @@ Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
          Visibility="Collapsed">
  <ProgressRing IsActive="True" Width="40" Height="40"/>
 </Grid>
-  </Grid>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

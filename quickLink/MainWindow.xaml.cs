@@ -8,8 +8,6 @@ using quickLink.Models;
 using quickLink.Services;
 using WinRT.Interop;
 using System.Runtime.InteropServices;
-using Microsoft.UI.Composition.SystemBackdrops;
-using Microsoft.UI.Xaml.Media;
 
 namespace quickLink
 {
@@ -24,7 +22,6 @@ namespace quickLink
         private const int WM_HOTKEY = 0x0312;
         private ClipboardItem? _editingItem;
         private bool _isEditing;
-        private MicaBackdrop? _micaBackdrop;
 
         public MainWindow()
         {
@@ -46,7 +43,7 @@ namespace quickLink
             // Compact modern window size
             AppWindow.Resize(new Windows.Graphics.SizeInt32(600, 300));
             
-            // Remove default window borders for clean look and enable transparency
+            // Remove default window borders for clean look
             var presenter = AppWindow.Presenter as Microsoft.UI.Windowing.OverlappedPresenter;
             if (presenter != null)
             {
@@ -54,9 +51,6 @@ namespace quickLink
                 presenter.IsResizable = false;
                 presenter.IsMaximizable = false;
             }
-
-            // Enable Mica backdrop for better transparency
-            TrySetMicaBackdrop();
 
             CenterWindow();
 
@@ -355,18 +349,6 @@ namespace quickLink
         public void HideWindow()
         {
             AppWindow.Hide();
-        }
-
-        private void TrySetMicaBackdrop()
-        {
-            if (MicaController.IsSupported())
-            {
-                _micaBackdrop = new MicaBackdrop() 
-                { 
-                    Kind = MicaKind.BaseAlt 
-                };
-                SystemBackdrop = _micaBackdrop;
-            }
         }
     }
 }

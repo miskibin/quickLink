@@ -1,36 +1,40 @@
-# quickLink
+# QuickLink
 
-A WinUI 3 desktop application for Windows.
+A fast clipboard manager for Windows with global hotkey support.
 
-## Building
+## Download
 
-This project uses .NET 8 and requires Windows to build.
+Get the latest release from the [Releases page](https://github.com/miskibin/quickLink/releases).
 
-### Prerequisites
+Download the **x64** version for Windows 10/11 (64-bit).
 
-- Visual Studio 2022 with the following workloads:
-  - .NET Desktop Development
-  - Universal Windows Platform development
-- .NET 8 SDK
-- Windows 10 SDK (10.0.19041.0 or later)
+## Features
 
-### Build Instructions
+- **Global Hotkey Access** - Press your custom hotkey (default: Ctrl+Space) to instantly open QuickLink from anywhere
+- **Quick Search** - Type to filter through your saved items in real-time
+- **Clipboard Management** - Save frequently used text, links, and snippets for instant access
+- **One-Click Copy** - Click any item to automatically copy it to your clipboard
+- **URL Launcher** - Double-click URLs to open them directly in your browser
+- **Customizable Shortcuts** - Configure your own hotkey combination (supports modifiers like Ctrl, Shift, Alt)
+- **Persistent Storage** - Your items are saved locally and available every time you open the app
+- **Add & Edit** - Easily add new items or edit existing ones with name and value fields
+- **Encryption Support** - Sensitive values can be encrypted for security
+- **Clean Interface** - Simple, focused design with WinUI 3 modern aesthetics
 
-```powershell
-# Restore dependencies
-dotnet restore quickLink/quickLink.csproj
+## How to Use
 
-# Build the project
-dotnet build quickLink/quickLink.csproj -c Release -p:Platform=x64
+1. Launch QuickLink
+2. Press your hotkey (default: Ctrl+Space) to show/hide the window
+3. Type to search through your saved items
+4. Click an item to copy it to clipboard
+5. Double-click a link to open it in your browser
+6. Use the "+" button to add new items
+7. Configure your hotkey in Settings
 
-# Publish as self-contained single-file executable (Recommended)
-dotnet publish quickLink/quickLink.csproj -c Release -r win-x64 -p:Platform=x64
+## System Requirements
 
-# The self-contained executable will be in:
-# quickLink/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/quickLink.exe
-```
-
-**Note**: The project is now configured for self-contained deployment, which includes all necessary runtime components. This eliminates the need for users to install the Windows App SDK Runtime separately.
+- Windows 10 (19041 or later)
+- .NET 8 Runtime
 
 ## Continuous Deployment
 

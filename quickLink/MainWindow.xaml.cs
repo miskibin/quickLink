@@ -1,188 +1,64 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using quickLink.Models;
 using quickLink.Services;
 using WinRT.Interop;
-using System.Runtime.InteropServices;
-using Microsoft.UI;
-using Microsoft.UI.Windowing;
 
 namespace quickLink
 {
     public sealed partial class MainWindow : Window
     {
+        #region Constants
+        private const int WM_HOTKEY = 0x0312;
+        private const int GWLP_WNDPROC = -4;
+        
+        // Win32 modifier flags
+        private const uint MOD_ALT = 0x0001;
+        private const uint MOD_CONTROL = 0x0002;
+        private const uint MOD_SHIFT = 0x0004;
+        
+        // Window dimensions
+        private const int WINDOW_WIDTH = 600;
+        private const int WINDOW_HEIGHT = 300;
+        
+        // Default hotkey
+        private static readonly Windows.System.VirtualKeyModifiers DefaultHotkeyModifiers = 
+            Windows.System.VirtualKeyModifiers.Control;
+        private static readonly Windows.System.VirtualKey DefaultHotkeyKey = 
+            Windows.System.VirtualKey.Space;
+        #endregion
+
+        #region Fields
         private readonly DataService _dataService;
         private readonly ClipboardService _clipboardService;
-        private ObservableCollection<ClipboardItem> _allItems;
-        private ObservableCollection<ClipboardItem> _filteredItems;
-        private GlobalHotkeyService _hotkeyService;
+        private readonly ObservableCollection<ClipboardItem> _allItems;
+        private readonly ObservableCollection<ClipboardItem> _filteredItems;
+        
+        private GlobalHotkeyService? _hotkeyService;
         private IntPtr _windowHandle;
-        private const int WM_HOTKEY = 0x0312;
         private ClipboardItem? _editingItem;
         private bool _isEditing;
         private bool _isInSettings;
-        private Windows.System.VirtualKeyModifiers _newHotkeyModifiers;
-        private Windows.System.VirtualKey _newHotkeyKey;
-
-        public MainWindow()
-        {
-            _dataService = new DataService();
-            _clipboardService = new ClipboardService();
-            _allItems = new ObservableCollection<ClipboardItem>();
-            _filteredItems = new ObservableCollection<ClipboardItem>();
-            
-            // Initialize default hotkey
-            _newHotkeyModifiers = Windows.System.VirtualKeyModifiers.Control;
-            _newHotkeyKey = Windows.System.VirtualKey.Space;
-
-            InitializeComponent();
-
-            ItemsList.ItemsSource = _filteredItems;
-
-            _windowHandle = WindowNative.GetWindowHandle(this);
-
-            // Configure window for transparency and rounded corners
-            ConfigureWindowStyle();
-
-            // Compact modern window size
-            AppWindow.Resize(new Windows.Graphics.SizeInt32(600, 300));
-
-            CenterWindow();
-
-            _hotkeyService = new GlobalHotkeyService();
-            _hotkeyService.HotkeyPressed += OnGlobalHotkeyPressed;
-            
-            // Load saved hotkey settings
-            _ = LoadAndRegisterHotkeyAsync();
-
-            // Subscribe to window messages
-            SubclassWindow();
-            _ = LoadDataAsync();
-
-            Activated += (s, e) => 
-            {
-                SearchBox.Focus(FocusState.Programmatic);
-                // Set always on top when activated
-                var presenter = AppWindow.Presenter as OverlappedPresenter;
-                if (presenter != null)
-                {
-                    presenter.IsAlwaysOnTop = true;
-                }
-            };
-
-            // Remove always on top when deactivated
-            this.Activated += OnWindowActivated;
-
-            // Hide window initially (it will be shown via hotkey)
-            AppWindow.Hide();
-        }
-
-        private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
-        {
-            var presenter = AppWindow.Presenter as OverlappedPresenter;
-            if (presenter != null)
-            {
-                // Only stay on top when focused
-                presenter.IsAlwaysOnTop = args.WindowActivationState != WindowActivationState.Deactivated;
-            }
-        }
-
-        private void OnRootKeyDown(object sender, KeyRoutedEventArgs e)
-        {
-            // Auto-focus search box when typing (if not already editing)
-            if (!_isEditing && !SearchBox.FocusState.HasFlag(FocusState.Keyboard))
-            {
-                var key = e.Key;
-                // Check if it's a printable character
-                if ((key >= Windows.System.VirtualKey.A && key <= Windows.System.VirtualKey.Z) ||
-                    (key >= Windows.System.VirtualKey.Number0 && key <= Windows.System.VirtualKey.Number9) ||
-                    key == Windows.System.VirtualKey.Space)
-                {
-                    SearchBox.Focus(FocusState.Keyboard);
-                }
-            }
-        }
-
-        private async System.Threading.Tasks.Task LoadDataAsync()
-        {
-            LoadingOverlay.Visibility = Visibility.Visible;
-            var items = await _dataService.LoadItemsAsync();
-            _allItems.Clear();
-            foreach (var item in items)
-            {
-                _allItems.Add(item);
-            }
-            FilterItems();
-            LoadingOverlay.Visibility = Visibility.Collapsed;
-        }
-
-        private async System.Threading.Tasks.Task LoadAndRegisterHotkeyAsync()
-        {
-            try
-            {
-                var settings = await _dataService.LoadSettingsAsync();
-                
-                // Convert Win32 modifiers to WinUI modifiers for display
-                _newHotkeyModifiers = Windows.System.VirtualKeyModifiers.None;
-                if ((settings.HotkeyModifiers & 0x0002) != 0) // MOD_CONTROL
-                    _newHotkeyModifiers |= Windows.System.VirtualKeyModifiers.Control;
-                if ((settings.HotkeyModifiers & 0x0004) != 0) // MOD_SHIFT
-                    _newHotkeyModifiers |= Windows.System.VirtualKeyModifiers.Shift;
-                if ((settings.HotkeyModifiers & 0x0001) != 0) // MOD_ALT
-                    _newHotkeyModifiers |= Windows.System.VirtualKeyModifiers.Menu;
-                    
-                _newHotkeyKey = (Windows.System.VirtualKey)settings.HotkeyKey;
-                
-                // Register the hotkey
-                _hotkeyService.RegisterHotkey(_windowHandle, settings.HotkeyModifiers, settings.HotkeyKey);
-            }
-            catch
-            {
-                // If loading fails, use defaults
-                _hotkeyService.RegisterHotkey(_windowHandle);
-            }
-        }
-
-        private void FilterItems()
-        {
-            _filteredItems.Clear();
-            var searchText = SearchBox.Text.ToLowerInvariant();
-            var query = string.IsNullOrWhiteSpace(searchText)
-                ? _allItems
-                : _allItems.Where(item =>
-                  (!string.IsNullOrWhiteSpace(item.Title) && item.Title.ToLowerInvariant().Contains(searchText)) ||
-                  (!string.IsNullOrWhiteSpace(item.Value) && item.Value.ToLowerInvariant().Contains(searchText)));
-
-            foreach (var item in query)
-            {
-                _filteredItems.Add(item);
-            }
-
-            // Auto-select first item
-            if (_filteredItems.Any())
-            {
-                ItemsList.SelectedIndex = 0;
-            }
-        }
-
-        private void CenterWindow()
-        {
-            var displayArea = Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(
-                this.AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Primary);
-
-            var centerX = (displayArea.WorkArea.Width - AppWindow.Size.Width) / 2;
-            var centerY = (displayArea.WorkArea.Height - AppWindow.Size.Height) / 2;
-
-            AppWindow.Move(new Windows.Graphics.PointInt32(centerX, centerY));
-        }
-
-        private delegate IntPtr WinProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+        private Windows.System.VirtualKeyModifiers _newHotkeyModifiers = DefaultHotkeyModifiers;
+        private Windows.System.VirtualKey _newHotkeyKey = DefaultHotkeyKey;
+        
+        // Window subclassing
         private WinProc? _newWndProc;
         private IntPtr _oldWndProc;
+        #endregion
+
+        #region P/Invoke Declarations
+        private delegate IntPtr WinProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
         private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
@@ -190,19 +66,110 @@ namespace quickLink
         [DllImport("user32.dll")]
         private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-        private const int GWLP_WNDPROC = -4;
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+        #endregion
 
+        #region Constructor & Initialization
+        public MainWindow()
+        {
+            _dataService = new DataService();
+            _clipboardService = new ClipboardService();
+            _allItems = new ObservableCollection<ClipboardItem>();
+            _filteredItems = new ObservableCollection<ClipboardItem>();
+
+            InitializeComponent();
+            InitializeWindow();
+            InitializeHotkey();
+            
+            _ = LoadDataAsync();
+        }
+
+        private void InitializeWindow()
+        {
+            _windowHandle = WindowNative.GetWindowHandle(this);
+            ItemsList.ItemsSource = _filteredItems;
+            
+            ConfigureWindowStyle();
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(WINDOW_WIDTH, WINDOW_HEIGHT));
+            CenterWindow();
+            SubclassWindow();
+
+            Activated += OnWindowActivated;
+            AppWindow.Hide();
+        }
+
+        private void InitializeHotkey()
+        {
+            _hotkeyService = new GlobalHotkeyService();
+            _hotkeyService.HotkeyPressed += OnGlobalHotkeyPressed;
+            _ = LoadAndRegisterHotkeyAsync();
+        }
+        #endregion
+
+        #region Window Configuration
+        private void ConfigureWindowStyle()
+        {
+            if (AppWindow.TitleBar != null)
+            {
+                AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+                AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonInactiveForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonHoverBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonHoverForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonPressedBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonPressedForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.IconShowOptions = IconShowOptions.HideIconAndSystemMenu;
+                AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+            }
+
+            if (AppWindow.Presenter is OverlappedPresenter presenter)
+            {
+                presenter.IsResizable = false;
+                presenter.IsMaximizable = false;
+            }
+        }
+
+        private void CenterWindow()
+        {
+            var displayArea = DisplayArea.GetFromWindowId(
+                AppWindow.Id, DisplayAreaFallback.Primary);
+
+            var centerX = (displayArea.WorkArea.Width - AppWindow.Size.Width) / 2;
+            var centerY = (displayArea.WorkArea.Height - AppWindow.Size.Height) / 2;
+
+            AppWindow.Move(new Windows.Graphics.PointInt32(centerX, centerY));
+        }
+
+        private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
+        {
+            if (AppWindow.Presenter is not OverlappedPresenter presenter) return;
+            
+            // Stay on top only when focused
+            presenter.IsAlwaysOnTop = args.WindowActivationState != WindowActivationState.Deactivated;
+            
+            if (args.WindowActivationState != WindowActivationState.Deactivated)
+            {
+                SearchBox.Focus(FocusState.Programmatic);
+            }
+        }
+        #endregion
+
+        #region Window Subclassing & Hotkey Handling
         private void SubclassWindow()
         {
-            _newWndProc = new WinProc(NewWindowProc);
-            _oldWndProc = SetWindowLongPtr(_windowHandle, GWLP_WNDPROC, Marshal.GetFunctionPointerForDelegate(_newWndProc));
+            _newWndProc = NewWindowProc;
+            _oldWndProc = SetWindowLongPtr(_windowHandle, GWLP_WNDPROC, 
+                Marshal.GetFunctionPointerForDelegate(_newWndProc));
         }
 
         private IntPtr NewWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
             if (msg == WM_HOTKEY)
             {
-                _hotkeyService.OnHotkeyMessage(wParam.ToInt32());
+                _hotkeyService?.OnHotkeyMessage(wParam.ToInt32());
                 return IntPtr.Zero;
             }
 
@@ -214,31 +181,122 @@ namespace quickLink
             DispatcherQueue.TryEnqueue(() =>
             {
                 AppWindow.Show();
-                this.Activate();
-                SearchBox.Focus(FocusState.Programmatic);
-                SearchBox.SelectAll();
+                SearchBox.Text = string.Empty;
+                Activate();
+                SetForegroundWindow(_windowHandle);
+                
+                // Small delay to ensure window is fully shown before setting focus
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    SearchBox.Focus(FocusState.Programmatic);
+                    SearchBox.SelectAll();
+                });
             });
         }
+        #endregion
 
-        private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
+        #region Data Loading
+        private async Task LoadDataAsync()
         {
-            FilterItems();
+            LoadingOverlay.Visibility = Visibility.Visible;
+            
+            try
+            {
+                var items = await _dataService.LoadItemsAsync();
+                _allItems.Clear();
+                
+                foreach (var item in items)
+                {
+                    _allItems.Add(item);
+                }
+                
+                FilterItems();
+            }
+            finally
+            {
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+            }
         }
 
+        private async Task LoadAndRegisterHotkeyAsync()
+        {
+            try
+            {
+                var settings = await _dataService.LoadSettingsAsync();
+                (_newHotkeyModifiers, _newHotkeyKey) = ConvertFromWin32Modifiers(
+                    settings.HotkeyModifiers, settings.HotkeyKey);
+                
+                _hotkeyService?.RegisterHotkey(_windowHandle, settings.HotkeyModifiers, settings.HotkeyKey);
+            }
+            catch
+            {
+                // If loading fails, use defaults
+                _hotkeyService?.RegisterHotkey(_windowHandle);
+            }
+        }
+        #endregion
+
+        #region Filtering & Search
+        private void FilterItems()
+        {
+            _filteredItems.Clear();
+            var searchText = SearchBox.Text?.ToLowerInvariant() ?? string.Empty;
+            
+            var query = string.IsNullOrWhiteSpace(searchText)
+                ? _allItems
+                : _allItems.Where(item => ItemMatchesSearch(item, searchText));
+
+            foreach (var item in query)
+            {
+                _filteredItems.Add(item);
+            }
+
+            // Auto-select first item
+            if (_filteredItems.Count > 0)
+            {
+                ItemsList.SelectedIndex = 0;
+            }
+        }
+
+        private static bool ItemMatchesSearch(ClipboardItem item, string searchText)
+        {
+            return (!string.IsNullOrWhiteSpace(item.Title) && 
+                    item.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
+                   (!string.IsNullOrWhiteSpace(item.Value) && 
+                    item.Value.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void OnSearchTextChanged(object sender, TextChangedEventArgs e) => FilterItems();
+
+        private void OnRootKeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (_isEditing || SearchBox.FocusState.HasFlag(FocusState.Keyboard)) return;
+
+            var key = e.Key;
+            if (IsAlphanumericKey(key))
+            {
+                SearchBox.Focus(FocusState.Keyboard);
+            }
+        }
+
+        private static bool IsAlphanumericKey(Windows.System.VirtualKey key)
+        {
+            return (key >= Windows.System.VirtualKey.A && key <= Windows.System.VirtualKey.Z) ||
+                   (key >= Windows.System.VirtualKey.Number0 && key <= Windows.System.VirtualKey.Number9) ||
+                   key == Windows.System.VirtualKey.Space;
+        }
+        #endregion
+
+        #region Keyboard Accelerators
         private void OnEscapePressed(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
             if (_isInSettings)
-            {
                 HideSettingsPanel();
-            }
             else if (_isEditing)
-            {
                 HideEditPanel();
-            }
             else
-            {
                 AppWindow.Hide();
-            }
+                
             args.Handled = true;
         }
 
@@ -250,8 +308,7 @@ namespace quickLink
 
         private void OnDownArrow(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            // Move selection down
-            if (_filteredItems.Any() && ItemsList.SelectedIndex < _filteredItems.Count - 1)
+            if (_filteredItems.Count > 0 && ItemsList.SelectedIndex < _filteredItems.Count - 1)
             {
                 ItemsList.SelectedIndex++;
                 ItemsList.Focus(FocusState.Keyboard);
@@ -261,8 +318,7 @@ namespace quickLink
 
         private void OnUpArrow(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            // Move selection up
-            if (_filteredItems.Any() && ItemsList.SelectedIndex > 0)
+            if (_filteredItems.Count > 0 && ItemsList.SelectedIndex > 0)
             {
                 ItemsList.SelectedIndex--;
                 ItemsList.Focus(FocusState.Keyboard);
@@ -270,85 +326,92 @@ namespace quickLink
             args.Handled = true;
         }
 
-        private async void OnEnterPressed(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        private void OnEnterPressed(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            // Execute the selected item
             if (ItemsList.SelectedItem is ClipboardItem selectedItem)
             {
-                if (selectedItem.IsCommand)
-                {
-                    // Extract command (remove leading >)
-                    var command = selectedItem.Value.TrimStart('>').Trim();
-                    await ExecutePowerShellCommand(command);
-                }
-                else if (selectedItem.IsLink)
-                {
-                    await _clipboardService.OpenUrlAsync(selectedItem.Value);
-                }
-                else
-                {
-                    _clipboardService.CopyToClipboard(selectedItem.Value);
-                }
-                AppWindow.Hide();
+                _ = ExecuteItemAsync(selectedItem);
             }
-            // If no match found and user has typed something
-            else if (!string.IsNullOrWhiteSpace(SearchBox.Text) && !_filteredItems.Any())
+            else if (!string.IsNullOrWhiteSpace(SearchBox.Text))
             {
-                var searchText = SearchBox.Text.Trim();
-                
-                // Check if it's a command
-                if (searchText.StartsWith(">"))
-                {
-                    var command = searchText.TrimStart('>').Trim();
-                    await ExecutePowerShellCommand(command);
-                    AppWindow.Hide();
-                }
-                else
-                {
-                    // Pass to ChatGPT
-                    var query = Uri.EscapeDataString(searchText);
-                    var chatGptUrl = $"https://chatgpt.com/?q={query}";
-                    await _clipboardService.OpenUrlAsync(chatGptUrl);
-                    AppWindow.Hide();
-                }
+                _ = HandleNoMatchAsync(SearchBox.Text.Trim());
             }
+            
             args.Handled = true;
         }
 
-        private async System.Threading.Tasks.Task ExecutePowerShellCommand(string command)
+        private async Task ExecuteItemAsync(ClipboardItem item)
         {
-            try
+            if (item.IsCommand)
             {
-                var psi = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = $"-NoProfile -Command \"{command.Replace("\"", "\"\"")}\"",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
-                };
+                var command = item.Value.TrimStart('>').Trim();
+                _ = ExecutePowerShellCommandAsync(command);
+                AppWindow.Hide();
+            }
+            else if (item.IsLink)
+            {
+                await _clipboardService.OpenUrlAsync(item.Value);
+                AppWindow.Hide();
+            }
+            else
+            {
+                _clipboardService.CopyToClipboard(item.Value);
+                AppWindow.Hide();
+            }
+        }
 
-                using var process = System.Diagnostics.Process.Start(psi);
-                if (process != null)
+        private async Task HandleNoMatchAsync(string searchText)
+        {
+            if (searchText.StartsWith(">"))
+            {
+                var command = searchText.TrimStart('>').Trim();
+                _ = ExecutePowerShellCommandAsync(command);
+                AppWindow.Hide();
+            }
+            else
+            {
+                var query = Uri.EscapeDataString(searchText);
+                await _clipboardService.OpenUrlAsync($"https://chatgpt.com/?q={query}");
+                AppWindow.Hide();
+            }
+        }
+
+        private static Task ExecutePowerShellCommandAsync(string command)
+        {
+            return Task.Run(async () =>
+            {
+                try
                 {
-                    await process.WaitForExitAsync();
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "powershell.exe",
+                        Arguments = $"-NoProfile -Command \"{command.Replace("\"", "\"\"")}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+
+                    using var process = Process.Start(psi);
+                    if (process != null)
+                    {
+                        await process.WaitForExitAsync();
+                    }
                 }
-            }
-            catch (Exception)
-            {
-                // Silently fail - command execution errors
-            }
+                catch
+                {
+                    // Silently fail - command execution errors
+                }
+            });
         }
+        #endregion
 
-        private void OnAddNewTapped(object sender, RoutedEventArgs e)
-        {
-            ShowEditPanel(null);
-        }
+        #region Edit Panel
+        private void OnAddNewTapped(object sender, RoutedEventArgs e) => ShowEditPanel(null);
 
         private void OnEditClicked(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is ClipboardItem item)
+            if (sender is Button { Tag: ClipboardItem item })
             {
                 ShowEditPanel(item);
             }
@@ -388,47 +451,38 @@ namespace quickLink
             SearchBox.Focus(FocusState.Programmatic);
         }
 
-        private void OnCancelEdit(object sender, RoutedEventArgs e)
+        private void OnCancelEdit(object sender, RoutedEventArgs e) => HideEditPanel();
+
+        private void OnCancelEditKey(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
             HideEditPanel();
+            args.Handled = true;
         }
 
         private async void OnSaveEdit(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(EditValue.Text))
+            if (string.IsNullOrWhiteSpace(EditValue.Text)) return;
+
+            var item = new ClipboardItem
             {
-                return;
-            }
+                Title = EditTitle.Text,
+                Value = EditValue.Text,
+                IsEncrypted = EditEncrypt.IsChecked ?? false
+            };
 
             if (_editingItem != null)
             {
-                // Update existing item
-                var updatedItem = new ClipboardItem
-                {
-                    Title = EditTitle.Text,
-                    Value = EditValue.Text,
-                    IsEncrypted = EditEncrypt.IsChecked ?? false
-                };
-                
-                await _dataService.UpdateItemAsync(_editingItem, updatedItem, _allItems.ToList());
+                await _dataService.UpdateItemAsync(_editingItem, item, _allItems.ToList());
                 var index = _allItems.IndexOf(_editingItem);
                 if (index >= 0)
                 {
-                    _allItems[index] = updatedItem;
+                    _allItems[index] = item;
                 }
             }
             else
             {
-                // Add new item
-                var newItem = new ClipboardItem
-                {
-                    Title = EditTitle.Text,
-                    Value = EditValue.Text,
-                    IsEncrypted = EditEncrypt.IsChecked ?? false
-                };
-                
-                await _dataService.AddItemAsync(newItem, _allItems.ToList());
-                _allItems.Add(newItem);
+                await _dataService.AddItemAsync(item, _allItems.ToList());
+                _allItems.Add(item);
             }
 
             FilterItems();
@@ -437,32 +491,22 @@ namespace quickLink
 
         private async void OnDeleteClicked(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is ClipboardItem item)
+            if (sender is Button { Tag: ClipboardItem item })
             {
                 _allItems.Remove(item);
                 await _dataService.DeleteItemAsync(item, _allItems.ToList());
                 FilterItems();
             }
         }
+        #endregion
 
-        public void HideWindow()
-        {
-            AppWindow.Hide();
-        }
-
-        private void OnSettingsClicked(object sender, RoutedEventArgs e)
-        {
-            ShowSettingsPanel();
-        }
+        #region Settings Panel
+        private void OnSettingsClicked(object sender, RoutedEventArgs e) => ShowSettingsPanel();
 
         private void ShowSettingsPanel()
         {
             _isInSettings = true;
-            
-            // Load current settings
             LoadSettings();
-            
-            // Reset Apply button state
             ApplyHotkeyButton.IsEnabled = false;
             
             SearchBox.Visibility = Visibility.Collapsed;
@@ -482,21 +526,23 @@ namespace quickLink
 
         private async void LoadSettings()
         {
-            // Load startup setting
+            await LoadStartupSettingAsync();
+            UpdateHotkeyDisplay();
+        }
+
+        private async Task LoadStartupSettingAsync()
+        {
             try
             {
                 var startupTask = await Windows.ApplicationModel.StartupTask.GetAsync("QuickLinkStartup");
-                StartWithSystemCheckBox.IsChecked = startupTask.State == Windows.ApplicationModel.StartupTaskState.Enabled;
+                StartWithSystemCheckBox.IsChecked = 
+                    startupTask.State == Windows.ApplicationModel.StartupTaskState.Enabled;
             }
             catch
             {
-                // Startup task not available
                 StartWithSystemCheckBox.IsChecked = false;
                 StartWithSystemCheckBox.IsEnabled = false;
             }
-            
-            // Display current hotkey
-            UpdateHotkeyDisplay();
         }
 
         private async void OnStartWithSystemChanged(object sender, RoutedEventArgs e)
@@ -511,7 +557,6 @@ namespace quickLink
                     if (state != Windows.ApplicationModel.StartupTaskState.Enabled)
                     {
                         StartWithSystemCheckBox.IsChecked = false;
-                        // Could show a message that startup was disabled by user/policy
                     }
                 }
                 else
@@ -525,53 +570,37 @@ namespace quickLink
             }
         }
 
+        private void OnCloseSettings(object sender, RoutedEventArgs e) => HideSettingsPanel();
+
+        private void OnCloseSettingsKey(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            HideSettingsPanel();
+            args.Handled = true;
+        }
+
+        private void OnExitClicked(object sender, RoutedEventArgs e)
+        {
+            _hotkeyService?.Dispose();
+            Application.Current.Exit();
+        }
+        #endregion
+
+        #region Hotkey Configuration
         private void OnHotkeyKeyDown(object sender, KeyRoutedEventArgs e)
         {
             e.Handled = true;
-            
             var key = e.Key;
             
-            var modifiers = Windows.System.VirtualKeyModifiers.None;
-            
-            // Use InputKeyboardSource to get key states
-            try
+            if (IsModifierKey(key))
             {
-                var ctrlState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Control);
-                if ((ctrlState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down)
-                    modifiers |= Windows.System.VirtualKeyModifiers.Control;
-                    
-                var shiftState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift);
-                if ((shiftState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down)
-                    modifiers |= Windows.System.VirtualKeyModifiers.Shift;
-                    
-                var altState = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Menu);
-                if ((altState & Windows.UI.Core.CoreVirtualKeyStates.Down) == Windows.UI.Core.CoreVirtualKeyStates.Down)
-                    modifiers |= Windows.System.VirtualKeyModifiers.Menu;
-            }
-            catch
-            {
-                // If we can't get key states, just use what we have
-            }
-            
-            // Ignore modifier-only keys
-            if (key == Windows.System.VirtualKey.Control || 
-                key == Windows.System.VirtualKey.Shift || 
-                key == Windows.System.VirtualKey.Menu ||
-                key == Windows.System.VirtualKey.LeftControl ||
-                key == Windows.System.VirtualKey.RightControl ||
-                key == Windows.System.VirtualKey.LeftShift ||
-                key == Windows.System.VirtualKey.RightShift ||
-                key == Windows.System.VirtualKey.LeftMenu ||
-                key == Windows.System.VirtualKey.RightMenu)
-            {
-                // Just show current modifiers
                 UpdateHotkeyDisplay();
                 HotkeyStatusText.Text = "Add a regular key (letters, numbers, F-keys, etc.)";
                 ApplyHotkeyButton.IsEnabled = false;
                 return;
             }
             
-            // Require at least one modifier for safety (prevent overriding common keys)
+            var modifiers = GetCurrentModifiers();
+            
             if (modifiers == Windows.System.VirtualKeyModifiers.None)
             {
                 HotkeyStatusText.Text = "⚠ Must include at least one modifier (Ctrl, Shift, or Alt)";
@@ -587,9 +616,52 @@ namespace quickLink
             ApplyHotkeyButton.IsEnabled = true;
         }
 
+        private static bool IsModifierKey(Windows.System.VirtualKey key)
+        {
+            return key is Windows.System.VirtualKey.Control or
+                   Windows.System.VirtualKey.Shift or
+                   Windows.System.VirtualKey.Menu or
+                   Windows.System.VirtualKey.LeftControl or
+                   Windows.System.VirtualKey.RightControl or
+                   Windows.System.VirtualKey.LeftShift or
+                   Windows.System.VirtualKey.RightShift or
+                   Windows.System.VirtualKey.LeftMenu or
+                   Windows.System.VirtualKey.RightMenu;
+        }
+
+        private static Windows.System.VirtualKeyModifiers GetCurrentModifiers()
+        {
+            var modifiers = Windows.System.VirtualKeyModifiers.None;
+            
+            try
+            {
+                if (IsKeyDown(Windows.System.VirtualKey.Control))
+                    modifiers |= Windows.System.VirtualKeyModifiers.Control;
+                    
+                if (IsKeyDown(Windows.System.VirtualKey.Shift))
+                    modifiers |= Windows.System.VirtualKeyModifiers.Shift;
+                    
+                if (IsKeyDown(Windows.System.VirtualKey.Menu))
+                    modifiers |= Windows.System.VirtualKeyModifiers.Menu;
+            }
+            catch
+            {
+                // If we can't get key states, return None
+            }
+            
+            return modifiers;
+        }
+
+        private static bool IsKeyDown(Windows.System.VirtualKey key)
+        {
+            var state = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(key);
+            return (state & Windows.UI.Core.CoreVirtualKeyStates.Down) == 
+                   Windows.UI.Core.CoreVirtualKeyStates.Down;
+        }
+
         private void UpdateHotkeyDisplay()
         {
-            var parts = new System.Collections.Generic.List<string>();
+            var parts = new List<string>();
             
             if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control))
                 parts.Add("Ctrl");
@@ -601,13 +673,15 @@ namespace quickLink
             if (_newHotkeyKey != Windows.System.VirtualKey.None)
                 parts.Add(_newHotkeyKey.ToString());
             
-            HotkeyTextBox.Text = parts.Any() ? string.Join(" + ", parts) : "Ctrl + Space (default)";
+            HotkeyTextBox.Text = parts.Count > 0 
+                ? string.Join(" + ", parts) 
+                : "Ctrl + Space (default)";
         }
 
         private void OnResetHotkey(object sender, RoutedEventArgs e)
         {
-            _newHotkeyModifiers = Windows.System.VirtualKeyModifiers.Control;
-            _newHotkeyKey = Windows.System.VirtualKey.Space;
+            _newHotkeyModifiers = DefaultHotkeyModifiers;
+            _newHotkeyKey = DefaultHotkeyKey;
             UpdateHotkeyDisplay();
             ApplyHotkeyChange();
             HotkeyStatusText.Text = "Reset to default (Ctrl + Space) and applied";
@@ -624,22 +698,11 @@ namespace quickLink
         {
             try
             {
-                // Convert WinUI modifiers to Win32 modifiers
-                uint modifiers = 0;
-                if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control))
-                    modifiers |= 0x0002; // MOD_CONTROL
-                if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Shift))
-                    modifiers |= 0x0004; // MOD_SHIFT
-                if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Menu))
-                    modifiers |= 0x0001; // MOD_ALT
-
-                uint vKey = (uint)_newHotkeyKey;
-
-                // Re-register the hotkey
-                _hotkeyService.RegisterHotkey(_windowHandle, modifiers, vKey);
+                var (modifiers, vKey) = ConvertToWin32Modifiers(_newHotkeyModifiers, _newHotkeyKey);
                 
-                // Save to settings
-                var settings = new Models.AppSettings
+                _hotkeyService?.RegisterHotkey(_windowHandle, modifiers, vKey);
+                
+                var settings = new AppSettings
                 {
                     HotkeyModifiers = modifiers,
                     HotkeyKey = vKey
@@ -653,37 +716,43 @@ namespace quickLink
                 HotkeyStatusText.Text = $"Failed to update hotkey: {ex.Message}";
             }
         }
+        #endregion
 
-        private void OnCloseSettings(object sender, RoutedEventArgs e)
+        #region Hotkey Conversion Helpers
+        private static (uint modifiers, uint key) ConvertToWin32Modifiers(
+            Windows.System.VirtualKeyModifiers modifiers, 
+            Windows.System.VirtualKey key)
         {
-            HideSettingsPanel();
+            uint win32Modifiers = 0;
+            
+            if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control))
+                win32Modifiers |= MOD_CONTROL;
+            if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Shift))
+                win32Modifiers |= MOD_SHIFT;
+            if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Menu))
+                win32Modifiers |= MOD_ALT;
+            
+            return (win32Modifiers, (uint)key);
         }
 
-        private void ConfigureWindowStyle()
+        private static (Windows.System.VirtualKeyModifiers modifiers, Windows.System.VirtualKey key) 
+            ConvertFromWin32Modifiers(uint win32Modifiers, uint vKey)
         {
-            // Configure title bar for transparency
-            if (AppWindow.TitleBar != null)
-            {
-                AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
-                AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
-                AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
-                AppWindow.TitleBar.ButtonForegroundColor = Colors.Transparent;
-                AppWindow.TitleBar.ButtonInactiveForegroundColor = Colors.Transparent;
-                AppWindow.TitleBar.ButtonHoverBackgroundColor = Colors.Transparent;
-                AppWindow.TitleBar.ButtonHoverForegroundColor = Colors.Transparent;
-                AppWindow.TitleBar.ButtonPressedBackgroundColor = Colors.Transparent;
-                AppWindow.TitleBar.ButtonPressedForegroundColor = Colors.Transparent;
-                AppWindow.TitleBar.IconShowOptions = IconShowOptions.HideIconAndSystemMenu;
-                AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
-            }
-
-            // Configure presenter for non-resizable window
-            var presenter = AppWindow.Presenter as OverlappedPresenter;
-            if (presenter != null)
-            {
-                presenter.IsResizable = false;
-                presenter.IsMaximizable = false;
-            }
+            var modifiers = Windows.System.VirtualKeyModifiers.None;
+            
+            if ((win32Modifiers & MOD_CONTROL) != 0)
+                modifiers |= Windows.System.VirtualKeyModifiers.Control;
+            if ((win32Modifiers & MOD_SHIFT) != 0)
+                modifiers |= Windows.System.VirtualKeyModifiers.Shift;
+            if ((win32Modifiers & MOD_ALT) != 0)
+                modifiers |= Windows.System.VirtualKeyModifiers.Menu;
+            
+            return (modifiers, (Windows.System.VirtualKey)vKey);
         }
+        #endregion
+
+        #region Public Methods
+        public void HideWindow() => AppWindow.Hide();
+        #endregion
     }
 }

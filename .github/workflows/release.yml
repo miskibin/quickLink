@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    env:
+      Project_Path: quickLink/quickLink.csproj
+      
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Install .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+        
+    - name: Setup MSBuild.exe
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Restore the application
+      run: dotnet restore $env:Project_Path
+      
+    - name: Get version from tag
+      id: get_version
+      run: |
+        $tag = "${{ github.ref_name }}"
+        $version = $tag -replace '^v', ''
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+      
+    - name: Build x64
+      run: |
+        dotnet publish $env:Project_Path -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=true --self-contained
+        
+    - name: Create ZIP archive
+      run: |
+        $version = "${{ steps.get_version.outputs.VERSION }}"
+        Compress-Archive -Path "quickLink/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/*" -DestinationPath "quickLink-$version-win-x64.zip"
+      shell: pwsh
+      
+    - name: Generate checksums
+      run: |
+        $version = "${{ steps.get_version.outputs.VERSION }}"
+        $hash = (Get-FileHash -Path "quickLink-$version-win-x64.zip" -Algorithm SHA256).Hash
+        "$hash  quickLink-$version-win-x64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
+      shell: pwsh
+      
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: QuickLink ${{ steps.get_version.outputs.TAG }}
+        body: |
+          ## QuickLink ${{ steps.get_version.outputs.VERSION }}
+          
+          ### Features
+          - Fast clipboard manager for Windows
+          - Global hotkey access (default: Ctrl+Space)
+          - Quick search and filtering
+          - URL launcher and command execution
+          - Customizable shortcuts
+          - Encrypted storage support
+          
+          ### Installation
+          1. Download the appropriate ZIP file for your system
+          2. Extract the archive
+          3. Run `quickLink.exe`
+          4. Configure your hotkey in Settings
+          
+          ### Requirements
+          - Windows 10 (19041 or later) or Windows 11
+          - No additional runtime installation required (self-contained)
+          
+          ### Checksums
+          See `SHA256SUMS.txt` for file verification.
+        files: |
+          quickLink-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
+          SHA256SUMS.txt
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

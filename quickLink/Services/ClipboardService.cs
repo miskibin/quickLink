@@ -4,29 +4,54 @@ using Windows.ApplicationModel.DataTransfer;
 
 namespace quickLink.Services
 {
-    public class ClipboardService
+    public sealed class ClipboardService
     {
-        public void CopyToClipboard(string text)
-     {
- if (string.IsNullOrEmpty(text))
-           return;
+        #region Public Methods
 
- var dataPackage = new DataPackage();
-  dataPackage.SetText(text);
-       Clipboard.SetContent(dataPackage);
-        }
+        public void CopyToClipboard(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return;
 
-        public async Task<bool> OpenUrlAsync(string url)
-     {
-      try
-       {
-    var uri = new Uri(url);
-     return await Windows.System.Launcher.LaunchUriAsync(uri);
+            try
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(text);
+                Clipboard.SetContent(dataPackage);
             }
- catch
-{
-            return false;
-  }
+            catch (Exception)
+            {
+                // Clipboard operations can fail if another process has the clipboard locked
+                // Silently ignore to prevent app crashes
+            }
         }
+
+        public async Task<bool> OpenUrlAsync(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return false;
+
+            try
+            {
+                // Validate URI before launching
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                    return false;
+
+                // Only allow http, https, and mailto schemes for security
+                if (uri.Scheme != Uri.UriSchemeHttp && 
+                    uri.Scheme != Uri.UriSchemeHttps && 
+                    uri.Scheme != Uri.UriSchemeMailto)
+                    return false;
+
+                return await Windows.System.Launcher.LaunchUriAsync(uri);
+            }
+            catch (Exception)
+            {
+                // Launch can fail for various reasons (no default handler, security policy, etc.)
+                return false;
+            }
+        }
+
+        #endregion
     }
 }

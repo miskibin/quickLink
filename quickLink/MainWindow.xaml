@@ -20,7 +20,8 @@
         <Border CornerRadius="16" 
                 Background="#40000000" 
                 BorderBrush="#30FFFFFF" 
-                BorderThickness="1">
+                BorderThickness="1"
+                ClipToBounds="True">
             <Border.Shadow>
                 <ThemeShadow />
             </Border.Shadow>
@@ -70,6 +71,53 @@ Background="Transparent"
    <Setter Property="MinHeight" Value="0"/>
   <Setter Property="CornerRadius" Value="6"/>
   <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Template">
+          <Setter.Value>
+              <ControlTemplate TargetType="ListViewItem">
+                  <Grid Background="{TemplateBinding Background}"
+                        CornerRadius="6">
+                      <VisualStateManager.VisualStateGroups>
+                          <VisualStateGroup x:Name="CommonStates">
+                              <VisualState x:Name="Normal"/>
+                              <VisualState x:Name="PointerOver">
+                                  <VisualState.Setters>
+                                      <Setter Target="ContentBorder.Background" Value="#10FFFFFF"/>
+                                  </VisualState.Setters>
+                              </VisualState>
+                              <VisualState x:Name="Pressed">
+                                  <VisualState.Setters>
+                                      <Setter Target="ContentBorder.Background" Value="#20FFFFFF"/>
+                                  </VisualState.Setters>
+                              </VisualState>
+                              <VisualState x:Name="Selected">
+                                  <VisualState.Setters>
+                                      <Setter Target="ContentBorder.Background" Value="#30FFFFFF"/>
+                                  </VisualState.Setters>
+                              </VisualState>
+                              <VisualState x:Name="PointerOverSelected">
+                                  <VisualState.Setters>
+                                      <Setter Target="ContentBorder.Background" Value="#35FFFFFF"/>
+                                  </VisualState.Setters>
+                              </VisualState>
+                              <VisualState x:Name="PressedSelected">
+                                  <VisualState.Setters>
+                                      <Setter Target="ContentBorder.Background" Value="#40FFFFFF"/>
+                                  </VisualState.Setters>
+                              </VisualState>
+                          </VisualStateGroup>
+                      </VisualStateManager.VisualStateGroups>
+                      <Border x:Name="ContentBorder"
+                              Background="Transparent"
+                              CornerRadius="6"
+                              Padding="{TemplateBinding Padding}">
+                          <ContentPresenter 
+                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                      </Border>
+                  </Grid>
+              </ControlTemplate>
+          </Setter.Value>
+      </Setter>
       </Style>
  </ListView.ItemContainerStyle>
   <ListView.ItemTemplate>
@@ -82,18 +130,14 @@ Background="Transparent"
         <ColumnDefinition Width="Auto"/>
    </Grid.ColumnDefinitions>
 
-       <!-- Icon based on IsLink property -->
- <Grid Grid.Column="0" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center">
-     <FontIcon FontFamily="Segoe Fluent Icons"
-      Glyph="&#xE71B;"
-  FontSize="16"
-Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-   Visibility="{x:Bind IsLink, Mode=OneWay}"/>
-          <FontIcon FontFamily="Segoe Fluent Icons"
- Glyph="&#xE8A5;"
-       FontSize="16"
-          Foreground="{ThemeResource AccentFillColorDefaultBrush}"/>
-   </Grid>
+       <!-- Icon based on IsEncrypted, IsLink, or default -->
+ <FontIcon Grid.Column="0" 
+           FontFamily="Segoe Fluent Icons"
+           Glyph="{x:Bind IconGlyph, Mode=OneWay}"
+           FontSize="16"
+           Margin="0,0,10,0"
+           Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+           VerticalAlignment="Center"/>
 
    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
            <TextBlock Text="{x:Bind DisplayTitle, Mode=OneWay}"

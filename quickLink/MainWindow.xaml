@@ -82,8 +82,6 @@ Background="Transparent"
                               <VisualState x:Name="Selected">
                                   <VisualState.Setters>
                                       <Setter Target="Root.Background" Value="#30FFFFFF" />
-                                      <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}" />
-                                      <Setter Target="Root.BorderThickness" Value="1" />
                                   </VisualState.Setters>
                               </VisualState>
                               <VisualState x:Name="PointerOver">
@@ -94,8 +92,6 @@ Background="Transparent"
                               <VisualState x:Name="PointerOverSelected">
                                   <VisualState.Setters>
                                       <Setter Target="Root.Background" Value="#40FFFFFF" />
-                                      <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}" />
-                                      <Setter Target="Root.BorderThickness" Value="1" />
                                   </VisualState.Setters>
                               </VisualState>
                           </VisualStateGroup>

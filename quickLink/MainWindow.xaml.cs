@@ -54,10 +54,32 @@ namespace quickLink
             SubclassWindow();
             _ = LoadDataAsync();
 
-            Activated += (s, e) => SearchBox.Focus(FocusState.Programmatic);
+            Activated += (s, e) => 
+            {
+                SearchBox.Focus(FocusState.Programmatic);
+                // Set always on top when activated
+                var presenter = AppWindow.Presenter as OverlappedPresenter;
+                if (presenter != null)
+                {
+                    presenter.IsAlwaysOnTop = true;
+                }
+            };
+
+            // Remove always on top when deactivated
+            this.Activated += OnWindowActivated;
 
             // Hide window initially (it will be shown via hotkey)
             AppWindow.Hide();
+        }
+
+        private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
+        {
+            var presenter = AppWindow.Presenter as OverlappedPresenter;
+            if (presenter != null)
+            {
+                // Only stay on top when focused
+                presenter.IsAlwaysOnTop = args.WindowActivationState != WindowActivationState.Deactivated;
+            }
         }
 
         private void OnRootKeyDown(object sender, KeyRoutedEventArgs e)

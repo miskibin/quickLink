@@ -8,6 +8,8 @@ using quickLink.Models;
 using quickLink.Services;
 using WinRT.Interop;
 using System.Runtime.InteropServices;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 
 namespace quickLink
 {
@@ -36,21 +38,11 @@ namespace quickLink
 
             _windowHandle = WindowNative.GetWindowHandle(this);
 
-            // Remove title bar completely
-            ExtendsContentIntoTitleBar = true;
-            SetTitleBar(null);
+            // Configure window for transparency and rounded corners
+            ConfigureWindowStyle();
 
             // Compact modern window size
             AppWindow.Resize(new Windows.Graphics.SizeInt32(600, 300));
-            
-            // Remove default window borders for clean look
-            var presenter = AppWindow.Presenter as Microsoft.UI.Windowing.OverlappedPresenter;
-            if (presenter != null)
-            {
-                presenter.SetBorderAndTitleBar(false, false);
-                presenter.IsResizable = false;
-                presenter.IsMaximizable = false;
-            }
 
             CenterWindow();
 
@@ -349,6 +341,33 @@ namespace quickLink
         public void HideWindow()
         {
             AppWindow.Hide();
+        }
+
+        private void ConfigureWindowStyle()
+        {
+            // Configure title bar for transparency
+            if (AppWindow.TitleBar != null)
+            {
+                AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+                AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonInactiveForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonHoverBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonHoverForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonPressedBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonPressedForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.IconShowOptions = IconShowOptions.HideIconAndSystemMenu;
+                AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+            }
+
+            // Configure presenter for non-resizable window
+            var presenter = AppWindow.Presenter as OverlappedPresenter;
+            if (presenter != null)
+            {
+                presenter.IsResizable = false;
+                presenter.IsMaximizable = false;
+            }
         }
     }
 }

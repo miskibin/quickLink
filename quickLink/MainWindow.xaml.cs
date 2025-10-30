@@ -8,6 +8,8 @@ using quickLink.Models;
 using quickLink.Services;
 using WinRT.Interop;
 using System.Runtime.InteropServices;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 
 namespace quickLink
 {
@@ -36,21 +38,11 @@ namespace quickLink
 
             _windowHandle = WindowNative.GetWindowHandle(this);
 
-            // Remove title bar completely
-            ExtendsContentIntoTitleBar = true;
-            SetTitleBar(null);
+            // Configure window for transparency and rounded corners
+            ConfigureWindowStyle();
 
             // Compact modern window size
             AppWindow.Resize(new Windows.Graphics.SizeInt32(600, 300));
-            
-            // Remove default window borders for clean look
-            var presenter = AppWindow.Presenter as Microsoft.UI.Windowing.OverlappedPresenter;
-            if (presenter != null)
-            {
-                presenter.SetBorderAndTitleBar(false, false);
-                presenter.IsResizable = false;
-                presenter.IsMaximizable = false;
-            }
 
             CenterWindow();
 
@@ -190,17 +182,7 @@ namespace quickLink
 
         private void OnToggleVisibility(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            if (AppWindow.IsVisible)
-            {
-                AppWindow.Hide();
-            }
-            else
-            {
-                AppWindow.Show();
-                this.Activate();
-                SearchBox.Focus(FocusState.Programmatic);
-                SearchBox.SelectAll();
-            }
+            AppWindow.Hide();
             args.Handled = true;
         }
 
@@ -241,6 +223,14 @@ namespace quickLink
                 }
                 AppWindow.Hide();
             }
+            // If no match found and user has typed something, pass to ChatGPT
+            else if (!string.IsNullOrWhiteSpace(SearchBox.Text) && !_filteredItems.Any())
+            {
+                var query = Uri.EscapeDataString(SearchBox.Text);
+                var chatGptUrl = $"https://chatgpt.com/?q={query}";
+                await _clipboardService.OpenUrlAsync(chatGptUrl);
+                AppWindow.Hide();
+            }
             args.Handled = true;
         }
 
@@ -275,6 +265,7 @@ namespace quickLink
                 EditEncrypt.IsChecked = false;
             }
 
+            SearchBox.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Collapsed;
             EditPanel.Visibility = Visibility.Visible;
             EditTitle.Focus(FocusState.Programmatic);
@@ -284,6 +275,7 @@ namespace quickLink
         {
             _isEditing = false;
             _editingItem = null;
+            SearchBox.Visibility = Visibility.Visible;
             EditPanel.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Visible;
             SearchBox.Focus(FocusState.Programmatic);
@@ -349,6 +341,33 @@ namespace quickLink
         public void HideWindow()
         {
             AppWindow.Hide();
+        }
+
+        private void ConfigureWindowStyle()
+        {
+            // Configure title bar for transparency
+            if (AppWindow.TitleBar != null)
+            {
+                AppWindow.TitleBar.ExtendsContentIntoTitleBar = true;
+                AppWindow.TitleBar.ButtonBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonInactiveForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonHoverBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonHoverForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonPressedBackgroundColor = Colors.Transparent;
+                AppWindow.TitleBar.ButtonPressedForegroundColor = Colors.Transparent;
+                AppWindow.TitleBar.IconShowOptions = IconShowOptions.HideIconAndSystemMenu;
+                AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Collapsed;
+            }
+
+            // Configure presenter for non-resizable window
+            var presenter = AppWindow.Presenter as OverlappedPresenter;
+            if (presenter != null)
+            {
+                presenter.IsResizable = false;
+                presenter.IsMaximizable = false;
+            }
         }
     }
 }

@@ -10,6 +10,7 @@ namespace quickLink.Models
         private string _value = string.Empty;
     private bool _isEncrypted;
      private bool _isLink;
+        private bool _isCommand;
 
         public string Title
         {
@@ -28,6 +29,10 @@ public string Value
    IsLink = !string.IsNullOrWhiteSpace(value) && 
       (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
            value.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+                    
+                    // Auto-detect if it's a command
+                    IsCommand = !string.IsNullOrWhiteSpace(value) && value.StartsWith(">");
+                    
                     OnPropertyChanged(nameof(DisplayValue));
        }
             }
@@ -56,19 +61,34 @@ public string Value
          {
              OnPropertyChanged(nameof(IsEncryptedAndNotLink));
              OnPropertyChanged(nameof(IsPlainText));
+             OnPropertyChanged(nameof(IsCommandAndNotLink));
          }
      }
       }
 
+        public bool IsCommand
+        {
+            get => _isCommand;
+            set
+            {
+                if (SetProperty(ref _isCommand, value))
+                {
+                    OnPropertyChanged(nameof(IsCommandAndNotLink));
+                    OnPropertyChanged(nameof(IsPlainText));
+                }
+            }
+        }
+
         public string DisplayTitle => string.IsNullOrWhiteSpace(Title) 
-      ? (IsLink ? "🔗 Link" : "📄 Text") 
+      ? (IsLink ? "🔗 Link" : IsCommand ? "⚡ Command" : "📄 Text") 
             : Title;
 
         public string DisplayValue => IsEncrypted ? "••••••••" : Value;
 
         // Helper properties for icon visibility
         public bool IsEncryptedAndNotLink => IsEncrypted && !IsLink;
-        public bool IsPlainText => !IsEncrypted && !IsLink;
+        public bool IsCommandAndNotLink => IsCommand && !IsLink;
+        public bool IsPlainText => !IsEncrypted && !IsLink && !IsCommand;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

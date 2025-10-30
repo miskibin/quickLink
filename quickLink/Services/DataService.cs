@@ -11,6 +11,7 @@ namespace quickLink.Services
     public class DataService
   {
         private readonly string _dataFilePath;
+        private readonly string _settingsFilePath;
     private readonly EncryptionService _encryptionService;
         private List<ClipboardItem> _cachedItems;
 
@@ -25,6 +26,7 @@ namespace quickLink.Services
    }
 
    _dataFilePath = Path.Combine(appFolder, "data.json");
+       _settingsFilePath = Path.Combine(appFolder, "settings.json");
        _encryptionService = new EncryptionService();
    _cachedItems = new List<ClipboardItem>();
         }
@@ -107,6 +109,37 @@ var index = currentItems.IndexOf(oldItem);
         {
   currentItems.Remove(item);
   await SaveItemsAsync(currentItems);
+        }
+
+        public async Task<AppSettings> LoadSettingsAsync()
+        {
+            if (!File.Exists(_settingsFilePath))
+            {
+                return new AppSettings();
+            }
+
+            try
+            {
+                var json = await File.ReadAllTextAsync(_settingsFilePath);
+                return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            }
+            catch
+            {
+                return new AppSettings();
+            }
+        }
+
+        public async Task SaveSettingsAsync(AppSettings settings)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(_settingsFilePath, json);
+            }
+            catch
+            {
+                // Silently fail
+            }
         }
 
    // DTO for serialization

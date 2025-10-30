@@ -55,7 +55,9 @@ namespace quickLink
 
             _hotkeyService = new GlobalHotkeyService();
             _hotkeyService.HotkeyPressed += OnGlobalHotkeyPressed;
-            _hotkeyService.RegisterHotkey(_windowHandle);
+            
+            // Load saved hotkey settings
+            _ = LoadAndRegisterHotkeyAsync();
 
             // Subscribe to window messages
             SubclassWindow();
@@ -116,6 +118,33 @@ namespace quickLink
             }
             FilterItems();
             LoadingOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private async System.Threading.Tasks.Task LoadAndRegisterHotkeyAsync()
+        {
+            try
+            {
+                var settings = await _dataService.LoadSettingsAsync();
+                
+                // Convert Win32 modifiers to WinUI modifiers for display
+                _newHotkeyModifiers = Windows.System.VirtualKeyModifiers.None;
+                if ((settings.HotkeyModifiers & 0x0002) != 0) // MOD_CONTROL
+                    _newHotkeyModifiers |= Windows.System.VirtualKeyModifiers.Control;
+                if ((settings.HotkeyModifiers & 0x0004) != 0) // MOD_SHIFT
+                    _newHotkeyModifiers |= Windows.System.VirtualKeyModifiers.Shift;
+                if ((settings.HotkeyModifiers & 0x0001) != 0) // MOD_ALT
+                    _newHotkeyModifiers |= Windows.System.VirtualKeyModifiers.Menu;
+                    
+                _newHotkeyKey = (Windows.System.VirtualKey)settings.HotkeyKey;
+                
+                // Register the hotkey
+                _hotkeyService.RegisterHotkey(_windowHandle, settings.HotkeyModifiers, settings.HotkeyKey);
+            }
+            catch
+            {
+                // If loading fails, use defaults
+                _hotkeyService.RegisterHotkey(_windowHandle);
+            }
         }
 
         private void FilterItems()
@@ -246,7 +275,13 @@ namespace quickLink
             // Execute the selected item
             if (ItemsList.SelectedItem is ClipboardItem selectedItem)
             {
-                if (selectedItem.IsLink)
+                if (selectedItem.IsCommand)
+                {
+                    // Extract command (remove leading >)
+                    var command = selectedItem.Value.TrimStart('>').Trim();
+                    await ExecutePowerShellCommand(command);
+                }
+                else if (selectedItem.IsLink)
                 {
                     await _clipboardService.OpenUrlAsync(selectedItem.Value);
                 }
@@ -256,15 +291,54 @@ namespace quickLink
                 }
                 AppWindow.Hide();
             }
-            // If no match found and user has typed something, pass to ChatGPT
+            // If no match found and user has typed something
             else if (!string.IsNullOrWhiteSpace(SearchBox.Text) && !_filteredItems.Any())
             {
-                var query = Uri.EscapeDataString(SearchBox.Text);
-                var chatGptUrl = $"https://chatgpt.com/?q={query}";
-                await _clipboardService.OpenUrlAsync(chatGptUrl);
-                AppWindow.Hide();
+                var searchText = SearchBox.Text.Trim();
+                
+                // Check if it's a command
+                if (searchText.StartsWith(">"))
+                {
+                    var command = searchText.TrimStart('>').Trim();
+                    await ExecutePowerShellCommand(command);
+                    AppWindow.Hide();
+                }
+                else
+                {
+                    // Pass to ChatGPT
+                    var query = Uri.EscapeDataString(searchText);
+                    var chatGptUrl = $"https://chatgpt.com/?q={query}";
+                    await _clipboardService.OpenUrlAsync(chatGptUrl);
+                    AppWindow.Hide();
+                }
             }
             args.Handled = true;
+        }
+
+        private async System.Threading.Tasks.Task ExecutePowerShellCommand(string command)
+        {
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -Command \"{command.Replace("\"", "\"\"")}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+
+                using var process = System.Diagnostics.Process.Start(psi);
+                if (process != null)
+                {
+                    await process.WaitForExitAsync();
+                }
+            }
+            catch (Exception)
+            {
+                // Silently fail - command execution errors
+            }
         }
 
         private void OnAddNewTapped(object sender, RoutedEventArgs e)
@@ -388,6 +462,9 @@ namespace quickLink
             // Load current settings
             LoadSettings();
             
+            // Reset Apply button state
+            ApplyHotkeyButton.IsEnabled = false;
+            
             SearchBox.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Collapsed;
             EditPanel.Visibility = Visibility.Collapsed;
@@ -454,13 +531,6 @@ namespace quickLink
             
             var key = e.Key;
             
-            // Check for Enter to apply the current hotkey
-            if (key == Windows.System.VirtualKey.Enter && _newHotkeyKey != Windows.System.VirtualKey.None)
-            {
-                ApplyHotkeyChange();
-                return;
-            }
-            
             var modifiers = Windows.System.VirtualKeyModifiers.None;
             
             // Use InputKeyboardSource to get key states
@@ -494,13 +564,18 @@ namespace quickLink
                 key == Windows.System.VirtualKey.LeftMenu ||
                 key == Windows.System.VirtualKey.RightMenu)
             {
+                // Just show current modifiers
+                UpdateHotkeyDisplay();
+                HotkeyStatusText.Text = "Add a regular key (letters, numbers, F-keys, etc.)";
+                ApplyHotkeyButton.IsEnabled = false;
                 return;
             }
             
-            // Require at least one modifier
+            // Require at least one modifier for safety (prevent overriding common keys)
             if (modifiers == Windows.System.VirtualKeyModifiers.None)
             {
-                HotkeyStatusText.Text = "Please use at least one modifier key (Ctrl, Shift, Alt)";
+                HotkeyStatusText.Text = "⚠ Must include at least one modifier (Ctrl, Shift, or Alt)";
+                ApplyHotkeyButton.IsEnabled = false;
                 return;
             }
             
@@ -508,7 +583,8 @@ namespace quickLink
             _newHotkeyKey = key;
             
             UpdateHotkeyDisplay();
-            HotkeyStatusText.Text = "Press Enter to apply the new hotkey";
+            HotkeyStatusText.Text = "✓ Ready to apply — click the Apply button";
+            ApplyHotkeyButton.IsEnabled = true;
         }
 
         private void UpdateHotkeyDisplay()
@@ -535,9 +611,16 @@ namespace quickLink
             UpdateHotkeyDisplay();
             ApplyHotkeyChange();
             HotkeyStatusText.Text = "Reset to default (Ctrl + Space) and applied";
+            ApplyHotkeyButton.IsEnabled = false;
         }
 
-        private void ApplyHotkeyChange()
+        private void OnApplyHotkey(object sender, RoutedEventArgs e)
+        {
+            ApplyHotkeyChange();
+            ApplyHotkeyButton.IsEnabled = false;
+        }
+
+        private async void ApplyHotkeyChange()
         {
             try
             {
@@ -554,7 +637,16 @@ namespace quickLink
 
                 // Re-register the hotkey
                 _hotkeyService.RegisterHotkey(_windowHandle, modifiers, vKey);
-                HotkeyStatusText.Text = "Hotkey updated successfully!";
+                
+                // Save to settings
+                var settings = new Models.AppSettings
+                {
+                    HotkeyModifiers = modifiers,
+                    HotkeyKey = vKey
+                };
+                await _dataService.SaveSettingsAsync(settings);
+                
+                HotkeyStatusText.Text = "Hotkey updated and saved!";
             }
             catch (Exception ex)
             {

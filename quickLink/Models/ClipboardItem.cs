@@ -28,6 +28,7 @@ public string Value
    IsLink = !string.IsNullOrWhiteSpace(value) && 
       (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
            value.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+                    OnPropertyChanged(nameof(DisplayValue));
        }
             }
         }
@@ -35,7 +36,13 @@ public string Value
       public bool IsEncrypted
         {
         get => _isEncrypted;
-            set => SetProperty(ref _isEncrypted, value);
+            set 
+            {
+                if (SetProperty(ref _isEncrypted, value))
+                {
+                    OnPropertyChanged(nameof(DisplayValue));
+                }
+            }
         }
 
         public bool IsLink
@@ -45,8 +52,10 @@ public string Value
       }
 
         public string DisplayTitle => string.IsNullOrWhiteSpace(Title) 
-      ? (IsLink ? "?? Link" : "?? Text") 
+      ? (IsLink ? "🔗 Link" : "📄 Text") 
             : Title;
+
+        public string DisplayValue => IsEncrypted ? "••••••••" : Value;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

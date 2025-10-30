@@ -8,6 +8,8 @@ using quickLink.Models;
 using quickLink.Services;
 using WinRT.Interop;
 using System.Runtime.InteropServices;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Xaml.Media;
 
 namespace quickLink
 {
@@ -22,6 +24,7 @@ namespace quickLink
         private const int WM_HOTKEY = 0x0312;
         private ClipboardItem? _editingItem;
         private bool _isEditing;
+        private MicaBackdrop? _micaBackdrop;
 
         public MainWindow()
         {
@@ -43,7 +46,7 @@ namespace quickLink
             // Compact modern window size
             AppWindow.Resize(new Windows.Graphics.SizeInt32(600, 300));
             
-            // Remove default window borders for clean look
+            // Remove default window borders for clean look and enable transparency
             var presenter = AppWindow.Presenter as Microsoft.UI.Windowing.OverlappedPresenter;
             if (presenter != null)
             {
@@ -51,6 +54,9 @@ namespace quickLink
                 presenter.IsResizable = false;
                 presenter.IsMaximizable = false;
             }
+
+            // Enable Mica backdrop for better transparency
+            TrySetMicaBackdrop();
 
             CenterWindow();
 
@@ -190,17 +196,7 @@ namespace quickLink
 
         private void OnToggleVisibility(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            if (AppWindow.IsVisible)
-            {
-                AppWindow.Hide();
-            }
-            else
-            {
-                AppWindow.Show();
-                this.Activate();
-                SearchBox.Focus(FocusState.Programmatic);
-                SearchBox.SelectAll();
-            }
+            AppWindow.Hide();
             args.Handled = true;
         }
 
@@ -241,6 +237,14 @@ namespace quickLink
                 }
                 AppWindow.Hide();
             }
+            // If no match found and user has typed something, pass to ChatGPT
+            else if (!string.IsNullOrWhiteSpace(SearchBox.Text) && !_filteredItems.Any())
+            {
+                var query = Uri.EscapeDataString(SearchBox.Text);
+                var chatGptUrl = $"https://chatgpt.com/?q={query}";
+                await _clipboardService.OpenUrlAsync(chatGptUrl);
+                AppWindow.Hide();
+            }
             args.Handled = true;
         }
 
@@ -275,6 +279,7 @@ namespace quickLink
                 EditEncrypt.IsChecked = false;
             }
 
+            SearchBox.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Collapsed;
             EditPanel.Visibility = Visibility.Visible;
             EditTitle.Focus(FocusState.Programmatic);
@@ -284,6 +289,7 @@ namespace quickLink
         {
             _isEditing = false;
             _editingItem = null;
+            SearchBox.Visibility = Visibility.Visible;
             EditPanel.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Visible;
             SearchBox.Focus(FocusState.Programmatic);
@@ -349,6 +355,18 @@ namespace quickLink
         public void HideWindow()
         {
             AppWindow.Hide();
+        }
+
+        private void TrySetMicaBackdrop()
+        {
+            if (MicaController.IsSupported())
+            {
+                _micaBackdrop = new MicaBackdrop() 
+                { 
+                    Kind = MicaKind.BaseAlt 
+                };
+                SystemBackdrop = _micaBackdrop;
+            }
         }
     }
 }

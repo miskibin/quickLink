@@ -12,17 +12,6 @@
 
     <Grid x:Name="RootGrid" Background="Transparent" CornerRadius="16" KeyDown="OnRootKeyDown">
         
-        <!-- Modern semi-transparent background -->
-        <Border CornerRadius="16" 
-     Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" 
-  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
-     BorderThickness="1"
-   Opacity="0.95">
-        <Border.Shadow>
-  <ThemeShadow />
-        </Border.Shadow>
-        </Border>
-      
         <Grid Margin="16" x:Name="ContentGrid">
        <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -99,7 +88,7 @@ Foreground="{ThemeResource AccentFillColorDefaultBrush}"
             FontSize="13"
        TextTrimming="CharacterEllipsis"
            Opacity="0.9"/>
-      <TextBlock Text="{x:Bind Value, Mode=OneWay}"
+      <TextBlock Text="{x:Bind DisplayValue, Mode=OneWay}"
 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
   FontSize="11"
      TextTrimming="CharacterEllipsis"

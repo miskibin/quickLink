@@ -28,9 +28,9 @@ namespace quickLink.ViewModels
      _allItems = new ObservableCollection<ClipboardItem>();
    _filteredItems = new ObservableCollection<ClipboardItem>();
 
-  AddCommand = new RelayCommand(async () => await AddItemAsync());
+  AddCommand = new RelayCommand(() => { _ = AddItemAsync(); });
        ExecuteCommand = new RelayCommand(async () => await ExecuteSelectedItemAsync(), () => SelectedItem != null);
-        EditCommand = new RelayCommand<ClipboardItem>(async (item) => await EditItemAsync(item));
+        EditCommand = new RelayCommand<ClipboardItem>((item) => { _ = EditItemAsync(item); });
   DeleteCommand = new RelayCommand<ClipboardItem>(async (item) => await DeleteItemAsync(item));
       }
 

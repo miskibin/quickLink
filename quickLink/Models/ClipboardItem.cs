@@ -41,6 +41,8 @@ public string Value
                 if (SetProperty(ref _isEncrypted, value))
                 {
                     OnPropertyChanged(nameof(DisplayValue));
+                    OnPropertyChanged(nameof(IsEncryptedAndNotLink));
+                    OnPropertyChanged(nameof(IsPlainText));
                 }
             }
         }
@@ -48,7 +50,14 @@ public string Value
         public bool IsLink
     {
        get => _isLink;
-     set => SetProperty(ref _isLink, value);
+     set 
+     {
+         if (SetProperty(ref _isLink, value))
+         {
+             OnPropertyChanged(nameof(IsEncryptedAndNotLink));
+             OnPropertyChanged(nameof(IsPlainText));
+         }
+     }
       }
 
         public string DisplayTitle => string.IsNullOrWhiteSpace(Title) 
@@ -56,6 +65,10 @@ public string Value
             : Title;
 
         public string DisplayValue => IsEncrypted ? "••••••••" : Value;
+
+        // Helper properties for icon visibility
+        public bool IsEncryptedAndNotLink => IsEncrypted && !IsLink;
+        public bool IsPlainText => !IsEncrypted && !IsLink;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

@@ -16,11 +16,11 @@
 
     <Grid x:Name="RootGrid" Background="Transparent" KeyDown="OnRootKeyDown">
         
-        <!-- Modern semi-transparent background with rounded corners -->
-        <Border CornerRadius="16" 
-                Background="#40000000" 
+        <!-- Modern semi-transparent background - no CornerRadius to avoid double border with window -->
+        <Border Background="#40000000" 
                 BorderBrush="#30FFFFFF" 
-                BorderThickness="1">
+                BorderThickness="1"
+                Margin="0">
             <Border.Shadow>
                 <ThemeShadow />
             </Border.Shadow>
@@ -70,6 +70,46 @@ Background="Transparent"
    <Setter Property="MinHeight" Value="0"/>
   <Setter Property="CornerRadius" Value="6"/>
   <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Template">
+          <Setter.Value>
+              <ControlTemplate TargetType="ListViewItem">
+                  <Grid x:Name="Root" 
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="{TemplateBinding CornerRadius}">
+                      <VisualStateManager.VisualStateGroups>
+                          <VisualStateGroup x:Name="CommonStates">
+                              <VisualState x:Name="Normal" />
+                              <VisualState x:Name="Selected">
+                                  <VisualState.Setters>
+                                      <Setter Target="Root.Background" Value="#30FFFFFF" />
+                                      <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+                                      <Setter Target="Root.BorderThickness" Value="1" />
+                                  </VisualState.Setters>
+                              </VisualState>
+                              <VisualState x:Name="PointerOver">
+                                  <VisualState.Setters>
+                                      <Setter Target="Root.Background" Value="#20FFFFFF" />
+                                  </VisualState.Setters>
+                              </VisualState>
+                              <VisualState x:Name="PointerOverSelected">
+                                  <VisualState.Setters>
+                                      <Setter Target="Root.Background" Value="#40FFFFFF" />
+                                      <Setter Target="Root.BorderBrush" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+                                      <Setter Target="Root.BorderThickness" Value="1" />
+                                  </VisualState.Setters>
+                              </VisualState>
+                          </VisualStateGroup>
+                      </VisualStateManager.VisualStateGroups>
+                      <ContentPresenter x:Name="ContentPresenter"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      Content="{TemplateBinding Content}"
+                                      ContentTransitions="{TemplateBinding ContentTransitions}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                  </Grid>
+              </ControlTemplate>
+          </Setter.Value>
+      </Setter>
       </Style>
  </ListView.ItemContainerStyle>
   <ListView.ItemTemplate>
@@ -82,31 +122,57 @@ Background="Transparent"
         <ColumnDefinition Width="Auto"/>
    </Grid.ColumnDefinitions>
 
-       <!-- Icon based on IsLink property -->
+       <!-- Icon based on IsLink and IsEncrypted properties -->
  <Grid Grid.Column="0" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center">
+     <!-- Link icon (only for links) -->
      <FontIcon FontFamily="Segoe Fluent Icons"
       Glyph="&#xE71B;"
-  FontSize="16"
-Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-   Visibility="{x:Bind IsLink, Mode=OneWay}"/>
+  FontSize="16">
+   <FontIcon.Visibility>
+       <Binding Path="IsLink" Mode="OneWay">
+           <Binding.Converter>
+               <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+           </Binding.Converter>
+       </Binding>
+   </FontIcon.Visibility>
+     </FontIcon>
+          <!-- Encrypted text icon (lock) - only for non-links that are encrypted -->
+          <FontIcon FontFamily="Segoe Fluent Icons"
+ Glyph="&#xE72E;"
+       FontSize="16"
+          Foreground="#FFD700">
+              <FontIcon.Visibility>
+                  <Binding Path="IsEncryptedAndNotLink" Mode="OneWay">
+                      <Binding.Converter>
+                          <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                      </Binding.Converter>
+                  </Binding>
+              </FontIcon.Visibility>
+          </FontIcon>
+          <!-- Regular text icon (document) - only for non-links that are not encrypted -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE8A5;"
-       FontSize="16"
-          Foreground="{ThemeResource AccentFillColorDefaultBrush}"/>
+       FontSize="16">
+              <FontIcon.Visibility>
+                  <Binding Path="IsPlainText" Mode="OneWay">
+                      <Binding.Converter>
+                          <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                      </Binding.Converter>
+                  </Binding>
+              </FontIcon.Visibility>
+          </FontIcon>
    </Grid>
 
    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
            <TextBlock Text="{x:Bind DisplayTitle, Mode=OneWay}"
       FontWeight="SemiBold"
             FontSize="13"
-       TextTrimming="CharacterEllipsis"
-           Opacity="0.9"/>
+       TextTrimming="CharacterEllipsis"/>
       <TextBlock Text="{x:Bind DisplayValue, Mode=OneWay}"
-Foreground="{ThemeResource TextFillColorSecondaryBrush}"
   FontSize="11"
      TextTrimming="CharacterEllipsis"
   MaxLines="1"
-   Opacity="0.6"/>
+   Opacity="0.7"/>
           </StackPanel>
 
       <StackPanel Grid.Column="2" 
@@ -122,8 +188,7 @@ Foreground="{ThemeResource TextFillColorSecondaryBrush}"
         Tag="{x:Bind}">
          <FontIcon FontFamily="Segoe Fluent Icons" 
    Glyph="&#xE70F;" 
-   FontSize="12"
-Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+   FontSize="12"/>
         </Button>
  <Button Width="28" Height="28" 
           Padding="0" 
@@ -134,8 +199,7 @@ Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 Tag="{x:Bind}">
          <FontIcon FontFamily="Segoe Fluent Icons" 
           Glyph="&#xE74D;" 
-       FontSize="12"
-   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+       FontSize="12"/>
    </Button>
       </StackPanel>
      </Grid>
@@ -224,7 +288,6 @@ Style="{StaticResource AccentButtonStyle}"
  <Grid x:Name="LoadingOverlay" 
   Grid.RowSpan="2"
 Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
-  CornerRadius="16"
          Visibility="Collapsed">
  <ProgressRing IsActive="True" Width="40" Height="40"/>
 </Grid>

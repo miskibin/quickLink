@@ -11,14 +11,11 @@ jobs:
     strategy:
       matrix:
         configuration: [Release]
-        platform: [x64, x86, ARM64]
+        platform: [x64]
         include:
           - platform: x64
             runtime: win-x64
-          - platform: x86
-            runtime: win-x86
-          - platform: ARM64
-            runtime: win-arm64
+
     runs-on: windows-latest
     env:
       Project_Path: quickLink/quickLink.csproj

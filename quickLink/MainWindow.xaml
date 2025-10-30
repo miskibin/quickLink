@@ -25,10 +25,11 @@
                 <ThemeShadow />
             </Border.Shadow>
       
-            <Grid Margin="16" x:Name="ContentGrid">
+            <Grid Margin="12" x:Name="ContentGrid">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
  <!-- Minimalistic Search Box -->
@@ -39,8 +40,8 @@
     CornerRadius="8"
       BorderThickness="0"
    Background="{ThemeResource LayerFillColorDefaultBrush}"
-        Padding="12,8"
-Margin="0,0,0,8"
+        Padding="10,8"
+Margin="0,0,0,6"
     TextChanged="OnSearchTextChanged"
                   TabIndex="0">
         <TextBox.KeyboardAccelerators>
@@ -67,7 +68,7 @@ Background="Transparent"
   <Style TargetType="ListViewItem">
      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
    <Setter Property="Padding" Value="0"/>
-  <Setter Property="Margin" Value="0,0,0,2"/>
+  <Setter Property="Margin" Value="0,0,0,1"/>
    <Setter Property="MinHeight" Value="0"/>
   <Setter Property="CornerRadius" Value="6"/>
   <Setter Property="Background" Value="Transparent"/>
@@ -120,7 +121,7 @@ Background="Transparent"
    </Grid.ColumnDefinitions>
 
        <!-- Icon based on IsLink and IsEncrypted properties -->
- <Grid Grid.Column="0" Width="16" Height="16" Margin="0,0,10,0" VerticalAlignment="Center">
+ <Grid Grid.Column="0" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
      <!-- Link icon (only for links) -->
      <FontIcon FontFamily="Segoe Fluent Icons"
       Glyph="&#xE71B;"
@@ -187,7 +188,7 @@ Background="Transparent"
 
       <StackPanel Grid.Column="2" 
   Orientation="Horizontal" 
-     Spacing="2" 
+     Spacing="1" 
     VerticalAlignment="Center">
 <Button Width="28" Height="28" 
      Padding="0" 
@@ -219,10 +220,13 @@ Tag="{x:Bind}">
      <KeyboardAccelerator Key="Enter" Invoked="OnEnterPressed"/>
     <KeyboardAccelerator Key="Escape" Invoked="OnEscapePressed"/>
        </ListView.KeyboardAccelerators>
-            <ListView.Footer>
-   <!-- Footer with Add New Item and Settings buttons -->
-      <Grid Background="Transparent"
-            Margin="0,2,0,0">
+      </ListView>
+      
+      <!-- Fixed Footer with Add New Item, Settings, and Exit buttons -->
+      <Grid x:Name="FooterPanel" 
+            Grid.Row="2" 
+            Background="Transparent"
+            Margin="0,4,0,0">
           <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
@@ -235,11 +239,11 @@ Tag="{x:Bind}">
                   BorderThickness="0"
                   HorizontalAlignment="Stretch"
                   HorizontalContentAlignment="Left"
-                  Padding="8,6"
+                  Padding="6,5"
                   CornerRadius="6"
                   Click="OnAddNewTapped"
                   TabIndex="1">
-              <StackPanel Orientation="Horizontal" Spacing="10">
+              <StackPanel Orientation="Horizontal" Spacing="8">
                   <FontIcon FontFamily="Segoe Fluent Icons"
                            Glyph="&#xE710;"
                            FontSize="16"
@@ -254,7 +258,7 @@ Tag="{x:Bind}">
           </Button>
           
           <!-- Settings and Close Buttons -->
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3">
               <Button x:Name="SettingsButton"
                       Background="Transparent"
                       BorderThickness="0"
@@ -288,13 +292,12 @@ Tag="{x:Bind}">
               </Button>
           </StackPanel>
       </Grid>
-  </ListView.Footer>
-      </ListView>
 
       <!-- Inline Edit View -->
   <StackPanel x:Name="EditPanel"
      Grid.Row="1"
-     Spacing="12"
+     Grid.RowSpan="2"
+     Spacing="10"
 Visibility="Collapsed"
   Background="Transparent">
       <StackPanel.KeyboardAccelerators>
@@ -325,17 +328,17 @@ Visibility="Collapsed"
         Content="Encrypt"
  FontSize="12"/>
 
-      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+      <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
    <Button Content="Cancel"
    Click="OnCancelEdit"
    CornerRadius="6"
-  Padding="16,8"
+  Padding="14,8"
   FontSize="12"/>
    <Button Content="Save"
    Click="OnSaveEdit"
 Style="{StaticResource AccentButtonStyle}"
        CornerRadius="6"
-  Padding="16,8"
+  Padding="14,8"
    FontSize="12"/>
        </StackPanel>
         </StackPanel>
@@ -343,7 +346,8 @@ Style="{StaticResource AccentButtonStyle}"
       <!-- Settings View -->
       <StackPanel x:Name="SettingsPanel"
                   Grid.Row="1"
-                  Spacing="12"
+                  Grid.RowSpan="2"
+                  Spacing="10"
                   Visibility="Collapsed"
                   Background="Transparent">
           <StackPanel.KeyboardAccelerators>
@@ -359,7 +363,7 @@ Style="{StaticResource AccentButtonStyle}"
                    TabIndex="10"/>
           
           <!-- Hotkey customization -->
-          <StackPanel Spacing="6">
+          <StackPanel Spacing="5">
               <TextBlock Text="Click the box below and press a key combination (e.g., Ctrl+Shift+Q)"
                         FontSize="11"
                         Opacity="0.6"/>
@@ -380,7 +384,7 @@ Style="{StaticResource AccentButtonStyle}"
                           Padding="10,8"
                           IsReadOnly="True"
                           PreviewKeyDown="OnHotkeyKeyDown"
-                          Margin="0,0,8,0"
+                          Margin="0,0,6,0"
                           TabIndex="11"/>
                   
                   <Button x:Name="ApplyHotkeyButton"
@@ -388,10 +392,10 @@ Style="{StaticResource AccentButtonStyle}"
                          Content="Apply"
                          Click="OnApplyHotkey"
                          CornerRadius="6"
-                         Padding="16,8"
+                         Padding="14,8"
                          FontSize="12"
                          IsEnabled="False"
-                         Margin="0,0,8,0"
+                         Margin="0,0,6,0"
                          TabIndex="12"
                          Style="{ThemeResource AccentButtonStyle}"/>
                   
@@ -399,7 +403,7 @@ Style="{StaticResource AccentButtonStyle}"
                          Content="Reset"
                          Click="OnResetHotkey"
                          CornerRadius="6"
-                         Padding="16,8"
+                         Padding="14,8"
                          FontSize="12"
                          TabIndex="13"/>
               </Grid>
@@ -410,11 +414,11 @@ Style="{StaticResource AccentButtonStyle}"
                         Text="Hotkeys must be: Modifier(s) + one key (no sequences like Ctrl+Space+A)"/>
           </StackPanel>
           
-          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+          <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
               <Button Content="Close"
                      Click="OnCloseSettings"
                      CornerRadius="6"
-                     Padding="16,8"
+                     Padding="14,8"
                      FontSize="12"
                      TabIndex="14"/>
           </StackPanel>

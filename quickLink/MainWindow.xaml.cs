@@ -434,9 +434,10 @@ namespace quickLink
                 EditValue.Text = string.Empty;
                 EditEncrypt.IsChecked = false;
             }
-
+            
             SearchBox.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Collapsed;
+            FooterPanel.Visibility = Visibility.Collapsed;
             EditPanel.Visibility = Visibility.Visible;
             EditTitle.Focus(FocusState.Programmatic);
         }
@@ -448,10 +449,9 @@ namespace quickLink
             SearchBox.Visibility = Visibility.Visible;
             EditPanel.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Visible;
+            FooterPanel.Visibility = Visibility.Visible;
             SearchBox.Focus(FocusState.Programmatic);
-        }
-
-        private void OnCancelEdit(object sender, RoutedEventArgs e) => HideEditPanel();
+        }        private void OnCancelEdit(object sender, RoutedEventArgs e) => HideEditPanel();
 
         private void OnCancelEditKey(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
@@ -511,6 +511,7 @@ namespace quickLink
             
             SearchBox.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Collapsed;
+            FooterPanel.Visibility = Visibility.Collapsed;
             EditPanel.Visibility = Visibility.Collapsed;
             SettingsPanel.Visibility = Visibility.Visible;
         }
@@ -521,6 +522,7 @@ namespace quickLink
             SearchBox.Visibility = Visibility.Visible;
             SettingsPanel.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Visible;
+            FooterPanel.Visibility = Visibility.Visible;
             SearchBox.Focus(FocusState.Programmatic);
         }
 

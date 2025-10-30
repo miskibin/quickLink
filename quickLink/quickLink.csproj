@@ -20,7 +20,7 @@
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     
     <!-- Windows App SDK self-contained deployment -->
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <WindowsPackageType>None</WindowsPackageType>
   </PropertyGroup>
   <ItemGroup>

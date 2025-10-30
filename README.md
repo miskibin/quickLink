@@ -4,6 +4,7 @@ A fast clipboard manager for Windows with global hotkey support.
 
 <img width="1204" height="661" alt="image" src="https://github.com/user-attachments/assets/e77721f2-d155-478d-9589-591631a05c15" />
 
+![2025-10-30 20-00-10](https://github.com/user-attachments/assets/cc0d0edc-f90a-407b-b23c-133546bc0099)
 
 ## Download
 

@@ -160,6 +160,25 @@ Background="Transparent"
                   </Binding>
               </FontIcon.Visibility>
           </FontIcon>
+          <!-- Internal command icon - shows different icon based on command -->
+          <FontIcon FontFamily="Segoe Fluent Icons"
+       FontSize="16"
+          Foreground="{ThemeResource AccentFillColorDefaultBrush}">
+              <FontIcon.Glyph>
+                  <Binding Path="Value" Mode="OneWay">
+                      <Binding.Converter>
+                          <StaticResource ResourceKey="InternalCommandIconConverter"/>
+                      </Binding.Converter>
+                  </Binding>
+              </FontIcon.Glyph>
+              <FontIcon.Visibility>
+                  <Binding Path="IsInternalCommand" Mode="OneWay">
+                      <Binding.Converter>
+                          <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                      </Binding.Converter>
+                  </Binding>
+              </FontIcon.Visibility>
+          </FontIcon>
           <!-- Regular text icon (document) - only for non-links that are not encrypted -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE8A5;"
@@ -190,6 +209,13 @@ Background="Transparent"
   Orientation="Horizontal" 
      Spacing="1" 
     VerticalAlignment="Center">
+          <StackPanel.Visibility>
+              <Binding Path="IsInternalCommand" Mode="OneWay">
+                  <Binding.Converter>
+                      <StaticResource ResourceKey="InverseBoolToVisibilityConverter"/>
+                  </Binding.Converter>
+              </Binding>
+          </StackPanel.Visibility>
 <Button Width="28" Height="28" 
      Padding="0" 
      CornerRadius="4"
@@ -362,6 +388,14 @@ Style="{StaticResource AccentButtonStyle}"
                    Unchecked="OnStartWithSystemChanged"
                    TabIndex="10"/>
           
+          <!-- Hide footer -->
+          <CheckBox x:Name="HideFooterCheckBox"
+                   Content="Hide footer (make Add/Settings/Exit searchable)"
+                   FontSize="13"
+                   Checked="OnHideFooterChanged"
+                   Unchecked="OnHideFooterChanged"
+                   TabIndex="11"/>
+          
           <!-- Hotkey customization -->
           <StackPanel Spacing="5">
               <TextBlock Text="Click the box below and press a key combination (e.g., Ctrl+Shift+Q)"
@@ -385,7 +419,7 @@ Style="{StaticResource AccentButtonStyle}"
                           IsReadOnly="True"
                           PreviewKeyDown="OnHotkeyKeyDown"
                           Margin="0,0,6,0"
-                          TabIndex="11"/>
+                          TabIndex="12"/>
                   
                   <Button x:Name="ApplyHotkeyButton"
                          Grid.Column="1"
@@ -396,7 +430,7 @@ Style="{StaticResource AccentButtonStyle}"
                          FontSize="12"
                          IsEnabled="False"
                          Margin="0,0,6,0"
-                         TabIndex="12"
+                         TabIndex="13"
                          Style="{ThemeResource AccentButtonStyle}"/>
                   
                   <Button Grid.Column="2"
@@ -405,7 +439,7 @@ Style="{StaticResource AccentButtonStyle}"
                          CornerRadius="6"
                          Padding="14,8"
                          FontSize="12"
-                         TabIndex="13"/>
+                         TabIndex="14"/>
               </Grid>
               <TextBlock x:Name="HotkeyStatusText"
                         FontSize="11"
@@ -420,7 +454,7 @@ Style="{StaticResource AccentButtonStyle}"
                      CornerRadius="6"
                      Padding="14,8"
                      FontSize="12"
-                     TabIndex="14"/>
+                     TabIndex="15"/>
           </StackPanel>
       </StackPanel>
 

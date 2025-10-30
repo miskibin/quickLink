@@ -11,6 +11,7 @@ namespace quickLink.Models
     private bool _isEncrypted;
      private bool _isLink;
         private bool _isCommand;
+        private bool _isInternalCommand;
 
         public string Title
         {
@@ -79,6 +80,18 @@ public string Value
             }
         }
 
+        public bool IsInternalCommand
+        {
+            get => _isInternalCommand;
+            set
+            {
+                if (SetProperty(ref _isInternalCommand, value))
+                {
+                    OnPropertyChanged(nameof(IsPlainText));
+                }
+            }
+        }
+
         public string DisplayTitle => string.IsNullOrWhiteSpace(Title) 
       ? (IsLink ? "🔗 Link" : IsCommand ? "⚡ Command" : "📄 Text") 
             : Title;
@@ -88,7 +101,7 @@ public string Value
         // Helper properties for icon visibility
         public bool IsEncryptedAndNotLink => IsEncrypted && !IsLink;
         public bool IsCommandAndNotLink => IsCommand && !IsLink;
-        public bool IsPlainText => !IsEncrypted && !IsLink && !IsCommand;
+        public bool IsPlainText => !IsEncrypted && !IsLink && !IsCommand && !IsInternalCommand;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

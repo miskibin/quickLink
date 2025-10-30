@@ -43,12 +43,14 @@ namespace quickLink
         private readonly ClipboardService _clipboardService;
         private readonly ObservableCollection<ClipboardItem> _allItems;
         private readonly ObservableCollection<ClipboardItem> _filteredItems;
+        private readonly List<ClipboardItem> _internalCommands;
         
         private GlobalHotkeyService? _hotkeyService;
         private IntPtr _windowHandle;
         private ClipboardItem? _editingItem;
         private bool _isEditing;
         private bool _isInSettings;
+        private bool _hideFooter;
         private Windows.System.VirtualKeyModifiers _newHotkeyModifiers = DefaultHotkeyModifiers;
         private Windows.System.VirtualKey _newHotkeyKey = DefaultHotkeyKey;
         
@@ -77,12 +79,38 @@ namespace quickLink
             _clipboardService = new ClipboardService();
             _allItems = new ObservableCollection<ClipboardItem>();
             _filteredItems = new ObservableCollection<ClipboardItem>();
+            _internalCommands = new List<ClipboardItem>();
 
             InitializeComponent();
+            InitializeInternalCommands();
             InitializeWindow();
             InitializeHotkey();
             
             _ = LoadDataAsync();
+        }
+
+        private void InitializeInternalCommands()
+        {
+            _internalCommands.Add(new ClipboardItem
+            {
+                Title = "Add new item",
+                Value = "internal:add",
+                IsInternalCommand = true
+            });
+            
+            _internalCommands.Add(new ClipboardItem
+            {
+                Title = "Settings",
+                Value = "internal:settings",
+                IsInternalCommand = true
+            });
+            
+            _internalCommands.Add(new ClipboardItem
+            {
+                Title = "Exit app",
+                Value = "internal:exit",
+                IsInternalCommand = true
+            });
         }
 
         private void InitializeWindow()
@@ -210,6 +238,11 @@ namespace quickLink
                     _allItems.Add(item);
                 }
                 
+                // Load footer setting
+                var settings = await _dataService.LoadSettingsAsync();
+                _hideFooter = settings.HideFooter;
+                UpdateFooterVisibility();
+                
                 FilterItems();
             }
             finally
@@ -242,11 +275,26 @@ namespace quickLink
             _filteredItems.Clear();
             var searchText = SearchBox.Text?.ToLowerInvariant() ?? string.Empty;
             
+            // Combine user items and internal commands
+            var allSearchableItems = _allItems.AsEnumerable();
+            
+            // Only include internal commands if footer is hidden OR there's a search query
+            if (_hideFooter || !string.IsNullOrWhiteSpace(searchText))
+            {
+                allSearchableItems = allSearchableItems.Concat(_internalCommands);
+            }
+            
             var query = string.IsNullOrWhiteSpace(searchText)
-                ? _allItems
-                : _allItems.Where(item => ItemMatchesSearch(item, searchText));
+                ? allSearchableItems
+                : allSearchableItems.Where(item => ItemMatchesSearch(item, searchText));
 
-            foreach (var item in query)
+            // Sort: internal commands at bottom, regular items alphabetically at top
+            var sortedAndLimited = query
+                .OrderBy(item => item.IsInternalCommand ? 1 : 0) // Internal commands last
+                .ThenBy(item => item.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                .Take(4);
+
+            foreach (var item in sortedAndLimited)
             {
                 _filteredItems.Add(item);
             }
@@ -342,7 +390,24 @@ namespace quickLink
 
         private async Task ExecuteItemAsync(ClipboardItem item)
         {
-            if (item.IsCommand)
+            if (item.IsInternalCommand)
+            {
+                // Handle internal commands
+                switch (item.Value)
+                {
+                    case "internal:add":
+                        ShowEditPanel(null);
+                        break;
+                    case "internal:settings":
+                        ShowSettingsPanel();
+                        break;
+                    case "internal:exit":
+                        _hotkeyService?.Dispose();
+                        Application.Current.Exit();
+                        break;
+                }
+            }
+            else if (item.IsCommand)
             {
                 var command = item.Value.TrimStart('>').Trim();
                 _ = ExecutePowerShellCommandAsync(command);
@@ -449,7 +514,7 @@ namespace quickLink
             SearchBox.Visibility = Visibility.Visible;
             EditPanel.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Visible;
-            FooterPanel.Visibility = Visibility.Visible;
+            UpdateFooterVisibility();
             SearchBox.Focus(FocusState.Programmatic);
         }        private void OnCancelEdit(object sender, RoutedEventArgs e) => HideEditPanel();
 
@@ -522,14 +587,31 @@ namespace quickLink
             SearchBox.Visibility = Visibility.Visible;
             SettingsPanel.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Visible;
-            FooterPanel.Visibility = Visibility.Visible;
+            UpdateFooterVisibility();
             SearchBox.Focus(FocusState.Programmatic);
         }
 
         private async void LoadSettings()
         {
             await LoadStartupSettingAsync();
+            await LoadFooterSettingAsync();
             UpdateHotkeyDisplay();
+        }
+
+        private async Task LoadFooterSettingAsync()
+        {
+            try
+            {
+                var settings = await _dataService.LoadSettingsAsync();
+                _hideFooter = settings.HideFooter;
+                HideFooterCheckBox.IsChecked = settings.HideFooter;
+                UpdateFooterVisibility();
+            }
+            catch
+            {
+                _hideFooter = false;
+                HideFooterCheckBox.IsChecked = false;
+            }
         }
 
         private async Task LoadStartupSettingAsync()
@@ -570,6 +652,25 @@ namespace quickLink
             {
                 StartWithSystemCheckBox.IsChecked = false;
             }
+        }
+
+        private async void OnHideFooterChanged(object sender, RoutedEventArgs e)
+        {
+            _hideFooter = HideFooterCheckBox.IsChecked ?? false;
+            UpdateFooterVisibility();
+            
+            // Save setting
+            var settings = await _dataService.LoadSettingsAsync();
+            settings.HideFooter = _hideFooter;
+            await _dataService.SaveSettingsAsync(settings);
+            
+            // Refresh filtered items to include/exclude internal commands
+            FilterItems();
+        }
+
+        private void UpdateFooterVisibility()
+        {
+            FooterPanel.Visibility = _hideFooter ? Visibility.Collapsed : Visibility.Visible;
         }
 
         private void OnCloseSettings(object sender, RoutedEventArgs e) => HideSettingsPanel();

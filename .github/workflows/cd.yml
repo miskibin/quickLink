@@ -34,7 +34,9 @@ jobs:
     # Decode the base 64 encoded pfx and save the Signing_Certificate (optional)
     # To enable signing, add Base64_Encoded_Pfx and Pfx_Key as repository secrets
     - name: Decode the pfx
-      if: ${{ secrets.Base64_Encoded_Pfx != '' }}
+      if: ${{ env.HAS_SECRET == 'true' }}
+      env:
+        HAS_SECRET: ${{ secrets.Base64_Encoded_Pfx != '' }}
       run: |
         $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
         $certificatePath = "GitHubActionsWorkflow.pfx"

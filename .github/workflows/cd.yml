@@ -11,7 +11,14 @@ jobs:
     strategy:
       matrix:
         configuration: [Release]
-        platform: [x64]
+        platform: [x64, x86, ARM64]
+        include:
+          - platform: x64
+            runtime: win-x64
+          - platform: x86
+            runtime: win-x86
+          - platform: ARM64
+            runtime: win-arm64
     runs-on: windows-latest
     env:
       Project_Path: quickLink/quickLink.csproj
@@ -52,17 +59,14 @@ jobs:
       env:
         Configuration: ${{ matrix.configuration }}
         Platform: ${{ matrix.platform }}
-    # Publish the application (creates MSIX package)
+    # Publish the application (creates self-contained single-file executable)
     - name: Publish the application
       run: |
-        if (Test-Path "GitHubActionsWorkflow.pfx") {
-          dotnet publish $env:Project_Path -c $env:Configuration -p:Platform=$env:Platform -p:PackageCertificateKeyFile=GitHubActionsWorkflow.pfx -p:PackageCertificatePassword="${{ secrets.Pfx_Key }}"
-        } else {
-          dotnet publish $env:Project_Path -c $env:Configuration -p:Platform=$env:Platform
-        }
+        dotnet publish $env:Project_Path -c $env:Configuration -r $env:Runtime -p:Platform=$env:Platform
       env:
         Configuration: ${{ matrix.configuration }}
         Platform: ${{ matrix.platform }}
+        Runtime: ${{ matrix.runtime }}
     # Remove the pfx (if it was created)
     - name: Remove the pfx
       if: always()
@@ -75,4 +79,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: quickLink-${{ matrix.platform }}-${{ matrix.configuration }}
-        path: quickLink/bin/${{ matrix.platform }}/${{ matrix.configuration }}/
+        path: quickLink/bin/${{ matrix.platform }}/${{ matrix.configuration }}/net8.0-windows10.0.19041.0/${{ matrix.runtime }}/publish/

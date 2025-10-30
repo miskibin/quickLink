@@ -23,9 +23,14 @@ dotnet restore quickLink/quickLink.csproj
 # Build the project
 dotnet build quickLink/quickLink.csproj -c Release -p:Platform=x64
 
-# Publish the project (creates MSIX package)
-dotnet publish quickLink/quickLink.csproj -c Release -p:Platform=x64
+# Publish as self-contained single-file executable (Recommended)
+dotnet publish quickLink/quickLink.csproj -c Release -r win-x64 -p:Platform=x64
+
+# The self-contained executable will be in:
+# quickLink/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/quickLink.exe
 ```
+
+**Note**: The project is now configured for self-contained deployment, which includes all necessary runtime components. This eliminates the need for users to install the Windows App SDK Runtime separately.
 
 ## Continuous Deployment
 

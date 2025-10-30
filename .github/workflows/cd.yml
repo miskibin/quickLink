@@ -38,19 +38,46 @@ jobs:
     - name: Restore the application
       run: dotnet restore $env:Project_Path
 
+    # Decode the base 64 encoded pfx and save the Signing_Certificate (optional)
+    # To enable signing, add Base64_Encoded_Pfx and Pfx_Key as repository secrets
+    - name: Decode the pfx
+      if: ${{ secrets.Base64_Encoded_Pfx != '' }}
+      run: |
+        $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
+        $certificatePath = "GitHubActionsWorkflow.pfx"
+        [IO.File]::WriteAllBytes("$certificatePath", $pfx_cert_byte)
+
     # Build the application
     - name: Build the application
-      run: dotnet build $env:Project_Path -c $env:Configuration -p:Platform=$env:Platform
+      run: |
+        if (Test-Path "GitHubActionsWorkflow.pfx") {
+          dotnet build $env:Project_Path -c $env:Configuration -p:Platform=$env:Platform -p:PackageCertificateKeyFile="$PWD\GitHubActionsWorkflow.pfx" -p:PackageCertificatePassword="${{ secrets.Pfx_Key }}"
+        } else {
+          dotnet build $env:Project_Path -c $env:Configuration -p:Platform=$env:Platform
+        }
       env:
         Configuration: ${{ matrix.configuration }}
         Platform: ${{ matrix.platform }}
 
     # Publish the application (creates MSIX package)
     - name: Publish the application
-      run: dotnet publish $env:Project_Path -c $env:Configuration -p:Platform=$env:Platform
+      run: |
+        if (Test-Path "GitHubActionsWorkflow.pfx") {
+          dotnet publish $env:Project_Path -c $env:Configuration -p:Platform=$env:Platform -p:PackageCertificateKeyFile="$PWD\GitHubActionsWorkflow.pfx" -p:PackageCertificatePassword="${{ secrets.Pfx_Key }}"
+        } else {
+          dotnet publish $env:Project_Path -c $env:Configuration -p:Platform=$env:Platform
+        }
       env:
         Configuration: ${{ matrix.configuration }}
         Platform: ${{ matrix.platform }}
+
+    # Remove the pfx (if it was created)
+    - name: Remove the pfx
+      if: always()
+      run: |
+        if (Test-Path "GitHubActionsWorkflow.pfx") {
+          Remove-Item -path "GitHubActionsWorkflow.pfx"
+        }
 
     # Upload the build artifacts
     - name: Upload build artifacts

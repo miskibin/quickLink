@@ -1,55 +1,44 @@
 name: CD - Build and Package
-
 on:
   push:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
-
 permissions:
   contents: read
-
 jobs:
   build:
     strategy:
       matrix:
         configuration: [Release]
         platform: [x64, x86, ARM64]
-
     runs-on: windows-latest
-
     env:
       Project_Path: quickLink/quickLink.csproj
-
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
     # Install the .NET workload
     - name: Install .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
-
     # Add MSBuild to the PATH
     - name: Setup MSBuild.exe
       uses: microsoft/setup-msbuild@v2
-
     # Restore the application
     - name: Restore the application
       run: dotnet restore $env:Project_Path
-
     # Decode the base 64 encoded pfx and save the Signing_Certificate (optional)
     # To enable signing, add Base64_Encoded_Pfx and Pfx_Key as repository secrets
     - name: Decode the pfx
-      if: ${{ secrets.Base64_Encoded_Pfx }}
+      if: ${{ secrets.Base64_Encoded_Pfx != '' }}
       run: |
         $pfx_cert_byte = [System.Convert]::FromBase64String("${{ secrets.Base64_Encoded_Pfx }}")
         $certificatePath = "GitHubActionsWorkflow.pfx"
         [IO.File]::WriteAllBytes("$certificatePath", $pfx_cert_byte)
-
     # Build the application
     - name: Build the application
       run: |
@@ -61,7 +50,6 @@ jobs:
       env:
         Configuration: ${{ matrix.configuration }}
         Platform: ${{ matrix.platform }}
-
     # Publish the application (creates MSIX package)
     - name: Publish the application
       run: |
@@ -73,7 +61,6 @@ jobs:
       env:
         Configuration: ${{ matrix.configuration }}
         Platform: ${{ matrix.platform }}
-
     # Remove the pfx (if it was created)
     - name: Remove the pfx
       if: always()
@@ -81,7 +68,6 @@ jobs:
         if (Test-Path "GitHubActionsWorkflow.pfx") {
           Remove-Item -path "GitHubActionsWorkflow.pfx"
         }
-
     # Upload the build artifacts
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4

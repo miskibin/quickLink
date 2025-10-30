@@ -75,4 +75,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: quickLink-${{ matrix.platform }}-${{ matrix.configuration }}
-        path: quickLink/bin/${{ matrix.configuration }}/
+        path: quickLink/bin/${{ matrix.platform }}/${{ matrix.configuration }}/

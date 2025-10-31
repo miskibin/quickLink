@@ -3,15 +3,20 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Microsoft.Graphics.Canvas.Effects;
 using Microsoft.UI;
+using Microsoft.UI.Composition;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using quickLink.Models;
 using quickLink.Services;
+using Windows.UI;
 using WinRT.Interop;
 
 namespace quickLink
@@ -28,8 +33,8 @@ namespace quickLink
         private const uint MOD_SHIFT = 0x0004;
         
         // Window dimensions
-        private const int WINDOW_WIDTH = 600;
-        private const int WINDOW_HEIGHT = 300;
+        private const int WINDOW_WIDTH = 720;
+        private const int WINDOW_HEIGHT = 360;
         
         // Default hotkey
         private static readonly Windows.System.VirtualKeyModifiers DefaultHotkeyModifiers = 
@@ -169,6 +174,65 @@ namespace quickLink
             var centerY = (displayArea.WorkArea.Height - AppWindow.Size.Height) / 2;
 
             AppWindow.Move(new Windows.Graphics.PointInt32(centerX, centerY));
+        }
+
+        private void ApplyGlassEffect()
+        {
+            try
+            {
+                if (Content == null) return;
+                
+                var compositor = ElementCompositionPreview.GetElementVisual(Content).Compositor;
+                var backdropBrush = compositor.CreateBackdropBrush();
+
+                // Detect theme
+                var isDarkTheme = Application.Current.RequestedTheme == ApplicationTheme.Dark;
+                var tintColor = isDarkTheme 
+                    ? Color.FromArgb(200, 30, 30, 30)   // Dark mode: dark gray tint with more transparency
+                    : Color.FromArgb(200, 250, 250, 250); // Light mode: light gray tint with more transparency
+
+                // Create the glass effect
+                var glassEffect = new GaussianBlurEffect
+                {
+                    BlurAmount = 20.0f,
+                    Source = new CompositeEffect
+                    {
+                        Mode = Microsoft.Graphics.Canvas.CanvasComposite.SourceOver,
+                        Sources =
+                        {
+                            new CompositionEffectSourceParameter("backdropBrush"),
+                            new ColorSourceEffect { Color = tintColor }
+                        }
+                    }
+                };
+
+                // Create brush and apply
+                var effectFactory = compositor.CreateEffectFactory(glassEffect);
+                var effectBrush = effectFactory.CreateBrush();
+                effectBrush.SetSourceParameter("backdropBrush", backdropBrush);
+
+                // Apply to root grid
+                var rootVisual = ElementCompositionPreview.GetElementVisual(RootGrid);
+                var spriteVisual = compositor.CreateSpriteVisual();
+                spriteVisual.Brush = effectBrush;
+                
+                ElementCompositionPreview.SetElementChildVisual(RootGrid, spriteVisual);
+                
+                // Bind size
+                var bindSizeAnimation = compositor.CreateExpressionAnimation("visual.Size");
+                bindSizeAnimation.SetReferenceParameter("visual", rootVisual);
+                spriteVisual.StartAnimation("Size", bindSizeAnimation);
+            }
+            catch
+            {
+                // Fallback if glass effect fails - use semi-transparent background
+                var isDarkTheme = Application.Current.RequestedTheme == ApplicationTheme.Dark;
+                RootGrid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    isDarkTheme 
+                        ? Color.FromArgb(200, 30, 30, 30) 
+                        : Color.FromArgb(200, 250, 250, 250)
+                );
+            }
         }
 
         private void OnWindowActivated(object sender, WindowActivatedEventArgs args)

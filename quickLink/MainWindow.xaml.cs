@@ -27,9 +27,9 @@ namespace quickLink
         private const uint MOD_CONTROL = 0x0002;
         private const uint MOD_SHIFT = 0x0004;
         
-        // Window dimensions
-        private const int WINDOW_WIDTH = 900;
-        private const int WINDOW_HEIGHT = 450;
+        // Window dimensions (1.3x from original 600x300)
+        private const int WINDOW_WIDTH = 780;
+        private const int WINDOW_HEIGHT = 390;
         
         // Default hotkey
         private static readonly Windows.System.VirtualKeyModifiers DefaultHotkeyModifiers = 
@@ -410,7 +410,7 @@ namespace quickLink
             else if (item.IsCommand)
             {
                 var command = item.Value.TrimStart('>').Trim();
-                _ = ExecuteCommandAsync(command);
+                _ = ExecutePowerShellCommandAsync(command);
                 AppWindow.Hide();
             }
             else if (item.IsLink)
@@ -430,7 +430,7 @@ namespace quickLink
             if (searchText.StartsWith(">"))
             {
                 var command = searchText.TrimStart('>').Trim();
-                _ = ExecuteCommandAsync(command);
+                _ = ExecutePowerShellCommandAsync(command);
                 AppWindow.Hide();
             }
             else
@@ -441,24 +441,16 @@ namespace quickLink
             }
         }
 
-        private static Task ExecuteCommandAsync(string command)
+        private static Task ExecutePowerShellCommandAsync(string command)
         {
-            // Note: Commands are user-created and stored locally in the app's data.
-            // The user is intentionally executing their own commands, so command injection
-            // from untrusted sources is not a concern. All commands originate from the user.
-            // 
-            // We use cmd.exe /c instead of powershell.exe to support direct executable commands
-            // like nircmd.exe that don't work well when wrapped in PowerShell's command parser.
-            // The command string is passed as-is because it already contains proper quoting
-            // from the user (e.g., "C:\path\to\executable.exe" arguments).
             return Task.Run(async () =>
             {
                 try
                 {
                     var psi = new ProcessStartInfo
                     {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c {command}",
+                        FileName = "powershell.exe",
+                        Arguments = $"-NoProfile -Command \"{command.Replace("\"", "\"\"")}\"",
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardOutput = true,

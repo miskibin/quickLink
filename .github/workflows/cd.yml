@@ -1,0 +1,43 @@
+name: Continuous Deployment (Build)
+
+on:
+  pull_request:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    env:
+      Project_Path: quickLink/quickLink.csproj
+      
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Install .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+        
+    - name: Setup MSBuild.exe
+      uses: microsoft/setup-msbuild@v2
+      
+    - name: Restore the application
+      run: dotnet restore $env:Project_Path
+      
+    - name: Build x64
+      run: |
+        dotnet publish $env:Project_Path -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=true --self-contained
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: quickLink-x64-Release
+        path: quickLink/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/
+        retention-days: 7

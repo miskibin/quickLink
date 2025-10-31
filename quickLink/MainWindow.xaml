@@ -11,17 +11,21 @@
     mc:Ignorable="d">
 
     <Window.SystemBackdrop>
-        <MicaBackdrop Kind="BaseAlt" />
+        <DesktopAcrylicBackdrop />
     </Window.SystemBackdrop>
 
     <Grid x:Name="RootGrid" Background="Transparent" KeyDown="OnRootKeyDown">
         
-        <!-- Modern semi-transparent background with enhanced glass effect -->
-        <Border Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" 
-                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" 
+        <!-- Modern semi-transparent background with glass effect -->
+        <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                 BorderThickness="1"
-                Margin="0"
-                Opacity="0.98">
+                Margin="0">
+            <Border.Background>
+                <AcrylicBrush BackgroundSource="Backdrop"
+                             TintColor="#202020"
+                             TintOpacity="0.7"
+                             FallbackColor="#191919" />
+            </Border.Background>
             <Border.Shadow>
                 <ThemeShadow />
             </Border.Shadow>
@@ -33,17 +37,16 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
- <!-- Enhanced Search Box with better visibility -->
+ <!-- Minimalistic Search Box -->
          <TextBox x:Name="SearchBox"
    Grid.Row="0"
-     PlaceholderText="Search for apps, files and commands..."
-       FontSize="15"
+     PlaceholderText="Search..."
+       FontSize="14"
     CornerRadius="8"
-      BorderThickness="1"
-   BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
-   Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
-        Padding="12,10"
-Margin="0,0,0,8"
+      BorderThickness="0"
+   Background="{ThemeResource LayerFillColorDefaultBrush}"
+        Padding="10,8"
+Margin="0,0,0,6"
     TextChanged="OnSearchTextChanged"
                   TabIndex="0">
         <TextBox.KeyboardAccelerators>
@@ -85,17 +88,17 @@ Background="Transparent"
                               <VisualState x:Name="Normal" />
                               <VisualState x:Name="Selected">
                                   <VisualState.Setters>
-                                      <Setter Target="Root.Background" Value="{ThemeResource AccentFillColorSecondaryBrush}" />
+                                      <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
                                   </VisualState.Setters>
                               </VisualState>
                               <VisualState x:Name="PointerOver">
                                   <VisualState.Setters>
-                                      <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
+                                      <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
                                   </VisualState.Setters>
                               </VisualState>
                               <VisualState x:Name="PointerOverSelected">
                                   <VisualState.Setters>
-                                      <Setter Target="Root.Background" Value="{ThemeResource AccentFillColorTertiaryBrush}" />
+                                      <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
                                   </VisualState.Setters>
                               </VisualState>
                           </VisualStateGroup>
@@ -115,20 +118,19 @@ Background="Transparent"
   <ListView.ItemTemplate>
   <DataTemplate x:DataType="models:ClipboardItem">
    <Grid Background="Transparent"
-         Padding="10,8">
+         Padding="8,6">
     <Grid.ColumnDefinitions>
   <ColumnDefinition Width="Auto"/>
    <ColumnDefinition Width="*"/>
         <ColumnDefinition Width="Auto"/>
    </Grid.ColumnDefinitions>
 
-       <!-- Icon based on IsLink and IsEncrypted properties with vibrant colors -->
- <Grid Grid.Column="0" Width="20" Height="20" Margin="0,0,10,0" VerticalAlignment="Center">
+       <!-- Icon based on IsLink and IsEncrypted properties -->
+ <Grid Grid.Column="0" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
      <!-- Link icon (only for links) -->
      <FontIcon FontFamily="Segoe Fluent Icons"
       Glyph="&#xE71B;"
-  FontSize="18"
-  Foreground="#0078D4">
+  FontSize="16">
    <FontIcon.Visibility>
        <Binding Path="IsLink" Mode="OneWay">
            <Binding.Converter>
@@ -140,8 +142,8 @@ Background="Transparent"
           <!-- Encrypted text icon (lock) - only for non-links that are encrypted -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE72E;"
-       FontSize="18"
-          Foreground="#F7630C">
+       FontSize="16"
+          Foreground="{ThemeResource SystemFillColorAttentionBrush}">
               <FontIcon.Visibility>
                   <Binding Path="IsEncryptedAndNotLink" Mode="OneWay">
                       <Binding.Converter>
@@ -153,8 +155,8 @@ Background="Transparent"
           <!-- Command icon (terminal) - only for commands -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE756;"
-       FontSize="18"
-          Foreground="#107C10">
+       FontSize="16"
+          Foreground="{ThemeResource SystemFillColorSuccessBrush}">
               <FontIcon.Visibility>
                   <Binding Path="IsCommandAndNotLink" Mode="OneWay">
                       <Binding.Converter>
@@ -165,8 +167,8 @@ Background="Transparent"
           </FontIcon>
           <!-- Internal command icon - shows different icon based on command -->
           <FontIcon FontFamily="Segoe Fluent Icons"
-       FontSize="18"
-          Foreground="#8764B8">
+       FontSize="16"
+          Foreground="{ThemeResource AccentFillColorDefaultBrush}">
               <FontIcon.Glyph>
                   <Binding Path="Value" Mode="OneWay">
                       <Binding.Converter>
@@ -185,8 +187,7 @@ Background="Transparent"
           <!-- Regular text icon (document) - only for non-links that are not encrypted -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE8A5;"
-       FontSize="18"
-          Foreground="#767676">
+       FontSize="16">
               <FontIcon.Visibility>
                   <Binding Path="IsPlainText" Mode="OneWay">
                       <Binding.Converter>
@@ -197,17 +198,16 @@ Background="Transparent"
           </FontIcon>
    </Grid>
 
-   <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+   <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
            <TextBlock Text="{x:Bind DisplayTitle, Mode=OneWay}"
       FontWeight="SemiBold"
-            FontSize="14"
+            FontSize="13"
        TextTrimming="CharacterEllipsis"/>
       <TextBlock Text="{x:Bind DisplayValue, Mode=OneWay}"
-  FontSize="12"
+  FontSize="11"
      TextTrimming="CharacterEllipsis"
   MaxLines="1"
-   Opacity="0.8"
-   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+   Opacity="0.7"/>
           </StackPanel>
 
       <StackPanel Grid.Column="2" 
@@ -263,27 +263,26 @@ Tag="{x:Bind}">
               <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
           
-          <!-- Add New Item Button with vibrant accent -->
+          <!-- Add New Item Button -->
           <Button Grid.Column="0"
                   x:Name="AddNewButton"
                   Background="Transparent"
-                  BorderThickness="1"
-                  BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                  BorderThickness="0"
                   HorizontalAlignment="Stretch"
                   HorizontalContentAlignment="Left"
-                  Padding="8,6"
+                  Padding="6,5"
                   CornerRadius="6"
                   Click="OnAddNewTapped"
                   TabIndex="1">
               <StackPanel Orientation="Horizontal" Spacing="8">
                   <FontIcon FontFamily="Segoe Fluent Icons"
                            Glyph="&#xE710;"
-                           FontSize="18"
+                           FontSize="16"
                            Foreground="{ThemeResource AccentFillColorDefaultBrush}"
                            VerticalAlignment="Center"/>
                   <TextBlock Text="Add new item"
                             FontWeight="SemiBold"
-                            FontSize="14"
+                            FontSize="13"
                             Foreground="{ThemeResource AccentFillColorDefaultBrush}"
                             VerticalAlignment="Center"/>
               </StackPanel>

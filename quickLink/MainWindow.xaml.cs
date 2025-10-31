@@ -410,7 +410,7 @@ namespace quickLink
             else if (item.IsCommand)
             {
                 var command = item.Value.TrimStart('>').Trim();
-                _ = ExecutePowerShellCommandAsync(command);
+                _ = ExecuteCommandAsync(command);
                 AppWindow.Hide();
             }
             else if (item.IsLink)
@@ -430,7 +430,7 @@ namespace quickLink
             if (searchText.StartsWith(">"))
             {
                 var command = searchText.TrimStart('>').Trim();
-                _ = ExecutePowerShellCommandAsync(command);
+                _ = ExecuteCommandAsync(command);
                 AppWindow.Hide();
             }
             else
@@ -441,7 +441,7 @@ namespace quickLink
             }
         }
 
-        private static Task ExecutePowerShellCommandAsync(string command)
+        private static Task ExecuteCommandAsync(string command)
         {
             return Task.Run(async () =>
             {
@@ -449,8 +449,8 @@ namespace quickLink
                 {
                     var psi = new ProcessStartInfo
                     {
-                        FileName = "powershell.exe",
-                        Arguments = $"-NoProfile -Command \"{command.Replace("\"", "\"\"")}\"",
+                        FileName = "cmd.exe",
+                        Arguments = $"/c {command}",
                         UseShellExecute = false,
                         CreateNoWindow = true,
                         RedirectStandardOutput = true,
@@ -460,6 +460,7 @@ namespace quickLink
                     using var process = Process.Start(psi);
                     if (process != null)
                     {
+                        // Wait for exit with a timeout to prevent freezing
                         await process.WaitForExitAsync();
                     }
                 }

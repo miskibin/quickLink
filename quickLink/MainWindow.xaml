@@ -21,7 +21,7 @@
                 BorderThickness="1"
                 Margin="0">
             <Border.Background>
-                <AcrylicBrush BackgroundSource="HostBackdrop"
+                <AcrylicBrush BackgroundSource="Backdrop"
                              TintColor="#202020"
                              TintOpacity="0.7"
                              FallbackColor="#191919" />

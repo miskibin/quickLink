@@ -27,9 +27,9 @@ namespace quickLink
         private const uint MOD_CONTROL = 0x0002;
         private const uint MOD_SHIFT = 0x0004;
         
-        // Window dimensions
-        private const int WINDOW_WIDTH = 600;
-        private const int WINDOW_HEIGHT = 300;
+        // Window dimensions (1.3x from original 600x300)
+        private const int WINDOW_WIDTH = 780;
+        private const int WINDOW_HEIGHT = 390;
         
         // Default hotkey
         private static readonly Windows.System.VirtualKeyModifiers DefaultHotkeyModifiers = 

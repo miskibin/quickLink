@@ -16,11 +16,16 @@
 
     <Grid x:Name="RootGrid" Background="Transparent" KeyDown="OnRootKeyDown">
         
-        <!-- Modern semi-transparent background - no CornerRadius to avoid double border with window -->
-        <Border Background="{ThemeResource LayerFillColorDefaultBrush}" 
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+        <!-- Modern semi-transparent background with glass effect -->
+        <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                 BorderThickness="1"
                 Margin="0">
+            <Border.Background>
+                <AcrylicBrush BackgroundSource="HostBackdrop"
+                             TintColor="#202020"
+                             TintOpacity="0.7"
+                             FallbackColor="#191919" />
+            </Border.Background>
             <Border.Shadow>
                 <ThemeShadow />
             </Border.Shadow>

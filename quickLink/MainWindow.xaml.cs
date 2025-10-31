@@ -443,6 +443,9 @@ namespace quickLink
 
         private static Task ExecuteCommandAsync(string command)
         {
+            // Note: Commands are user-created and stored locally in the app's data.
+            // The user is intentionally executing their own commands, so command injection
+            // from untrusted sources is not a concern. All commands originate from the user.
             return Task.Run(async () =>
             {
                 try
@@ -460,7 +463,6 @@ namespace quickLink
                     using var process = Process.Start(psi);
                     if (process != null)
                     {
-                        // Wait for exit with a timeout to prevent freezing
                         await process.WaitForExitAsync();
                     }
                 }

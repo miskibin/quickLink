@@ -446,6 +446,11 @@ namespace quickLink
             // Note: Commands are user-created and stored locally in the app's data.
             // The user is intentionally executing their own commands, so command injection
             // from untrusted sources is not a concern. All commands originate from the user.
+            // 
+            // We use cmd.exe /c instead of powershell.exe to support direct executable commands
+            // like nircmd.exe that don't work well when wrapped in PowerShell's command parser.
+            // The command string is passed as-is because it already contains proper quoting
+            // from the user (e.g., "C:\path\to\executable.exe" arguments).
             return Task.Run(async () =>
             {
                 try

@@ -88,6 +88,7 @@ public string Value
                 if (SetProperty(ref _isInternalCommand, value))
                 {
                     OnPropertyChanged(nameof(IsPlainText));
+                    OnPropertyChanged(nameof(IsCommandAndNotLink));
                 }
             }
         }
@@ -100,7 +101,7 @@ public string Value
 
         // Helper properties for icon visibility
         public bool IsEncryptedAndNotLink => IsEncrypted && !IsLink;
-        public bool IsCommandAndNotLink => IsCommand && !IsLink;
+        public bool IsCommandAndNotLink => IsCommand && !IsLink && !IsInternalCommand;
         public bool IsPlainText => !IsEncrypted && !IsLink && !IsCommand && !IsInternalCommand;
 
         public event PropertyChangedEventHandler? PropertyChanged;

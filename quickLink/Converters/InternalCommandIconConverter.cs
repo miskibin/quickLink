@@ -14,6 +14,9 @@ namespace quickLink.Converters
                     "internal:add" => "\uE710",      // Add icon
                     "internal:settings" => "\uE713", // Settings gear icon
                     "internal:exit" => "\uE711",     // Close/Exit icon
+                    ">next" => "\uE893",             // Next track icon
+                    ">prev" => "\uE892",             // Previous track icon
+                    ">playpause" => "\uE768",        // Play/Pause icon
                     _ => "\uE8B7"                    // Default bulleted list icon
                 };
             }

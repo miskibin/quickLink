@@ -48,6 +48,7 @@ namespace quickLink
         #region Fields
         private readonly DataService _dataService;
         private readonly ClipboardService _clipboardService;
+        private readonly MediaControlService _mediaControlService;
         private readonly ObservableCollection<ClipboardItem> _allItems;
         private readonly ObservableCollection<ClipboardItem> _filteredItems;
         private readonly List<ClipboardItem> _internalCommands;
@@ -84,6 +85,7 @@ namespace quickLink
         {
             _dataService = new DataService();
             _clipboardService = new ClipboardService();
+            _mediaControlService = new MediaControlService();
             _allItems = new ObservableCollection<ClipboardItem>();
             _filteredItems = new ObservableCollection<ClipboardItem>();
             _internalCommands = new List<ClipboardItem>();
@@ -94,30 +96,59 @@ namespace quickLink
             InitializeHotkey();
             
             _ = LoadDataAsync();
+            _ = InitializeMediaServiceAsync();
+        }
+
+        private async Task InitializeMediaServiceAsync()
+        {
+            try
+            {
+                await _mediaControlService.InitializeAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Media service initialization failed: {ex.Message}");
+            }
         }
 
         private void InitializeInternalCommands()
         {
-            _internalCommands.Add(new ClipboardItem
+            // Media control commands
+            var mediaCommands = new[]
             {
-                Title = "Add new item",
-                Value = "internal:add",
-                IsInternalCommand = true
-            });
+                ("Next Track", ">next"),
+                ("Previous Track", ">prev"),
+                ("Play/Pause", ">playpause")
+            };
+
+            foreach (var (title, value) in mediaCommands)
+            {
+                _internalCommands.Add(new ClipboardItem
+                {
+                    Title = title,
+                    Value = value,
+                    IsInternalCommand = true,
+                    IsCommand = true
+                });
+            }
             
-            _internalCommands.Add(new ClipboardItem
+            // App commands
+            var appCommands = new[]
             {
-                Title = "Settings",
-                Value = "internal:settings",
-                IsInternalCommand = true
-            });
-            
-            _internalCommands.Add(new ClipboardItem
+                ("Add new item", "internal:add"),
+                ("Settings", "internal:settings"),
+                ("Exit app", "internal:exit")
+            };
+
+            foreach (var (title, value) in appCommands)
             {
-                Title = "Exit app",
-                Value = "internal:exit",
-                IsInternalCommand = true
-            });
+                _internalCommands.Add(new ClipboardItem
+                {
+                    Title = title,
+                    Value = value,
+                    IsInternalCommand = true
+                });
+            }
         }
 
         private void InitializeWindow()
@@ -408,25 +439,12 @@ namespace quickLink
         {
             if (item.IsInternalCommand)
             {
-                // Handle internal commands
-                switch (item.Value)
-                {
-                    case "internal:add":
-                        ShowEditPanel(null);
-                        break;
-                    case "internal:settings":
-                        ShowSettingsPanel();
-                        break;
-                    case "internal:exit":
-                        _hotkeyService?.Dispose();
-                        Application.Current.Exit();
-                        break;
-                }
+                await HandleInternalCommandAsync(item.Value);
             }
             else if (item.IsCommand)
             {
                 var command = item.Value.TrimStart('>').Trim();
-                _ = ExecuteCommandAsync(command);
+                await ExecuteCommandAsync(command);
                 AppWindow.Hide();
             }
             else if (item.IsLink)
@@ -441,12 +459,41 @@ namespace quickLink
             }
         }
 
+        private async Task HandleInternalCommandAsync(string commandValue)
+        {
+            switch (commandValue)
+            {
+                case "internal:add":
+                    ShowEditPanel(null);
+                    break;
+                case "internal:settings":
+                    ShowSettingsPanel();
+                    break;
+                case "internal:exit":
+                    _hotkeyService?.Dispose();
+                    Application.Current.Exit();
+                    break;
+                case ">next":
+                    await _mediaControlService.SkipToNextAsync();
+                    AppWindow.Hide();
+                    break;
+                case ">prev":
+                    await _mediaControlService.SkipToPreviousAsync();
+                    AppWindow.Hide();
+                    break;
+                case ">playpause":
+                    await _mediaControlService.PlayPauseAsync();
+                    AppWindow.Hide();
+                    break;
+            }
+        }
+
         private async Task HandleNoMatchAsync(string searchText)
         {
             if (searchText.StartsWith(">"))
             {
                 var command = searchText.TrimStart('>').Trim();
-                _ = ExecuteCommandAsync(command);
+                await ExecuteCommandAsync(command);
                 AppWindow.Hide();
             }
             else
@@ -457,17 +504,17 @@ namespace quickLink
             }
         }
 
-        private static Task ExecuteCommandAsync(string command)
+        private async Task ExecuteCommandAsync(string command)
         {
+            // Check if it's a media control command
+            if (await TryExecuteMediaCommandAsync(command))
+                return;
+
+            // Execute user-defined command
             // Note: Commands are user-created and stored locally in the app's data.
             // The user is intentionally executing their own commands, so command injection
             // from untrusted sources is not a concern. All commands originate from the user.
-            // 
-            // We use cmd.exe /c instead of powershell.exe to support direct executable commands
-            // like nircmd.exe that don't work well when wrapped in PowerShell's command parser.
-            // The command string is passed as-is because it already contains proper quoting
-            // from the user (e.g., "C:\path\to\executable.exe" arguments).
-            return Task.Run(async () =>
+            await Task.Run(async () =>
             {
                 try
                 {
@@ -492,6 +539,33 @@ namespace quickLink
                     // Silently fail - command execution errors
                 }
             });
+        }
+
+        private async Task<bool> TryExecuteMediaCommandAsync(string command)
+        {
+            switch (command.ToLowerInvariant())
+            {
+                case "next":
+                case "media next":
+                    await _mediaControlService.SkipToNextAsync();
+                    return true;
+                    
+                case "prev":
+                case "previous":
+                case "media prev":
+                    await _mediaControlService.SkipToPreviousAsync();
+                    return true;
+                    
+                case "playpause":
+                case "play":
+                case "pause":
+                case "media playpause":
+                    await _mediaControlService.PlayPauseAsync();
+                    return true;
+                    
+                default:
+                    return false;
+            }
         }
         #endregion
 

@@ -487,6 +487,26 @@ Style="{StaticResource AccentButtonStyle}"
                    Unchecked="OnHideFooterChanged"
                    TabIndex="11"/>
           
+          <!-- Search URL customization -->
+          <StackPanel Spacing="5">
+              <TextBlock Text="Search URL (use {query} as placeholder)"
+                        FontSize="13"
+                        FontWeight="SemiBold"/>
+              <TextBlock Text="Examples: https://google.com/search?q={query} or https://claude.ai/new?q={query}"
+                        FontSize="11"
+                        Opacity="0.6"
+                        TextWrapping="Wrap"/>
+              <TextBox x:Name="SearchUrlTextBox"
+                      PlaceholderText="https://chatgpt.com/?q={query}"
+                      FontSize="13"
+                      CornerRadius="6"
+                      Background="{ThemeResource LayerFillColorDefaultBrush}"
+                      BorderThickness="0"
+                      Padding="10,8"
+                      TextChanged="OnSearchUrlChanged"
+                      TabIndex="12"/>
+          </StackPanel>
+          
           <!-- Hotkey customization -->
           <StackPanel Spacing="5">
               <TextBlock Text="Click the box below and press a key combination (e.g., Ctrl+Shift+Q)"
@@ -510,7 +530,7 @@ Style="{StaticResource AccentButtonStyle}"
                           IsReadOnly="True"
                           PreviewKeyDown="OnHotkeyKeyDown"
                           Margin="0,0,6,0"
-                          TabIndex="12"/>
+                          TabIndex="13"/>
                   
                   <Button x:Name="ApplyHotkeyButton"
                          Grid.Column="1"
@@ -521,7 +541,7 @@ Style="{StaticResource AccentButtonStyle}"
                          FontSize="12"
                          IsEnabled="False"
                          Margin="0,0,6,0"
-                         TabIndex="13"
+                         TabIndex="14"
                          Style="{ThemeResource AccentButtonStyle}"/>
                   
                   <Button Grid.Column="2"
@@ -530,7 +550,7 @@ Style="{StaticResource AccentButtonStyle}"
                          CornerRadius="6"
                          Padding="14,8"
                          FontSize="12"
-                         TabIndex="14"/>
+                         TabIndex="15"/>
               </Grid>
               <TextBlock x:Name="HotkeyStatusText"
                         FontSize="11"
@@ -545,7 +565,7 @@ Style="{StaticResource AccentButtonStyle}"
                      CornerRadius="6"
                      Padding="14,8"
                      FontSize="12"
-                     TabIndex="15"/>
+                     TabIndex="16"/>
           </StackPanel>
       </StackPanel>
 

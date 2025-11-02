@@ -52,6 +52,7 @@ namespace quickLink
         private readonly ObservableCollection<ClipboardItem> _allItems;
         private readonly ObservableCollection<ClipboardItem> _filteredItems;
         private readonly List<ClipboardItem> _internalCommands;
+        private readonly ClipboardItem _searchConversationItem;
         
         private GlobalHotkeyService? _hotkeyService;
         private IntPtr _windowHandle;
@@ -59,6 +60,7 @@ namespace quickLink
         private bool _isEditing;
         private bool _isInSettings;
         private bool _hideFooter;
+        private string _searchUrl = "https://chatgpt.com/?q={query}";
         private Windows.System.VirtualKeyModifiers _newHotkeyModifiers = DefaultHotkeyModifiers;
         private Windows.System.VirtualKey _newHotkeyKey = DefaultHotkeyKey;
         
@@ -89,6 +91,12 @@ namespace quickLink
             _allItems = new ObservableCollection<ClipboardItem>();
             _filteredItems = new ObservableCollection<ClipboardItem>();
             _internalCommands = new List<ClipboardItem>();
+            _searchConversationItem = new ClipboardItem
+            {
+                Title = "Start conversation",
+                Value = "search:",
+                IsInternalCommand = true
+            };
 
             InitializeComponent();
             InitializeInternalCommands();
@@ -291,6 +299,7 @@ namespace quickLink
                 // Load footer setting
                 var settings = await _dataService.LoadSettingsAsync();
                 _hideFooter = settings.HideFooter;
+                _searchUrl = settings.SearchUrl;
                 UpdateFooterVisibility();
                 
                 FilterItems();
@@ -343,6 +352,14 @@ namespace quickLink
                 .ThenBy(item => item.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
                 .Take(4)
                 .ToList();
+
+            // If no results and user has typed something (not a command), show search suggestion
+            if (newItems.Count == 0 && !string.IsNullOrWhiteSpace(searchText) && !searchText.StartsWith(">"))
+            {
+                // Update the Value with the current search text, but reuse the same object instance
+                _searchConversationItem.Value = $"search:{searchText}";
+                newItems.Add(_searchConversationItem);
+            }
 
             // Only update if the items actually changed
             if (!ItemsAreEqual(newItems, _filteredItems))
@@ -483,6 +500,17 @@ namespace quickLink
 
         private async Task HandleInternalCommandAsync(string commandValue)
         {
+            // Handle search command
+            if (commandValue.StartsWith("search:"))
+            {
+                var searchText = commandValue.Substring(7); // Remove "search:" prefix
+                var query = Uri.EscapeDataString(searchText);
+                var url = _searchUrl.Replace("{query}", query);
+                await _clipboardService.OpenUrlAsync(url);
+                AppWindow.Hide();
+                return;
+            }
+
             switch (commandValue)
             {
                 case "internal:add":
@@ -521,7 +549,8 @@ namespace quickLink
             else
             {
                 var query = Uri.EscapeDataString(searchText);
-                await _clipboardService.OpenUrlAsync($"https://chatgpt.com/?q={query}");
+                var url = _searchUrl.Replace("{query}", query);
+                await _clipboardService.OpenUrlAsync(url);
                 AppWindow.Hide();
             }
         }
@@ -715,7 +744,37 @@ namespace quickLink
         {
             await LoadStartupSettingAsync();
             await LoadFooterSettingAsync();
+            await LoadSearchUrlSettingAsync();
             UpdateHotkeyDisplay();
+        }
+
+        private async Task LoadSearchUrlSettingAsync()
+        {
+            try
+            {
+                var settings = await _dataService.LoadSettingsAsync();
+                _searchUrl = settings.SearchUrl;
+                SearchUrlTextBox.Text = settings.SearchUrl;
+            }
+            catch
+            {
+                _searchUrl = "https://chatgpt.com/?q={query}";
+                SearchUrlTextBox.Text = _searchUrl;
+            }
+        }
+
+        private async void OnSearchUrlChanged(object sender, TextChangedEventArgs e)
+        {
+            var newUrl = SearchUrlTextBox.Text?.Trim();
+            if (string.IsNullOrWhiteSpace(newUrl) || !newUrl.Contains("{query}"))
+                return;
+
+            _searchUrl = newUrl;
+            
+            // Save setting
+            var settings = await _dataService.LoadSettingsAsync();
+            settings.SearchUrl = _searchUrl;
+            await _dataService.SaveSettingsAsync(settings);
         }
 
         private async Task LoadFooterSettingAsync()

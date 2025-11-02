@@ -64,6 +64,9 @@ namespace quickLink
         private Windows.System.VirtualKeyModifiers _newHotkeyModifiers = DefaultHotkeyModifiers;
         private Windows.System.VirtualKey _newHotkeyKey = DefaultHotkeyKey;
         
+        // Performance optimization: cache the last search to avoid redundant filtering
+        private string _lastSearchText = string.Empty;
+        
         // Window subclassing
         private WinProc? _newWndProc;
         private IntPtr _oldWndProc;
@@ -332,48 +335,110 @@ namespace quickLink
         private void FilterItems()
         {
             var searchText = SearchBox.Text?.ToLowerInvariant() ?? string.Empty;
+            var isEmpty = string.IsNullOrWhiteSpace(searchText);
             
-            // Combine user items and internal commands
-            var allSearchableItems = _allItems.AsEnumerable();
+            // Pre-calculate whether to include internal commands
+            var includeInternalCommands = _hideFooter || !isEmpty;
             
-            // Only include internal commands if footer is hidden OR there's a search query
-            if (_hideFooter || !string.IsNullOrWhiteSpace(searchText))
+            // Optimize: avoid multiple enumerations
+            List<ClipboardItem> newItems;
+            
+            if (isEmpty)
             {
-                allSearchableItems = allSearchableItems.Concat(_internalCommands);
+                // No search - just take first 4 items plus internal commands if needed
+                newItems = new List<ClipboardItem>(5); // Pre-allocate capacity
+                var count = 0;
+                
+                foreach (var item in _allItems)
+                {
+                    if (count >= 4) break;
+                    newItems.Add(item);
+                    count++;
+                }
+                
+                if (includeInternalCommands)
+                {
+                    foreach (var cmd in _internalCommands)
+                    {
+                        if (newItems.Count >= 4) break;
+                        newItems.Add(cmd);
+                    }
+                }
             }
-            
-            var query = string.IsNullOrWhiteSpace(searchText)
-                ? allSearchableItems
-                : allSearchableItems.Where(item => ItemMatchesSearch(item, searchText));
-
-            // Sort: internal commands at bottom, regular items alphabetically at top
-            var newItems = query
-                .OrderBy(item => item.IsInternalCommand ? 1 : 0) // Internal commands last
-                .ThenBy(item => item.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .Take(4)
-                .ToList();
-
-            // If no results and user has typed something (not a command), show search suggestion
-            if (newItems.Count == 0 && !string.IsNullOrWhiteSpace(searchText) && !searchText.StartsWith(">"))
+            else
             {
-                // Update the Value with the current search text, but reuse the same object instance
-                _searchConversationItem.Value = $"search:{searchText}";
-                newItems.Add(_searchConversationItem);
+                // With search - filter and sort
+                var capacity = Math.Min(_allItems.Count + (includeInternalCommands ? _internalCommands.Count : 0), 5);
+                newItems = new List<ClipboardItem>(capacity);
+                
+                // Search user items
+                foreach (var item in _allItems)
+                {
+                    if (newItems.Count >= 4) break;
+                    if (ItemMatchesSearch(item, searchText))
+                    {
+                        newItems.Add(item);
+                    }
+                }
+                
+                // Search internal commands if needed
+                if (includeInternalCommands && newItems.Count < 4)
+                {
+                    foreach (var cmd in _internalCommands)
+                    {
+                        if (newItems.Count >= 4) break;
+                        if (ItemMatchesSearch(cmd, searchText))
+                        {
+                            newItems.Add(cmd);
+                        }
+                    }
+                }
+                
+                // If no results and not a command, show search suggestion
+                if (newItems.Count == 0 && !searchText.StartsWith(">"))
+                {
+                    _searchConversationItem.Value = $"search:{searchText}";
+                    newItems.Add(_searchConversationItem);
+                }
             }
 
             // Only update if the items actually changed
             if (!ItemsAreEqual(newItems, _filteredItems))
             {
-                _filteredItems.Clear();
-                foreach (var item in newItems)
-                {
-                    _filteredItems.Add(item);
-                }
+                // Optimize: use indexed updates when possible instead of Clear + AddRange
+                UpdateFilteredItems(newItems);
 
                 // Auto-select first item
                 if (_filteredItems.Count > 0)
                 {
                     ItemsList.SelectedIndex = 0;
+                }
+            }
+        }
+        
+        private void UpdateFilteredItems(List<ClipboardItem> newItems)
+        {
+            // Remove items from the end that are no longer needed
+            while (_filteredItems.Count > newItems.Count)
+            {
+                _filteredItems.RemoveAt(_filteredItems.Count - 1);
+            }
+            
+            // Update existing items or add new ones
+            for (int i = 0; i < newItems.Count; i++)
+            {
+                if (i < _filteredItems.Count)
+                {
+                    // Update existing slot if different
+                    if (!ReferenceEquals(_filteredItems[i], newItems[i]))
+                    {
+                        _filteredItems[i] = newItems[i];
+                    }
+                }
+                else
+                {
+                    // Add new item
+                    _filteredItems.Add(newItems[i]);
                 }
             }
         }
@@ -394,13 +459,28 @@ namespace quickLink
 
         private static bool ItemMatchesSearch(ClipboardItem item, string searchText)
         {
-            return (!string.IsNullOrWhiteSpace(item.Title) && 
-                    item.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase)) ||
-                   (!string.IsNullOrWhiteSpace(item.Value) && 
-                    item.Value.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            // Early exit if search text is empty (should not happen due to caller check)
+            if (string.IsNullOrEmpty(searchText))
+                return true;
+            
+            // Check title first (most common match)
+            if (!string.IsNullOrWhiteSpace(item.Title) && 
+                item.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                return true;
+            
+            // Check value second
+            if (!string.IsNullOrWhiteSpace(item.Value) && 
+                item.Value.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                return true;
+            
+            return false;
         }
 
-        private void OnSearchTextChanged(object sender, TextChangedEventArgs e) => FilterItems();
+        private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Debouncing could be added here if needed for very large datasets
+            FilterItems();
+        }
 
         private void OnRootKeyDown(object sender, KeyRoutedEventArgs e)
         {

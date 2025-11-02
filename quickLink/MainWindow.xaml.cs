@@ -260,6 +260,9 @@ namespace quickLink
                 Activate();
                 SetForegroundWindow(_windowHandle);
                 
+                // Trigger entrance animation
+                WindowEnterAnimation.Begin();
+                
                 // Small delay to ensure window is fully shown before setting focus
                 DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
                 {

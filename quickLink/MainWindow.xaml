@@ -14,7 +14,36 @@
         <DesktopAcrylicBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid x:Name="RootGrid" Background="Transparent" KeyDown="OnRootKeyDown">
+    <Grid x:Name="RootGrid" Background="Transparent" KeyDown="OnRootKeyDown" Opacity="0">
+        <Grid.Resources>
+            <!-- PowerToys-style animations -->
+            <Storyboard x:Name="WindowEnterAnimation">
+                <DoubleAnimation Storyboard.TargetName="RootGrid"
+                               Storyboard.TargetProperty="Opacity"
+                               From="0" To="1"
+                               Duration="0:0:0.2">
+                    <DoubleAnimation.EasingFunction>
+                        <CubicEase EasingMode="EaseOut"/>
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+                <DoubleAnimation Storyboard.TargetName="ContentGrid"
+                               Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                               From="0.95" To="1"
+                               Duration="0:0:0.2">
+                    <DoubleAnimation.EasingFunction>
+                        <CubicEase EasingMode="EaseOut"/>
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+                <DoubleAnimation Storyboard.TargetName="ContentGrid"
+                               Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                               From="0.95" To="1"
+                               Duration="0:0:0.2">
+                    <DoubleAnimation.EasingFunction>
+                        <CubicEase EasingMode="EaseOut"/>
+                    </DoubleAnimation.EasingFunction>
+                </DoubleAnimation>
+            </Storyboard>
+        </Grid.Resources>
         
         <!-- Modern semi-transparent background with darker tint for dark theme -->
         <Border Background="#20000000" 
@@ -26,7 +55,10 @@
                 <ThemeShadow />
             </Border.Shadow>
       
-            <Grid Margin="16" x:Name="ContentGrid">
+            <Grid Margin="16" x:Name="ContentGrid" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Grid.RenderTransform>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
@@ -85,6 +117,14 @@ Background="Transparent"
             Padding="0"
           MaxHeight="280"
     Visibility="Visible">
+        <ListView.ItemContainerTransitions>
+            <TransitionCollection>
+                <AddDeleteThemeTransition/>
+                <ContentThemeTransition/>
+                <ReorderThemeTransition/>
+                <EntranceThemeTransition IsStaggeringEnabled="True"/>
+            </TransitionCollection>
+        </ListView.ItemContainerTransitions>
            <ListView.ItemContainerStyle>
   <Style TargetType="ListViewItem">
      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -101,6 +141,13 @@ Background="Transparent"
                         CornerRadius="{TemplateBinding CornerRadius}">
                       <VisualStateManager.VisualStateGroups>
                           <VisualStateGroup x:Name="CommonStates">
+                              <VisualStateGroup.Transitions>
+                                  <VisualTransition GeneratedDuration="0:0:0.15">
+                                      <VisualTransition.GeneratedEasingFunction>
+                                          <CubicEase EasingMode="EaseOut"/>
+                                      </VisualTransition.GeneratedEasingFunction>
+                                  </VisualTransition>
+                              </VisualStateGroup.Transitions>
                               <VisualState x:Name="Normal">
                                   <VisualState.Setters>
                                       <Setter Target="SelectionIndicator.Opacity" Value="0" />
@@ -265,6 +312,11 @@ Background="Transparent"
       BorderThickness="0"
       Click="OnEditClicked" 
         Tag="{x:Bind}">
+         <Button.Transitions>
+             <TransitionCollection>
+                 <RepositionThemeTransition/>
+             </TransitionCollection>
+         </Button.Transitions>
          <FontIcon FontFamily="Segoe Fluent Icons" 
    Glyph="&#xE70F;" 
    FontSize="12"/>
@@ -276,6 +328,11 @@ Background="Transparent"
          BorderThickness="0"
   Click="OnDeleteClicked" 
 Tag="{x:Bind}">
+         <Button.Transitions>
+             <TransitionCollection>
+                 <RepositionThemeTransition/>
+             </TransitionCollection>
+         </Button.Transitions>
          <FontIcon FontFamily="Segoe Fluent Icons" 
           Glyph="&#xE74D;" 
        FontSize="12"/>
@@ -295,6 +352,11 @@ Tag="{x:Bind}">
             Grid.Row="2" 
             Background="Transparent"
             Margin="0,4,0,0">
+          <Grid.Transitions>
+              <TransitionCollection>
+                  <EntranceThemeTransition FromVerticalOffset="10"/>
+              </TransitionCollection>
+          </Grid.Transitions>
           <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
@@ -368,6 +430,11 @@ Tag="{x:Bind}">
      Spacing="10"
 Visibility="Collapsed"
   Background="Transparent">
+      <StackPanel.Transitions>
+          <TransitionCollection>
+              <EntranceThemeTransition FromVerticalOffset="20"/>
+          </TransitionCollection>
+      </StackPanel.Transitions>
       <StackPanel.KeyboardAccelerators>
           <KeyboardAccelerator Key="Escape" Invoked="OnCancelEditKey"/>
       </StackPanel.KeyboardAccelerators>
@@ -418,6 +485,11 @@ Style="{StaticResource AccentButtonStyle}"
                   Spacing="10"
                   Visibility="Collapsed"
                   Background="Transparent">
+          <StackPanel.Transitions>
+              <TransitionCollection>
+                  <EntranceThemeTransition FromVerticalOffset="20"/>
+              </TransitionCollection>
+          </StackPanel.Transitions>
           <StackPanel.KeyboardAccelerators>
               <KeyboardAccelerator Key="Escape" Invoked="OnCloseSettingsKey"/>
           </StackPanel.KeyboardAccelerators>

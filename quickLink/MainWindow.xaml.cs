@@ -322,7 +322,6 @@ namespace quickLink
         #region Filtering & Search
         private void FilterItems()
         {
-            _filteredItems.Clear();
             var searchText = SearchBox.Text?.ToLowerInvariant() ?? string.Empty;
             
             // Combine user items and internal commands
@@ -339,21 +338,41 @@ namespace quickLink
                 : allSearchableItems.Where(item => ItemMatchesSearch(item, searchText));
 
             // Sort: internal commands at bottom, regular items alphabetically at top
-            var sortedAndLimited = query
+            var newItems = query
                 .OrderBy(item => item.IsInternalCommand ? 1 : 0) // Internal commands last
                 .ThenBy(item => item.Title ?? string.Empty, StringComparer.OrdinalIgnoreCase)
-                .Take(4);
+                .Take(4)
+                .ToList();
 
-            foreach (var item in sortedAndLimited)
+            // Only update if the items actually changed
+            if (!ItemsAreEqual(newItems, _filteredItems))
             {
-                _filteredItems.Add(item);
+                _filteredItems.Clear();
+                foreach (var item in newItems)
+                {
+                    _filteredItems.Add(item);
+                }
+
+                // Auto-select first item
+                if (_filteredItems.Count > 0)
+                {
+                    ItemsList.SelectedIndex = 0;
+                }
+            }
+        }
+
+        private static bool ItemsAreEqual(List<ClipboardItem> newItems, ObservableCollection<ClipboardItem> currentItems)
+        {
+            if (newItems.Count != currentItems.Count)
+                return false;
+
+            for (int i = 0; i < newItems.Count; i++)
+            {
+                if (!ReferenceEquals(newItems[i], currentItems[i]))
+                    return false;
             }
 
-            // Auto-select first item
-            if (_filteredItems.Count > 0)
-            {
-                ItemsList.SelectedIndex = 0;
-            }
+            return true;
         }
 
         private static bool ItemMatchesSearch(ClipboardItem item, string searchText)

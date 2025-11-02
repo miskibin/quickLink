@@ -117,14 +117,6 @@ Background="Transparent"
             Padding="0"
           MaxHeight="280"
     Visibility="Visible">
-        <ListView.ItemContainerTransitions>
-            <TransitionCollection>
-                <AddDeleteThemeTransition/>
-                <ContentThemeTransition/>
-                <ReorderThemeTransition/>
-                <EntranceThemeTransition IsStaggeringEnabled="True"/>
-            </TransitionCollection>
-        </ListView.ItemContainerTransitions>
            <ListView.ItemContainerStyle>
   <Style TargetType="ListViewItem">
      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -211,7 +203,7 @@ Background="Transparent"
  <Grid Grid.Column="0" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
      <!-- Link icon (only for links) -->
      <FontIcon FontFamily="Segoe Fluent Icons"
-      Glyph="&#xE71B;"
+      Glyph="&#xE774;"
   FontSize="18"
           Foreground="#3AADFF">
    <FontIcon.Visibility>
@@ -352,11 +344,6 @@ Tag="{x:Bind}">
             Grid.Row="2" 
             Background="Transparent"
             Margin="0,4,0,0">
-          <Grid.Transitions>
-              <TransitionCollection>
-                  <EntranceThemeTransition FromVerticalOffset="10"/>
-              </TransitionCollection>
-          </Grid.Transitions>
           <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*"/>
               <ColumnDefinition Width="Auto"/>
@@ -430,11 +417,6 @@ Tag="{x:Bind}">
      Spacing="10"
 Visibility="Collapsed"
   Background="Transparent">
-      <StackPanel.Transitions>
-          <TransitionCollection>
-              <EntranceThemeTransition FromVerticalOffset="20"/>
-          </TransitionCollection>
-      </StackPanel.Transitions>
       <StackPanel.KeyboardAccelerators>
           <KeyboardAccelerator Key="Escape" Invoked="OnCancelEditKey"/>
       </StackPanel.KeyboardAccelerators>
@@ -485,11 +467,6 @@ Style="{StaticResource AccentButtonStyle}"
                   Spacing="10"
                   Visibility="Collapsed"
                   Background="Transparent">
-          <StackPanel.Transitions>
-              <TransitionCollection>
-                  <EntranceThemeTransition FromVerticalOffset="20"/>
-              </TransitionCollection>
-          </StackPanel.Transitions>
           <StackPanel.KeyboardAccelerators>
               <KeyboardAccelerator Key="Escape" Invoked="OnCloseSettingsKey"/>
           </StackPanel.KeyboardAccelerators>

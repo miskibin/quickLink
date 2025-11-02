@@ -16,63 +16,42 @@
 
     <Grid x:Name="RootGrid" Background="Transparent" KeyDown="OnRootKeyDown">
         
-        <!-- Modern semi-transparent background with darker tint for dark theme -->
-        <Border Background="#20000000" 
+        <!-- Modern semi-transparent background - no CornerRadius to avoid double border with window -->
+        <Border Background="{ThemeResource LayerFillColorDefaultBrush}" 
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
                 BorderThickness="1"
-                Margin="0"
-                CornerRadius="12">
+                Margin="0">
             <Border.Shadow>
                 <ThemeShadow />
             </Border.Shadow>
       
-            <Grid Margin="16" x:Name="ContentGrid">
+            <Grid Margin="12" x:Name="ContentGrid">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
- <!-- PowerToys-style Search Box - integrated look with bottom border only -->
-         <Grid Grid.Row="0" Margin="0,0,0,12">
-             <Grid.RowDefinitions>
-                 <RowDefinition Height="Auto"/>
-                 <RowDefinition Height="Auto"/>
-             </Grid.RowDefinitions>
-             
-             <TextBox x:Name="SearchBox"
-                      Grid.Row="0"
-                      PlaceholderText="Type to search..."
-                      FontSize="16"
-                      BorderThickness="0"
-                      Background="Transparent"
-                      Padding="4,8,4,8"
-                      TextChanged="OnSearchTextChanged"
-                      TabIndex="0">
-                 <TextBox.Resources>
-                     <!-- Remove focus visual and background changes -->
-                     <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
-                     <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
-                     <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
-                     <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
-                     <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
-                 </TextBox.Resources>
-                 <TextBox.KeyboardAccelerators>
-                     <KeyboardAccelerator Key="Escape" Invoked="OnEscapePressed"/>
-                     <KeyboardAccelerator Key="Enter" Invoked="OnEnterPressed"/>
-                     <KeyboardAccelerator Key="Space" Modifiers="Control" Invoked="OnToggleVisibility"/>
-                     <KeyboardAccelerator Key="Down" Invoked="OnDownArrow"/>
-                     <KeyboardAccelerator Key="Up" Invoked="OnUpArrow"/>
-                 </TextBox.KeyboardAccelerators>
-             </TextBox>
-             
-             <!-- Subtle bottom border like PowerToys -->
-             <Rectangle Grid.Row="1"
-                        Height="1"
-                        Fill="#40FFFFFF"
-                        HorizontalAlignment="Stretch"
-                        Margin="0,4,0,0"/>
-         </Grid>
+ <!-- Minimalistic Search Box -->
+         <TextBox x:Name="SearchBox"
+   Grid.Row="0"
+     PlaceholderText="Search..."
+       FontSize="14"
+    CornerRadius="8"
+      BorderThickness="0"
+   Background="{ThemeResource LayerFillColorDefaultBrush}"
+        Padding="10,8"
+Margin="0,0,0,6"
+    TextChanged="OnSearchTextChanged"
+                  TabIndex="0">
+        <TextBox.KeyboardAccelerators>
+           <KeyboardAccelerator Key="Escape" Invoked="OnEscapePressed"/>
+           <KeyboardAccelerator Key="Enter" Invoked="OnEnterPressed"/>
+ <KeyboardAccelerator Key="Space" Modifiers="Control" Invoked="OnToggleVisibility"/>
+          <KeyboardAccelerator Key="Down" Invoked="OnDownArrow"/>
+    <KeyboardAccelerator Key="Up" Invoked="OnUpArrow"/>
+      </TextBox.KeyboardAccelerators>
+  </TextBox>
 
     <!-- List View (hidden when editing) -->
     <ListView x:Name="ItemsList"
@@ -83,13 +62,13 @@
   CanDragItems="False"
 Background="Transparent"
             Padding="0"
-          MaxHeight="280"
+          MaxHeight="220"
     Visibility="Visible">
            <ListView.ItemContainerStyle>
   <Style TargetType="ListViewItem">
      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
    <Setter Property="Padding" Value="0"/>
-  <Setter Property="Margin" Value="0,0,0,2"/>
+  <Setter Property="Margin" Value="0,0,0,1"/>
    <Setter Property="MinHeight" Value="0"/>
   <Setter Property="CornerRadius" Value="6"/>
   <Setter Property="Background" Value="Transparent"/>
@@ -101,49 +80,30 @@ Background="Transparent"
                         CornerRadius="{TemplateBinding CornerRadius}">
                       <VisualStateManager.VisualStateGroups>
                           <VisualStateGroup x:Name="CommonStates">
-                              <VisualState x:Name="Normal">
-                                  <VisualState.Setters>
-                                      <Setter Target="SelectionIndicator.Opacity" Value="0" />
-                                  </VisualState.Setters>
-                              </VisualState>
+                              <VisualState x:Name="Normal" />
                               <VisualState x:Name="Selected">
                                   <VisualState.Setters>
-                                      <Setter Target="Root.Background" Value="#20FFFFFF" />
-                                      <Setter Target="SelectionIndicator.Opacity" Value="1" />
+                                      <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
                                   </VisualState.Setters>
                               </VisualState>
                               <VisualState x:Name="PointerOver">
                                   <VisualState.Setters>
-                                      <Setter Target="Root.Background" Value="#15FFFFFF" />
-                                      <Setter Target="SelectionIndicator.Opacity" Value="0" />
+                                      <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorTertiaryBrush}" />
                                   </VisualState.Setters>
                               </VisualState>
                               <VisualState x:Name="PointerOverSelected">
                                   <VisualState.Setters>
-                                      <Setter Target="Root.Background" Value="#25FFFFFF" />
-                                      <Setter Target="SelectionIndicator.Opacity" Value="1" />
+                                      <Setter Target="Root.Background" Value="{ThemeResource SubtleFillColorSecondaryBrush}" />
                                   </VisualState.Setters>
                               </VisualState>
                           </VisualStateGroup>
                       </VisualStateManager.VisualStateGroups>
-                      
-                      <!-- PowerToys-style selection indicator on the left -->
-                      <Rectangle x:Name="SelectionIndicator"
-                                 Width="3"
-                                 HorizontalAlignment="Left"
-                                 Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                 RadiusX="2"
-                                 RadiusY="2"
-                                 Opacity="0"
-                                 Margin="0,6,0,6"/>
-                      
                       <ContentPresenter x:Name="ContentPresenter"
                                       ContentTemplate="{TemplateBinding ContentTemplate}"
                                       Content="{TemplateBinding Content}"
                                       ContentTransitions="{TemplateBinding ContentTransitions}"
                                       HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" 
-                                      Margin="8,0,0,0"/>
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                   </Grid>
               </ControlTemplate>
           </Setter.Value>
@@ -160,13 +120,12 @@ Background="Transparent"
         <ColumnDefinition Width="Auto"/>
    </Grid.ColumnDefinitions>
 
-       <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
- <Grid Grid.Column="0" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
+       <!-- Icon based on IsLink and IsEncrypted properties -->
+ <Grid Grid.Column="0" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
      <!-- Link icon (only for links) -->
      <FontIcon FontFamily="Segoe Fluent Icons"
       Glyph="&#xE71B;"
-  FontSize="18"
-          Foreground="#3AADFF">
+  FontSize="16">
    <FontIcon.Visibility>
        <Binding Path="IsLink" Mode="OneWay">
            <Binding.Converter>
@@ -178,8 +137,8 @@ Background="Transparent"
           <!-- Encrypted text icon (lock) - only for non-links that are encrypted -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE72E;"
-       FontSize="18"
-          Foreground="#FFB900">
+       FontSize="16"
+          Foreground="{ThemeResource SystemFillColorAttentionBrush}">
               <FontIcon.Visibility>
                   <Binding Path="IsEncryptedAndNotLink" Mode="OneWay">
                       <Binding.Converter>
@@ -191,8 +150,8 @@ Background="Transparent"
           <!-- Command icon (terminal) - only for commands -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE756;"
-       FontSize="18"
-          Foreground="#00CC6A">
+       FontSize="16"
+          Foreground="{ThemeResource SystemFillColorSuccessBrush}">
               <FontIcon.Visibility>
                   <Binding Path="IsCommandAndNotLink" Mode="OneWay">
                       <Binding.Converter>
@@ -203,8 +162,8 @@ Background="Transparent"
           </FontIcon>
           <!-- Internal command icon - shows different icon based on command -->
           <FontIcon FontFamily="Segoe Fluent Icons"
-       FontSize="18"
-          Foreground="#FF6BCB">
+       FontSize="16"
+          Foreground="{ThemeResource AccentFillColorDefaultBrush}">
               <FontIcon.Glyph>
                   <Binding Path="Value" Mode="OneWay">
                       <Binding.Converter>
@@ -223,8 +182,7 @@ Background="Transparent"
           <!-- Regular text icon (document) - only for non-links that are not encrypted -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE8A5;"
-       FontSize="18"
-          Foreground="#A0A0A0">
+       FontSize="16">
               <FontIcon.Visibility>
                   <Binding Path="IsPlainText" Mode="OneWay">
                       <Binding.Converter>

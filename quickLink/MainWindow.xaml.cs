@@ -3,15 +3,22 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.UI;
+using Microsoft.UI.Composition;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.Graphics.Canvas.Effects;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using quickLink.Models;
 using quickLink.Services;
+using Windows.UI;
 using WinRT.Interop;
 
 namespace quickLink
@@ -27,9 +34,9 @@ namespace quickLink
         private const uint MOD_CONTROL = 0x0002;
         private const uint MOD_SHIFT = 0x0004;
         
-        // Window dimensions
-        private const int WINDOW_WIDTH = 600;
-        private const int WINDOW_HEIGHT = 300;
+        // Window dimensions - 1.2x bigger
+        private const int WINDOW_WIDTH = 720;  // 600 * 1.2
+        private const int WINDOW_HEIGHT = 360; // 300 * 1.2
         
         // Default hotkey
         private static readonly Windows.System.VirtualKeyModifiers DefaultHotkeyModifiers = 
@@ -122,9 +129,18 @@ namespace quickLink
             AppWindow.Resize(new Windows.Graphics.SizeInt32(WINDOW_WIDTH, WINDOW_HEIGHT));
             CenterWindow();
             SubclassWindow();
+            ApplyGlassEffect();
 
             Activated += OnWindowActivated;
             AppWindow.Hide();
+        }
+
+        private void ApplyGlassEffect()
+        {
+            // The DesktopAcrylicBackdrop provides a nice glass effect
+            // For additional customization, you could use Win2D effects, but
+            // the backdrop combined with our semi-transparent overlays works well
+            // for a dark theme glass appearance
         }
 
         private void InitializeHotkey()

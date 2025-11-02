@@ -346,6 +346,9 @@ namespace quickLink
             if (isEmpty)
             {
                 // No search - just take first 4 items plus internal commands if needed
+                // Smooth transition: clear immediately to avoid visual clutter when text is removed
+                _filteredItems.Clear();
+                
                 newItems = new List<ClipboardItem>(5); // Pre-allocate capacity
                 var count = 0;
                 
@@ -353,6 +356,7 @@ namespace quickLink
                 {
                     if (count >= 4) break;
                     newItems.Add(item);
+                    _filteredItems.Add(item); // Add directly to avoid extra update
                     count++;
                 }
                 
@@ -360,10 +364,17 @@ namespace quickLink
                 {
                     foreach (var cmd in _internalCommands)
                     {
-                        if (newItems.Count >= 4) break;
-                        newItems.Add(cmd);
+                        if (_filteredItems.Count >= 4) break;
+                        _filteredItems.Add(cmd);
                     }
                 }
+                
+                // Auto-select first item
+                if (_filteredItems.Count > 0)
+                {
+                    ItemsList.SelectedIndex = 0;
+                }
+                return; // Early exit for empty search
             }
             else
             {

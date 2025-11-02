@@ -41,6 +41,86 @@ jobs:
         echo "TAG=$tag" >> $env:GITHUB_OUTPUT
       shell: pwsh
       
+    - name: Generate release notes from commits
+      id: release_notes
+      run: |
+        # Get the previous tag
+        $currentTag = "${{ github.ref_name }}"
+        $previousTag = git describe --tags --abbrev=0 "$currentTag^" 2>$null
+        
+        if ($previousTag) {
+          Write-Host "Generating release notes from $previousTag to $currentTag"
+          echo "PREVIOUS_TAG=$previousTag" >> $env:GITHUB_OUTPUT
+          
+          # Get commit messages between tags
+          $commits = git log "$previousTag..$currentTag" --pretty=format:"%s" --no-merges
+          
+          # Categorize commits
+          $features = @()
+          $fixes = @()
+          $improvements = @()
+          $other = @()
+          
+          foreach ($commit in $commits) {
+            if ($commit -match '^feat(\(.+\))?:\s*(.+)') {
+              $features += "- $($matches[2])"
+            }
+            elseif ($commit -match '^fix(\(.+\))?:\s*(.+)') {
+              $fixes += "- $($matches[2])"
+            }
+            elseif ($commit -match '^(perf|refactor|improve)(\(.+\))?:\s*(.+)') {
+              $improvements += "- $($matches[3])"
+            }
+            elseif ($commit -match '^(chore|docs|style|test)(\(.+\))?:') {
+              # Skip these commits
+            }
+            else {
+              # For commits without conventional format, add them as-is
+              $other += "- $commit"
+            }
+          }
+          
+          # Build the release notes
+          $notes = ""
+          
+          if ($features.Count -gt 0) {
+            $notes += "### ✨ New Features`n"
+            $notes += ($features -join "`n") + "`n`n"
+          }
+          
+          if ($fixes.Count -gt 0) {
+            $notes += "### 🐛 Bug Fixes`n"
+            $notes += ($fixes -join "`n") + "`n`n"
+          }
+          
+          if ($improvements.Count -gt 0) {
+            $notes += "### ⚡ Improvements`n"
+            $notes += ($improvements -join "`n") + "`n`n"
+          }
+          
+          if ($other.Count -gt 0) {
+            $notes += "### 📝 Other Changes`n"
+            $notes += ($other -join "`n") + "`n`n"
+          }
+          
+          # If no categorized commits, just list all commits
+          if ($notes -eq "") {
+            $notes = "### 📝 Changes`n"
+            $notes += ($commits | ForEach-Object { "- $_" }) -join "`n"
+            $notes += "`n`n"
+          }
+          
+          # Save to output (escape for GitHub Actions)
+          $notes = $notes -replace '%', '%25' -replace '\n', '%0A' -replace '\r', '%0D'
+          echo "NOTES=$notes" >> $env:GITHUB_OUTPUT
+        }
+        else {
+          Write-Host "No previous tag found, using default notes"
+          echo "PREVIOUS_TAG=" >> $env:GITHUB_OUTPUT
+          echo "NOTES=First release or no previous tags found.%0A%0A" >> $env:GITHUB_OUTPUT
+        }
+      shell: pwsh
+      
     - name: Build x64
       run: |
         dotnet publish $env:Project_Path -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=true --self-contained
@@ -65,30 +145,25 @@ jobs:
         body: |
           ## QuickLink ${{ steps.get_version.outputs.VERSION }}
           
-          ### Features
-          - Fast clipboard manager for Windows
-          - Global hotkey access (default: Ctrl+Space)
-          - Quick search and filtering
-          - URL launcher and command execution
-          - Customizable shortcuts
-          - Encrypted storage support
+          ${{ steps.release_notes.outputs.NOTES }}
           
-          ### Installation
+          ### 📦 Installation
           1. Download the appropriate ZIP file for your system
           2. Extract the archive
           3. Run `quickLink.exe`
-          4. Configure your hotkey in Settings
+          4. Configure your hotkey in Settings (default: Ctrl+Space)
           
-          ### Requirements
+          ### 💻 Requirements
           - Windows 10 (19041 or later) or Windows 11
           - No additional runtime installation required (self-contained)
           
-          ### Checksums
+          ### 🔐 Checksums
           See `SHA256SUMS.txt` for file verification.
         files: |
           quickLink-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
           SHA256SUMS.txt
         draft: false
         prerelease: false
+        generate_release_notes: ${{ steps.release_notes.outputs.PREVIOUS_TAG == '' }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

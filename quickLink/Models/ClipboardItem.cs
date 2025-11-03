@@ -141,6 +141,35 @@ get => _title;
         public bool IsEncryptedAndNotLink => IsEncrypted && !IsLink;
         public bool IsCommandAndNotLink => IsCommand && !IsLink && !IsInternalCommand;
         public bool IsPlainText => !IsEncrypted && !IsLink && !IsCommand && !IsInternalCommand;
+        public bool IsLinkWithoutFavicon => IsLink && string.IsNullOrEmpty(FaviconUrl);
+        public bool HasFavicon => IsLink && !string.IsNullOrEmpty(FaviconUrl);
+
+        // Favicon support
+        public string? FaviconUrl
+        {
+            get
+            {
+                if (IsLink)
+                {
+                    return GetFaviconUrl(Value);
+                }
+                return null;
+            }
+        }
+
+        private static string? GetFaviconUrl(string websiteUrl)
+        {
+            try
+            {
+                var uri = new Uri(websiteUrl);
+                // Using DuckDuckGo's icon service which provides clean, larger icons without background
+                return $"https://icons.duckduckgo.com/ip3/{uri.Host}.ico";
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 

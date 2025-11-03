@@ -16,6 +16,12 @@
 
     <Grid x:Name="RootGrid" Background="Transparent" KeyDown="OnRootKeyDown" Opacity="0">
         <Grid.Resources>
+            <!-- Converters -->
+            <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+            <converters:InternalCommandIconConverter x:Key="InternalCommandIconConverter"/>
+            <converters:SafeImageConverter x:Key="SafeImageConverter"/>
+            
             <!-- PowerToys-style animations -->
             <Storyboard x:Name="WindowEnterAnimation">
                 <DoubleAnimation Storyboard.TargetName="RootGrid"
@@ -196,14 +202,38 @@ Background="Transparent"
    </Grid.ColumnDefinitions>
 
        <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
- <Grid Grid.Column="0" Width="18" Height="18" Margin="0,0,10,0" VerticalAlignment="Center">
-     <!-- Link icon (only for links) -->
+        <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
+ <Grid Grid.Column="0" Width="26" Height="26" Margin="0,0,10,0" VerticalAlignment="Center">
+     <!-- Favicon for links -->
+     <Border Width="26" Height="26" 
+             CornerRadius="6"
+             Background="#E0FFFFFF"
+             Padding="1">
+         <Border.Visibility>
+             <Binding Path="HasFavicon" Mode="OneWay">
+                 <Binding.Converter>
+                     <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                 </Binding.Converter>
+             </Binding>
+         </Border.Visibility>
+         <Image Stretch="Uniform">
+             <Image.Source>
+                 <Binding Path="FaviconUrl" Mode="OneWay">
+                     <Binding.Converter>
+                         <StaticResource ResourceKey="SafeImageConverter"/>
+                     </Binding.Converter>
+                 </Binding>
+             </Image.Source>
+         </Image>
+     </Border>
+     
+     <!-- Fallback Link icon (only for links without favicons) -->
      <FontIcon FontFamily="Segoe Fluent Icons"
       Glyph="&#xE774;"
-  FontSize="18"
+  FontSize="28"
           Foreground="#3AADFF">
    <FontIcon.Visibility>
-       <Binding Path="IsLink" Mode="OneWay">
+       <Binding Path="IsLinkWithoutFavicon" Mode="OneWay">
            <Binding.Converter>
                <StaticResource ResourceKey="BoolToVisibilityConverter"/>
            </Binding.Converter>
@@ -213,7 +243,7 @@ Background="Transparent"
           <!-- Encrypted text icon (lock) - only for non-links that are encrypted -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE72E;"
-       FontSize="18"
+       FontSize="28"
           Foreground="#FFB900">
               <FontIcon.Visibility>
                   <Binding Path="IsEncryptedAndNotLink" Mode="OneWay">
@@ -226,7 +256,7 @@ Background="Transparent"
           <!-- Command icon (terminal) - only for commands -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE756;"
-       FontSize="18"
+       FontSize="26"
           Foreground="#00CC6A">
               <FontIcon.Visibility>
                   <Binding Path="IsCommandAndNotLink" Mode="OneWay">
@@ -238,7 +268,7 @@ Background="Transparent"
           </FontIcon>
           <!-- Internal command icon - shows different icon based on command -->
           <FontIcon FontFamily="Segoe Fluent Icons"
-       FontSize="18"
+       FontSize="26"
           Foreground="#FF6BCB">
               <FontIcon.Glyph>
                   <Binding Path="Value" Mode="OneWay">
@@ -258,7 +288,7 @@ Background="Transparent"
           <!-- Regular text icon (document) - only for non-links that are not encrypted -->
           <FontIcon FontFamily="Segoe Fluent Icons"
  Glyph="&#xE8A5;"
-       FontSize="18"
+       FontSize="26"
           Foreground="#A0A0A0">
               <FontIcon.Visibility>
                   <Binding Path="IsPlainText" Mode="OneWay">

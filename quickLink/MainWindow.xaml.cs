@@ -352,16 +352,16 @@ namespace quickLink
             
             if (isEmpty)
             {
-                // No search - just take first 4 items plus internal commands if needed
+                // No search - just take first 6 items plus internal commands if needed
                 // Smooth transition: clear immediately to avoid visual clutter when text is removed
                 _filteredItems.Clear();
                 
-                newItems = new List<ClipboardItem>(5); // Pre-allocate capacity
+                newItems = new List<ClipboardItem>(7); // Pre-allocate capacity
                 var count = 0;
                 
                 foreach (var item in _allItems)
                 {
-                    if (count >= 4) break;
+                    if (count >= 6) break;
                     newItems.Add(item);
                     _filteredItems.Add(item); // Add directly to avoid extra update
                     count++;
@@ -371,7 +371,7 @@ namespace quickLink
                 {
                     foreach (var cmd in _internalCommands)
                     {
-                        if (_filteredItems.Count >= 4) break;
+                        if (_filteredItems.Count >= 6) break;
                         _filteredItems.Add(cmd);
                     }
                 }
@@ -386,13 +386,13 @@ namespace quickLink
             else
             {
                 // With search - filter and sort
-                var capacity = Math.Min(_allItems.Count + (includeInternalCommands ? _internalCommands.Count : 0), 5);
+                var capacity = Math.Min(_allItems.Count + (includeInternalCommands ? _internalCommands.Count : 0), 7);
                 newItems = new List<ClipboardItem>(capacity);
                 
                 // Search user items
                 foreach (var item in _allItems)
                 {
-                    if (newItems.Count >= 4) break;
+                    if (newItems.Count >= 6) break;
                     if (ItemMatchesSearch(item, searchText))
                     {
                         newItems.Add(item);
@@ -400,11 +400,11 @@ namespace quickLink
                 }
                 
                 // Search internal commands if needed
-                if (includeInternalCommands && newItems.Count < 4)
+                if (includeInternalCommands && newItems.Count < 6)
                 {
                     foreach (var cmd in _internalCommands)
                     {
-                        if (newItems.Count >= 4) break;
+                        if (newItems.Count >= 6) break;
                         if (ItemMatchesSearch(cmd, searchText))
                         {
                             newItems.Add(cmd);
@@ -507,7 +507,7 @@ namespace quickLink
 
         private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
         {
-            // Debouncing could be added here if needed for very large datasets
+            // Instant filtering for maximum responsiveness
             FilterItems();
         }
 

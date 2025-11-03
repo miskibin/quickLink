@@ -137,7 +137,7 @@
                           IncrementalLoadingTrigger="None"
                           Background="Transparent"
                           Padding="0"
-                          MaxHeight="280"
+                          MaxHeight="336"
                           Visibility="Visible">
                     <ListView.ItemContainerStyle>
                         <Style TargetType="ListViewItem">
@@ -237,8 +237,8 @@
                                 <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
                                 <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
                                 <Grid Grid.Column="0"
-                                        Width="26"
-                                        Height="26"
+                                        Width="28"
+                                        Height="28"
                                         Margin="0,0,10,0"
                                         VerticalAlignment="Center">
                                     <!-- Favicon for links -->
@@ -270,7 +270,7 @@
                                     <!-- Fallback Link icon (only for links without favicons) -->
                                     <FontIcon FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE774;"
-                                              FontSize="26"
+                                              FontSize="24"
                                               Foreground="#3AADFF">
                                         <FontIcon.Visibility>
                                             <Binding Path="IsLinkWithoutFavicon"
@@ -284,7 +284,7 @@
                                     <!-- Encrypted text icon (lock) - only for non-links that are encrypted -->
                                     <FontIcon FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE72E;"
-                                              FontSize="26"
+                                              FontSize="24"
                                               Foreground="#FFB900">
                                         <FontIcon.Visibility>
                                             <Binding Path="IsEncryptedAndNotLink"
@@ -298,7 +298,7 @@
                                     <!-- Command icon (terminal) - only for commands -->
                                     <FontIcon FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE756;"
-                                              FontSize="26"
+                                              FontSize="24"
                                               Foreground="#00CC6A">
                                         <FontIcon.Visibility>
                                             <Binding Path="IsCommandAndNotLink"
@@ -311,7 +311,7 @@
                                     </FontIcon>
                                     <!-- Internal command icon - shows different icon based on command -->
                                     <FontIcon FontFamily="Segoe Fluent Icons"
-                                              FontSize="26"
+                                              FontSize="24"
                                               Foreground="#FF6BCB">
                                         <FontIcon.Glyph>
                                             <Binding Path="Value"
@@ -333,7 +333,7 @@
                                     <!-- Regular text icon (document) - only for non-links that are not encrypted -->
                                     <FontIcon FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE8A5;"
-                                              FontSize="26"
+                                              FontSize="24"
                                               Foreground="#A0A0A0">
                                         <FontIcon.Visibility>
                                             <Binding Path="IsPlainText"

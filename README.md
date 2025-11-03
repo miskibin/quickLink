@@ -96,6 +96,40 @@ Store passwords with encryption and copy them to clipboard instantly. *(Encrypti
   - `https://claude.ai/new?q={query}` (Claude)
   - `https://bing.com/search?q={query}` (Bing)
 
+---
+
+## 💎 Useful Commands to Add
+
+Enhance your workflow with these ready-to-use commands. Simply add them as new items with the `>` prefix:
+
+### 🌐 Network & Utilities
+- **Get Your Public IP:** `>powershell -NoProfile -Command "Invoke-RestMethod 'https://api.ipify.org' | Set-Clipboard"` → Copies your public IP to clipboard
+- **Open Device Manager:** `>devmgmt.msc`
+
+### 📁 File & Folder Operations
+- **Open Downloads Folder:** `>explorer %USERPROFILE%\Downloads`
+- **Open Documents Folder:** `
+- **Create New Folder Shortcut:** `>powershell -NoProfile -Command "$path = Read-Host 'Folder path'; New-Item -ItemType Directory -Path $path -Force"`
+- **Clear Temp Files:** `>powershell -NoProfile -Command "Remove-Item -Path $env:TEMP\* -Force -Recurse -ErrorAction SilentlyContinue"`
+
+### 🎯 Productivity
+- **Lock Computer:** `>rundll32.exe user32.dll,LockWorkStation`
+- **Shut Down in 60 seconds:** `>shutdown /s /t 60 /c "Computer will shut down soon"`
+- **Cancel Shutdown:** `>shutdown /a`
+- **Open Task Manager:** `>taskmgr`
+
+### 🎨 Quick Clipboard Tools
+- **Generate UUID:** `>powershell -NoProfile -Command "[guid]::NewGuid().ToString() | Set-Clipboard"`
+- **Get Current Timestamp:** `>powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd HH:mm:ss' | Set-Clipboard"`
+- **Encode Text to Base64:** `>powershell -NoProfile -Command "$text = Read-Host 'Text to encode'; [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($text)) | Set-Clipboard"`
+
+### 🔧 System Information
+- **Show System Info:** `>msinfo32`
+- **Open Event Viewer:** `>eventvwr.msc`
+- **Check Disk Space:** `>powershell -NoProfile -Command "Get-Volume | Format-Table -AutoSize"`
+
+**Tip:** You can modify these commands to suit your needs. Use `Set-Clipboard` to automatically copy results to your clipboard!
+
 
 ## Why not command palette from PowerToys?
 

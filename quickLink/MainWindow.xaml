@@ -11,59 +11,68 @@
     mc:Ignorable="d">
 
     <Window.SystemBackdrop>
-        <DesktopAcrylicBackdrop />
+        <DesktopAcrylicBackdrop/>
     </Window.SystemBackdrop>
 
-    <Grid x:Name="RootGrid" Background="Transparent" KeyDown="OnRootKeyDown" Opacity="0">
+    <Grid x:Name="RootGrid"
+            Background="Transparent"
+            KeyDown="OnRootKeyDown"
+            Opacity="0">
         <Grid.Resources>
             <!-- Converters -->
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
             <converters:InternalCommandIconConverter x:Key="InternalCommandIconConverter"/>
             <converters:SafeImageConverter x:Key="SafeImageConverter"/>
-            
+
             <!-- PowerToys-style animations -->
             <Storyboard x:Name="WindowEnterAnimation">
                 <DoubleAnimation Storyboard.TargetName="RootGrid"
-                               Storyboard.TargetProperty="Opacity"
-                               From="0" To="1"
-                               Duration="0:0:0.2">
+                                 Storyboard.TargetProperty="Opacity"
+                                 From="0"
+                        To="1"
+                                 Duration="0:0:0.2">
                     <DoubleAnimation.EasingFunction>
                         <CubicEase EasingMode="EaseOut"/>
                     </DoubleAnimation.EasingFunction>
                 </DoubleAnimation>
                 <DoubleAnimation Storyboard.TargetName="ContentGrid"
-                               Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
-                               From="0.95" To="1"
-                               Duration="0:0:0.2">
+                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                 From="0.95"
+                        To="1"
+                                 Duration="0:0:0.2">
                     <DoubleAnimation.EasingFunction>
                         <CubicEase EasingMode="EaseOut"/>
                     </DoubleAnimation.EasingFunction>
                 </DoubleAnimation>
                 <DoubleAnimation Storyboard.TargetName="ContentGrid"
-                               Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
-                               From="0.95" To="1"
-                               Duration="0:0:0.2">
+                                 Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                 From="0.95"
+                        To="1"
+                                 Duration="0:0:0.2">
                     <DoubleAnimation.EasingFunction>
                         <CubicEase EasingMode="EaseOut"/>
                     </DoubleAnimation.EasingFunction>
                 </DoubleAnimation>
             </Storyboard>
         </Grid.Resources>
-        
+
         <!-- Modern semi-transparent background with darker tint for dark theme -->
-        <Border Background="#20000000" 
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+        <Border Background="#20000000"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 Margin="0"
                 CornerRadius="12">
             <Border.Shadow>
-                <ThemeShadow />
+                <ThemeShadow/>
             </Border.Shadow>
-      
-            <Grid Margin="16" x:Name="ContentGrid" RenderTransformOrigin="0.5,0.5">
+
+            <Grid Margin="16"
+                    x:Name="ContentGrid"
+                    RenderTransformOrigin="0.5,0.5">
                 <Grid.RenderTransform>
-                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                    <ScaleTransform ScaleX="1"
+                            ScaleY="1"/>
                 </Grid.RenderTransform>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -71,541 +80,595 @@
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
- <!-- PowerToys-style Search Box - integrated look with bottom border only -->
-         <Grid Grid.Row="0" Margin="0,0,0,12">
-             <Grid.RowDefinitions>
-                 <RowDefinition Height="Auto"/>
-                 <RowDefinition Height="Auto"/>
-             </Grid.RowDefinitions>
-             
-             <TextBox x:Name="SearchBox"
-                      Grid.Row="0"
-                      PlaceholderText="Type to search..."
-                      FontSize="16"
-                      BorderThickness="0"
+                <!-- PowerToys-style Search Box - integrated look with bottom border only -->
+                <Grid Grid.Row="0"
+                        Margin="0,0,0,12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBox x:Name="SearchBox"
+                             Grid.Row="0"
+                             PlaceholderText="Type to search..."
+                             FontSize="16"
+                             BorderThickness="0"
+                             Background="Transparent"
+                             Padding="4,8,4,8"
+                             TextChanged="OnSearchTextChanged"
+                             TabIndex="0">
+                        <TextBox.Resources>
+                            <!-- Remove focus visual and background changes -->
+                            <SolidColorBrush x:Key="TextControlBackgroundFocused"
+                                    Color="Transparent"/>
+                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver"
+                                    Color="Transparent"/>
+                            <SolidColorBrush x:Key="TextControlBorderBrushFocused"
+                                    Color="Transparent"/>
+                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver"
+                                    Color="Transparent"/>
+                            <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                        </TextBox.Resources>
+                        <TextBox.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="Escape"
+                                    Invoked="OnEscapePressed"/>
+                            <KeyboardAccelerator Key="Enter"
+                                    Invoked="OnEnterPressed"/>
+                            <KeyboardAccelerator Key="Space"
+                                    Modifiers="Control"
+                                    Invoked="OnToggleVisibility"/>
+                            <KeyboardAccelerator Key="Down"
+                                    Invoked="OnDownArrow"/>
+                            <KeyboardAccelerator Key="Up"
+                                    Invoked="OnUpArrow"/>
+                        </TextBox.KeyboardAccelerators>
+                    </TextBox>
+                </Grid>
+
+                <!-- List View (hidden when editing) -->
+                <ListView x:Name="ItemsList"
+                          Grid.Row="1"
+                          SelectionMode="Single"
+                          IsItemClickEnabled="False"
+                          CanReorderItems="False"
+                          CanDragItems="False"
+                          AllowDrop="False"
+                          IsSwipeEnabled="False"
+                          IncrementalLoadingTrigger="None"
+                          Background="Transparent"
+                          Padding="0"
+                          MaxHeight="280"
+                          Visibility="Visible">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment"
+                                    Value="Stretch"/>
+                            <Setter Property="Padding"
+                                    Value="0"/>
+                            <Setter Property="Margin"
+                                    Value="0,0,0,2"/>
+                            <Setter Property="MinHeight"
+                                    Value="0"/>
+                            <Setter Property="CornerRadius"
+                                    Value="6"/>
+                            <Setter Property="Background"
+                                    Value="Transparent"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListViewItem">
+                                        <Grid x:Name="Root"
+                                              Background="{TemplateBinding Background}"
+                                              CornerRadius="{TemplateBinding CornerRadius}">
+                                            <VisualStateManager.VisualStateGroups>
+                                                <VisualStateGroup x:Name="CommonStates">
+                                                    <VisualStateGroup.Transitions>
+                                                        <VisualTransition GeneratedDuration="0:0:0.15">
+                                                            <VisualTransition.GeneratedEasingFunction>
+                                                                <CubicEase EasingMode="EaseOut"/>
+                                                            </VisualTransition.GeneratedEasingFunction>
+                                                        </VisualTransition>
+                                                    </VisualStateGroup.Transitions>
+                                                    <VisualState x:Name="Normal">
+                                                        <VisualState.Setters>
+                                                            <Setter Target="SelectionIndicator.Opacity"
+                                                                    Value="0"/>
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                    <VisualState x:Name="Selected">
+                                                        <VisualState.Setters>
+                                                            <Setter Target="Root.Background"
+                                                                    Value="#20FFFFFF"/>
+                                                            <Setter Target="SelectionIndicator.Opacity"
+                                                                    Value="1"/>
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                    <VisualState x:Name="PointerOver">
+                                                        <VisualState.Setters>
+                                                            <Setter Target="Root.Background"
+                                                                    Value="#15FFFFFF"/>
+                                                            <Setter Target="SelectionIndicator.Opacity"
+                                                                    Value="0"/>
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                    <VisualState x:Name="PointerOverSelected">
+                                                        <VisualState.Setters>
+                                                            <Setter Target="Root.Background"
+                                                                    Value="#25FFFFFF"/>
+                                                            <Setter Target="SelectionIndicator.Opacity"
+                                                                    Value="1"/>
+                                                        </VisualState.Setters>
+                                                    </VisualState>
+                                                </VisualStateGroup>
+                                            </VisualStateManager.VisualStateGroups>
+
+                                            <!-- PowerToys-style selection indicator on the left -->
+                                            <Rectangle x:Name="SelectionIndicator"
+                                                       Width="3"
+                                                       HorizontalAlignment="Left"
+                                                       Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                                                       RadiusX="2"
+                                                       RadiusY="2"
+                                                       Opacity="0"
+                                                       Margin="0,6,0,6"/>
+
+                                            <ContentPresenter x:Name="ContentPresenter"
+                                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                              Content="{TemplateBinding Content}"
+                                                              ContentTransitions="{TemplateBinding ContentTransitions}"
+                                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                                              Margin="8,0,0,0"/>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="models:ClipboardItem">
+                            <Grid Background="Transparent"
+                                  Padding="8,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
+                                <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
+                                <Grid Grid.Column="0"
+                                        Width="26"
+                                        Height="26"
+                                        Margin="0,0,10,0"
+                                        VerticalAlignment="Center">
+                                    <!-- Favicon for links -->
+                                    <Border Width="28"
+                                            Height="28"
+                                            CornerRadius="5"
+                                            Background="#E0FFFFFF"
+                                            Padding="1">
+                                        <Border.Visibility>
+                                            <Binding Path="HasFavicon"
+                                                    Mode="OneWay">
+                                                <Binding.Converter>
+                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </Border.Visibility>
+                                        <Image Stretch="Uniform">
+                                            <Image.Source>
+                                                <Binding Path="FaviconUrl"
+                                                        Mode="OneWay">
+                                                    <Binding.Converter>
+                                                        <StaticResource ResourceKey="SafeImageConverter"/>
+                                                    </Binding.Converter>
+                                                </Binding>
+                                            </Image.Source>
+                                        </Image>
+                                    </Border>
+
+                                    <!-- Fallback Link icon (only for links without favicons) -->
+                                    <FontIcon FontFamily="Segoe Fluent Icons"
+                                              Glyph="&#xE774;"
+                                              FontSize="26"
+                                              Foreground="#3AADFF">
+                                        <FontIcon.Visibility>
+                                            <Binding Path="IsLinkWithoutFavicon"
+                                                    Mode="OneWay">
+                                                <Binding.Converter>
+                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </FontIcon.Visibility>
+                                    </FontIcon>
+                                    <!-- Encrypted text icon (lock) - only for non-links that are encrypted -->
+                                    <FontIcon FontFamily="Segoe Fluent Icons"
+                                              Glyph="&#xE72E;"
+                                              FontSize="26"
+                                              Foreground="#FFB900">
+                                        <FontIcon.Visibility>
+                                            <Binding Path="IsEncryptedAndNotLink"
+                                                    Mode="OneWay">
+                                                <Binding.Converter>
+                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </FontIcon.Visibility>
+                                    </FontIcon>
+                                    <!-- Command icon (terminal) - only for commands -->
+                                    <FontIcon FontFamily="Segoe Fluent Icons"
+                                              Glyph="&#xE756;"
+                                              FontSize="26"
+                                              Foreground="#00CC6A">
+                                        <FontIcon.Visibility>
+                                            <Binding Path="IsCommandAndNotLink"
+                                                    Mode="OneWay">
+                                                <Binding.Converter>
+                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </FontIcon.Visibility>
+                                    </FontIcon>
+                                    <!-- Internal command icon - shows different icon based on command -->
+                                    <FontIcon FontFamily="Segoe Fluent Icons"
+                                              FontSize="26"
+                                              Foreground="#FF6BCB">
+                                        <FontIcon.Glyph>
+                                            <Binding Path="Value"
+                                                    Mode="OneWay">
+                                                <Binding.Converter>
+                                                    <StaticResource ResourceKey="InternalCommandIconConverter"/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </FontIcon.Glyph>
+                                        <FontIcon.Visibility>
+                                            <Binding Path="IsInternalCommand"
+                                                    Mode="OneWay">
+                                                <Binding.Converter>
+                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </FontIcon.Visibility>
+                                    </FontIcon>
+                                    <!-- Regular text icon (document) - only for non-links that are not encrypted -->
+                                    <FontIcon FontFamily="Segoe Fluent Icons"
+                                              Glyph="&#xE8A5;"
+                                              FontSize="26"
+                                              Foreground="#A0A0A0">
+                                        <FontIcon.Visibility>
+                                            <Binding Path="IsPlainText"
+                                                    Mode="OneWay">
+                                                <Binding.Converter>
+                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </FontIcon.Visibility>
+                                    </FontIcon>
+                                </Grid>
+
+                                <StackPanel Grid.Column="1"
+                                        Spacing="2"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind DisplayTitle, Mode=OneWay}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{x:Bind DisplayValue, Mode=OneWay}"
+                                               FontSize="11"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxLines="1"
+                                               Opacity="0.7"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2"
+                                            Orientation="Horizontal"
+                                            Spacing="1"
+                                            VerticalAlignment="Center">
+                                    <StackPanel.Visibility>
+                                        <Binding Path="IsInternalCommand"
+                                                Mode="OneWay">
+                                            <Binding.Converter>
+                                                <StaticResource ResourceKey="InverseBoolToVisibilityConverter"/>
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </StackPanel.Visibility>
+                                    <Button Width="26"
+                                            Height="26"
+                                            Padding="0"
+                                            CornerRadius="4"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Click="OnEditClicked"
+                                            Tag="{x:Bind}">
+                                        <Button.Transitions>
+                                            <TransitionCollection>
+                                                <RepositionThemeTransition/>
+                                            </TransitionCollection>
+                                        </Button.Transitions>
+                                        <FontIcon FontFamily="Segoe Fluent Icons"
+                                                  Glyph="&#xE70F;"
+                                                  FontSize="12"/>
+                                    </Button>
+                                    <Button Width="26"
+                                            Height="26"
+                                            Padding="0"
+                                            CornerRadius="4"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Click="OnDeleteClicked"
+                                            Tag="{x:Bind}">
+                                        <Button.Transitions>
+                                            <TransitionCollection>
+                                                <RepositionThemeTransition/>
+                                            </TransitionCollection>
+                                        </Button.Transitions>
+                                        <FontIcon FontFamily="Segoe Fluent Icons"
+                                                  Glyph="&#xE74D;"
+                                                  FontSize="12"/>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                    <ListView.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Enter"
+                                Invoked="OnEnterPressed"/>
+                        <KeyboardAccelerator Key="Escape"
+                                Invoked="OnEscapePressed"/>
+                    </ListView.KeyboardAccelerators>
+                </ListView>
+
+                <!-- Fixed Footer with Add New Item, Settings, and Exit buttons -->
+                <Grid x:Name="FooterPanel"
+                      Grid.Row="2"
                       Background="Transparent"
-                      Padding="4,8,4,8"
-                      TextChanged="OnSearchTextChanged"
-                      TabIndex="0">
-                 <TextBox.Resources>
-                     <!-- Remove focus visual and background changes -->
-                     <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
-                     <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
-                     <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
-                     <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
-                     <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
-                 </TextBox.Resources>
-                 <TextBox.KeyboardAccelerators>
-                     <KeyboardAccelerator Key="Escape" Invoked="OnEscapePressed"/>
-                     <KeyboardAccelerator Key="Enter" Invoked="OnEnterPressed"/>
-                     <KeyboardAccelerator Key="Space" Modifiers="Control" Invoked="OnToggleVisibility"/>
-                     <KeyboardAccelerator Key="Down" Invoked="OnDownArrow"/>
-                     <KeyboardAccelerator Key="Up" Invoked="OnUpArrow"/>
-                 </TextBox.KeyboardAccelerators>
-             </TextBox>
-         </Grid>
+                      Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
 
-    <!-- List View (hidden when editing) -->
-    <ListView x:Name="ItemsList"
-      Grid.Row="1"
-  SelectionMode="Single"
-       IsItemClickEnabled="False"
-  CanReorderItems="False"
-  CanDragItems="False"
-  AllowDrop="False"
-  IsSwipeEnabled="False"
-  IncrementalLoadingTrigger="None"
-Background="Transparent"
-            Padding="0"
-          MaxHeight="280"
-    Visibility="Visible">
-           <ListView.ItemContainerStyle>
-  <Style TargetType="ListViewItem">
-     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-   <Setter Property="Padding" Value="0"/>
-  <Setter Property="Margin" Value="0,0,0,2"/>
-   <Setter Property="MinHeight" Value="0"/>
-  <Setter Property="CornerRadius" Value="6"/>
-  <Setter Property="Background" Value="Transparent"/>
-      <Setter Property="Template">
-          <Setter.Value>
-              <ControlTemplate TargetType="ListViewItem">
-                  <Grid x:Name="Root" 
-                        Background="{TemplateBinding Background}"
-                        CornerRadius="{TemplateBinding CornerRadius}">
-                      <VisualStateManager.VisualStateGroups>
-                          <VisualStateGroup x:Name="CommonStates">
-                              <VisualStateGroup.Transitions>
-                                  <VisualTransition GeneratedDuration="0:0:0.15">
-                                      <VisualTransition.GeneratedEasingFunction>
-                                          <CubicEase EasingMode="EaseOut"/>
-                                      </VisualTransition.GeneratedEasingFunction>
-                                  </VisualTransition>
-                              </VisualStateGroup.Transitions>
-                              <VisualState x:Name="Normal">
-                                  <VisualState.Setters>
-                                      <Setter Target="SelectionIndicator.Opacity" Value="0" />
-                                  </VisualState.Setters>
-                              </VisualState>
-                              <VisualState x:Name="Selected">
-                                  <VisualState.Setters>
-                                      <Setter Target="Root.Background" Value="#20FFFFFF" />
-                                      <Setter Target="SelectionIndicator.Opacity" Value="1" />
-                                  </VisualState.Setters>
-                              </VisualState>
-                              <VisualState x:Name="PointerOver">
-                                  <VisualState.Setters>
-                                      <Setter Target="Root.Background" Value="#15FFFFFF" />
-                                      <Setter Target="SelectionIndicator.Opacity" Value="0" />
-                                  </VisualState.Setters>
-                              </VisualState>
-                              <VisualState x:Name="PointerOverSelected">
-                                  <VisualState.Setters>
-                                      <Setter Target="Root.Background" Value="#25FFFFFF" />
-                                      <Setter Target="SelectionIndicator.Opacity" Value="1" />
-                                  </VisualState.Setters>
-                              </VisualState>
-                          </VisualStateGroup>
-                      </VisualStateManager.VisualStateGroups>
-                      
-                      <!-- PowerToys-style selection indicator on the left -->
-                      <Rectangle x:Name="SelectionIndicator"
-                                 Width="3"
-                                 HorizontalAlignment="Left"
-                                 Fill="{ThemeResource AccentFillColorDefaultBrush}"
-                                 RadiusX="2"
-                                 RadiusY="2"
-                                 Opacity="0"
-                                 Margin="0,6,0,6"/>
-                      
-                      <ContentPresenter x:Name="ContentPresenter"
-                                      ContentTemplate="{TemplateBinding ContentTemplate}"
-                                      Content="{TemplateBinding Content}"
-                                      ContentTransitions="{TemplateBinding ContentTransitions}"
-                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" 
-                                      Margin="8,0,0,0"/>
-                  </Grid>
-              </ControlTemplate>
-          </Setter.Value>
-      </Setter>
-      </Style>
- </ListView.ItemContainerStyle>
-  <ListView.ItemTemplate>
-  <DataTemplate x:DataType="models:ClipboardItem">
-   <Grid Background="Transparent"
-         Padding="8,6">
-    <Grid.ColumnDefinitions>
-  <ColumnDefinition Width="Auto"/>
-   <ColumnDefinition Width="*"/>
-        <ColumnDefinition Width="Auto"/>
-   </Grid.ColumnDefinitions>
+                    <!-- Add New Item Button -->
+                    <Button Grid.Column="0"
+                            x:Name="AddNewButton"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Left"
+                            Padding="6,5"
+                            CornerRadius="6"
+                            Click="OnAddNewTapped"
+                            TabIndex="1">
+                        <StackPanel Orientation="Horizontal"
+                                Spacing="8">
+                            <FontIcon FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE710;"
+                                      FontSize="16"
+                                      Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                      VerticalAlignment="Center"/>
+                            <TextBlock Text="Add new item"
+                                       FontWeight="SemiBold"
+                                       FontSize="13"
+                                       Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
 
-       <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
-        <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
- <Grid Grid.Column="0" Width="26" Height="26" Margin="0,0,10,0" VerticalAlignment="Center">
-     <!-- Favicon for links -->
-     <Border Width="26" Height="26" 
-             CornerRadius="6"
-             Background="#E0FFFFFF"
-             Padding="1">
-         <Border.Visibility>
-             <Binding Path="HasFavicon" Mode="OneWay">
-                 <Binding.Converter>
-                     <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-                 </Binding.Converter>
-             </Binding>
-         </Border.Visibility>
-         <Image Stretch="Uniform">
-             <Image.Source>
-                 <Binding Path="FaviconUrl" Mode="OneWay">
-                     <Binding.Converter>
-                         <StaticResource ResourceKey="SafeImageConverter"/>
-                     </Binding.Converter>
-                 </Binding>
-             </Image.Source>
-         </Image>
-     </Border>
-     
-     <!-- Fallback Link icon (only for links without favicons) -->
-     <FontIcon FontFamily="Segoe Fluent Icons"
-      Glyph="&#xE774;"
-  FontSize="28"
-          Foreground="#3AADFF">
-   <FontIcon.Visibility>
-       <Binding Path="IsLinkWithoutFavicon" Mode="OneWay">
-           <Binding.Converter>
-               <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-           </Binding.Converter>
-       </Binding>
-   </FontIcon.Visibility>
-     </FontIcon>
-          <!-- Encrypted text icon (lock) - only for non-links that are encrypted -->
-          <FontIcon FontFamily="Segoe Fluent Icons"
- Glyph="&#xE72E;"
-       FontSize="28"
-          Foreground="#FFB900">
-              <FontIcon.Visibility>
-                  <Binding Path="IsEncryptedAndNotLink" Mode="OneWay">
-                      <Binding.Converter>
-                          <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-                      </Binding.Converter>
-                  </Binding>
-              </FontIcon.Visibility>
-          </FontIcon>
-          <!-- Command icon (terminal) - only for commands -->
-          <FontIcon FontFamily="Segoe Fluent Icons"
- Glyph="&#xE756;"
-       FontSize="26"
-          Foreground="#00CC6A">
-              <FontIcon.Visibility>
-                  <Binding Path="IsCommandAndNotLink" Mode="OneWay">
-                      <Binding.Converter>
-                          <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-                      </Binding.Converter>
-                  </Binding>
-              </FontIcon.Visibility>
-          </FontIcon>
-          <!-- Internal command icon - shows different icon based on command -->
-          <FontIcon FontFamily="Segoe Fluent Icons"
-       FontSize="26"
-          Foreground="#FF6BCB">
-              <FontIcon.Glyph>
-                  <Binding Path="Value" Mode="OneWay">
-                      <Binding.Converter>
-                          <StaticResource ResourceKey="InternalCommandIconConverter"/>
-                      </Binding.Converter>
-                  </Binding>
-              </FontIcon.Glyph>
-              <FontIcon.Visibility>
-                  <Binding Path="IsInternalCommand" Mode="OneWay">
-                      <Binding.Converter>
-                          <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-                      </Binding.Converter>
-                  </Binding>
-              </FontIcon.Visibility>
-          </FontIcon>
-          <!-- Regular text icon (document) - only for non-links that are not encrypted -->
-          <FontIcon FontFamily="Segoe Fluent Icons"
- Glyph="&#xE8A5;"
-       FontSize="26"
-          Foreground="#A0A0A0">
-              <FontIcon.Visibility>
-                  <Binding Path="IsPlainText" Mode="OneWay">
-                      <Binding.Converter>
-                          <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-                      </Binding.Converter>
-                  </Binding>
-              </FontIcon.Visibility>
-          </FontIcon>
-   </Grid>
+                    <!-- Settings and Close Buttons -->
+                    <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            Spacing="3">
+                        <Button x:Name="SettingsButton"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                CornerRadius="6"
+                                Click="OnSettingsClicked"
+                                TabIndex="2"
+                                ToolTipService.ToolTip="Settings">
+                            <FontIcon FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE713;"
+                                      FontSize="16"
+                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </Button>
 
-   <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-           <TextBlock Text="{x:Bind DisplayTitle, Mode=OneWay}"
-      FontWeight="SemiBold"
-            FontSize="13"
-       TextTrimming="CharacterEllipsis"/>
-      <TextBlock Text="{x:Bind DisplayValue, Mode=OneWay}"
-  FontSize="11"
-     TextTrimming="CharacterEllipsis"
-  MaxLines="1"
-   Opacity="0.7"/>
-          </StackPanel>
+                        <Button x:Name="ExitButton"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                CornerRadius="6"
+                                Click="OnExitClicked"
+                                TabIndex="3"
+                                ToolTipService.ToolTip="Exit Application">
+                            <FontIcon FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE711;"
+                                      FontSize="16"
+                                      Foreground="#C42B1C"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
 
-      <StackPanel Grid.Column="2" 
-  Orientation="Horizontal" 
-     Spacing="1" 
-    VerticalAlignment="Center">
-          <StackPanel.Visibility>
-              <Binding Path="IsInternalCommand" Mode="OneWay">
-                  <Binding.Converter>
-                      <StaticResource ResourceKey="InverseBoolToVisibilityConverter"/>
-                  </Binding.Converter>
-              </Binding>
-          </StackPanel.Visibility>
-<Button Width="28" Height="28" 
-     Padding="0" 
-     CornerRadius="4"
-   Background="Transparent" 
-      BorderThickness="0"
-      Click="OnEditClicked" 
-        Tag="{x:Bind}">
-         <Button.Transitions>
-             <TransitionCollection>
-                 <RepositionThemeTransition/>
-             </TransitionCollection>
-         </Button.Transitions>
-         <FontIcon FontFamily="Segoe Fluent Icons" 
-   Glyph="&#xE70F;" 
-   FontSize="12"/>
-        </Button>
- <Button Width="28" Height="28" 
-          Padding="0" 
-   CornerRadius="4"
-   Background="Transparent" 
-         BorderThickness="0"
-  Click="OnDeleteClicked" 
-Tag="{x:Bind}">
-         <Button.Transitions>
-             <TransitionCollection>
-                 <RepositionThemeTransition/>
-             </TransitionCollection>
-         </Button.Transitions>
-         <FontIcon FontFamily="Segoe Fluent Icons" 
-          Glyph="&#xE74D;" 
-       FontSize="12"/>
-   </Button>
-      </StackPanel>
-     </Grid>
-    </DataTemplate>
-            </ListView.ItemTemplate>
-  <ListView.KeyboardAccelerators>
-     <KeyboardAccelerator Key="Enter" Invoked="OnEnterPressed"/>
-    <KeyboardAccelerator Key="Escape" Invoked="OnEscapePressed"/>
-       </ListView.KeyboardAccelerators>
-      </ListView>
-      
-      <!-- Fixed Footer with Add New Item, Settings, and Exit buttons -->
-      <Grid x:Name="FooterPanel" 
-            Grid.Row="2" 
-            Background="Transparent"
-            Margin="0,4,0,0">
-          <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
-              <ColumnDefinition Width="Auto"/>
-          </Grid.ColumnDefinitions>
-          
-          <!-- Add New Item Button -->
-          <Button Grid.Column="0"
-                  x:Name="AddNewButton"
-                  Background="Transparent"
-                  BorderThickness="0"
-                  HorizontalAlignment="Stretch"
-                  HorizontalContentAlignment="Left"
-                  Padding="6,5"
-                  CornerRadius="6"
-                  Click="OnAddNewTapped"
-                  TabIndex="1">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                  <FontIcon FontFamily="Segoe Fluent Icons"
-                           Glyph="&#xE710;"
-                           FontSize="16"
-                           Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                           VerticalAlignment="Center"/>
-                  <TextBlock Text="Add new item"
-                            FontWeight="SemiBold"
-                            FontSize="13"
-                            Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                            VerticalAlignment="Center"/>
-              </StackPanel>
-          </Button>
-          
-          <!-- Settings and Close Buttons -->
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="3">
-              <Button x:Name="SettingsButton"
-                      Background="Transparent"
-                      BorderThickness="0"
-                      Width="32"
-                      Height="32"
-                      Padding="0"
-                      CornerRadius="6"
-                      Click="OnSettingsClicked"
-                      TabIndex="2"
-                      ToolTipService.ToolTip="Settings">
-                  <FontIcon FontFamily="Segoe Fluent Icons"
-                           Glyph="&#xE713;"
-                           FontSize="16"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-              </Button>
-              
-              <Button x:Name="ExitButton"
-                      Background="Transparent"
-                      BorderThickness="0"
-                      Width="32"
-                      Height="32"
-                      Padding="0"
-                      CornerRadius="6"
-                      Click="OnExitClicked"
-                      TabIndex="3"
-                      ToolTipService.ToolTip="Exit Application">
-                  <FontIcon FontFamily="Segoe Fluent Icons"
-                           Glyph="&#xE711;"
-                           FontSize="16"
-                           Foreground="#C42B1C"/>
-              </Button>
-          </StackPanel>
-      </Grid>
-
-      <!-- Inline Edit View -->
-  <StackPanel x:Name="EditPanel"
-     Grid.Row="1"
-     Grid.RowSpan="2"
-     Spacing="10"
-Visibility="Collapsed"
-  Background="Transparent">
-      <StackPanel.KeyboardAccelerators>
-          <KeyboardAccelerator Key="Escape" Invoked="OnCancelEditKey"/>
-      </StackPanel.KeyboardAccelerators>
- <TextBox x:Name="EditTitle"
-    PlaceholderText="Title (optional)"
-  FontSize="13"
-       CornerRadius="6"
-       Background="{ThemeResource LayerFillColorDefaultBrush}"
-  BorderThickness="0"
-     Padding="10,8"
-      MaxLength="100"/>
-
-   <TextBox x:Name="EditValue"
- PlaceholderText="Paste text or URL..."
-    FontSize="13"
-  CornerRadius="6"
-        Background="{ThemeResource LayerFillColorDefaultBrush}"
-     BorderThickness="0"
-  Padding="10,8"
-   TextWrapping="Wrap"
-          AcceptsReturn="True"
-  MinHeight="80"
-      MaxHeight="120"/>
-
-  <CheckBox x:Name="EditEncrypt"
-        Content="Encrypt"
- FontSize="12"/>
-
-      <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
-   <Button Content="Cancel"
-   Click="OnCancelEdit"
-   CornerRadius="6"
-  Padding="14,8"
-  FontSize="12"/>
-   <Button Content="Save"
-   Click="OnSaveEdit"
-Style="{StaticResource AccentButtonStyle}"
-       CornerRadius="6"
-  Padding="14,8"
-   FontSize="12"/>
-       </StackPanel>
-        </StackPanel>
-
-      <!-- Settings View -->
-      <ScrollViewer x:Name="SettingsPanel"
-                    Grid.Row="1"
-                    Grid.RowSpan="2"
-                    Visibility="Collapsed"
-                    VerticalScrollBarVisibility="Auto"
-                    Padding="0,0,0,0">
-          <StackPanel Spacing="16" Background="Transparent">
-              <StackPanel.KeyboardAccelerators>
-                  <KeyboardAccelerator Key="Escape" Invoked="OnCloseSettingsKey"/>
-              </StackPanel.KeyboardAccelerators>
-              
-              <!-- Checkboxes -->
-              <CheckBox x:Name="StartWithSystemCheckBox"
-                       Content="Launch on system startup"
-                       FontSize="13"
-                       Checked="OnStartWithSystemChanged"
-                       Unchecked="OnStartWithSystemChanged"
-                       TabIndex="10"/>
-              
-              <CheckBox x:Name="HideFooterCheckBox"
-                       Content="Hide footer (make Add/Settings/Exit searchable)"
-                       FontSize="13"
-                       Checked="OnHideFooterChanged"
-                       Unchecked="OnHideFooterChanged"
-                       TabIndex="11"/>
-              
-              <!-- Search URL -->
-              <StackPanel Spacing="6">
-                  <TextBlock Text="Search URL (use {query} as placeholder)"
-                            FontSize="12"
-                            Opacity="0.7"/>
-                  
-                  <TextBox x:Name="SearchUrlTextBox"
-                          PlaceholderText="https://chatgpt.com/?q={query}"
-                          FontSize="13"
-                          CornerRadius="6"
-                          Background="{ThemeResource LayerFillColorDefaultBrush}"
-                          BorderThickness="1"
-                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                          Padding="10,8"
-                          TextChanged="OnSearchUrlChanged"
-                          TabIndex="12"/>
-              </StackPanel>
-              
-              <!-- Hotkey -->
-              <StackPanel Spacing="6">
-                  <TextBlock Text="Click and press a key combination"
-                            FontSize="12"
-                            Opacity="0.7"/>
-                  
-                  <Grid>
-                      <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="*"/>
-                          <ColumnDefinition Width="Auto"/>
-                          <ColumnDefinition Width="Auto"/>
-                      </Grid.ColumnDefinitions>
-                      
-                      <TextBox x:Name="HotkeyTextBox"
-                              Grid.Column="0"
-                              PlaceholderText="Press keys..."
-                              FontSize="13"
-                              CornerRadius="6"
-                              Background="{ThemeResource LayerFillColorDefaultBrush}"
-                              BorderThickness="1"
-                              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                              Padding="10,8"
-                              IsReadOnly="True"
-                              PreviewKeyDown="OnHotkeyKeyDown"
-                              LostFocus="OnHotkeyTextBoxLostFocus"
-                              Margin="0,0,8,0"
-                              TabIndex="13"/>
-                      
-                      <Button x:Name="ApplyHotkeyButton"
-                             Grid.Column="1"
-                             Content="Apply"
-                             Click="OnApplyHotkey"
+                <!-- Inline Edit View -->
+                <StackPanel x:Name="EditPanel"
+                            Grid.Row="1"
+                            Grid.RowSpan="2"
+                            Spacing="10"
+                            Visibility="Collapsed"
+                            Background="Transparent">
+                    <StackPanel.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Escape"
+                                Invoked="OnCancelEditKey"/>
+                    </StackPanel.KeyboardAccelerators>
+                    <TextBox x:Name="EditTitle"
+                             PlaceholderText="Title (optional)"
+                             FontSize="13"
                              CornerRadius="6"
-                             Padding="16,8"
-                             FontSize="12"
-                             IsEnabled="False"
-                             Margin="0,0,8,0"
-                             TabIndex="14"
-                             Style="{ThemeResource AccentButtonStyle}"/>
-                      
-                      <Button Grid.Column="2"
-                             Content="Reset"
-                             Click="OnResetHotkey"
-                             CornerRadius="6"
-                             Padding="16,8"
-                             FontSize="12"
-                             TabIndex="15"/>
-                  </Grid>
-                  
-                  <TextBlock x:Name="HotkeyStatusText"
-                            FontSize="11"
-                            Opacity="0.5"
-                            TextWrapping="Wrap"
-                            Text="Must include modifier (Ctrl, Shift, or Alt) + key"/>
-              </StackPanel>
-              
-              <!-- Close Button -->
-              <Button Content="Close"
-                     Click="OnCloseSettings"
-                     CornerRadius="6"
-                     Padding="20,10"
-                     FontSize="13"
-                     HorizontalAlignment="Right"
-                     TabIndex="16"
-                     Style="{ThemeResource AccentButtonStyle}"/>
-          </StackPanel>
-      </ScrollViewer>
+                             Background="{ThemeResource LayerFillColorDefaultBrush}"
+                             BorderThickness="0"
+                             Padding="10,8"
+                             MaxLength="100"/>
 
-      <!-- Minimal Loading Indicator -->
- <Grid x:Name="LoadingOverlay" 
-  Grid.RowSpan="2"
-Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
-         Visibility="Collapsed">
- <ProgressRing IsActive="True" Width="40" Height="40"/>
-</Grid>
+                    <TextBox x:Name="EditValue"
+                             PlaceholderText="Paste text or URL..."
+                             FontSize="13"
+                             CornerRadius="6"
+                             Background="{ThemeResource LayerFillColorDefaultBrush}"
+                             BorderThickness="0"
+                             Padding="10,8"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             MinHeight="80"
+                             MaxHeight="120"/>
+
+                    <CheckBox x:Name="EditEncrypt"
+                              Content="Encrypt"
+                              FontSize="12"/>
+
+                    <StackPanel Orientation="Horizontal"
+                            Spacing="6"
+                            HorizontalAlignment="Right">
+                        <Button Content="Cancel"
+                                Click="OnCancelEdit"
+                                CornerRadius="6"
+                                Padding="14,8"
+                                FontSize="12"/>
+                        <Button Content="Save"
+                                Click="OnSaveEdit"
+                                Style="{StaticResource AccentButtonStyle}"
+                                CornerRadius="6"
+                                Padding="14,8"
+                                FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Settings View -->
+                <ScrollViewer x:Name="SettingsPanel"
+                              Grid.Row="1"
+                              Grid.RowSpan="2"
+                              Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto"
+                              Padding="0,0,0,0">
+                    <StackPanel Spacing="16"
+                            Background="Transparent">
+                        <StackPanel.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="Escape"
+                                    Invoked="OnCloseSettingsKey"/>
+                        </StackPanel.KeyboardAccelerators>
+
+                        <!-- Checkboxes -->
+                        <CheckBox x:Name="StartWithSystemCheckBox"
+                                  Content="Launch on system startup"
+                                  FontSize="13"
+                                  Checked="OnStartWithSystemChanged"
+                                  Unchecked="OnStartWithSystemChanged"
+                                  TabIndex="10"/>
+
+                        <CheckBox x:Name="HideFooterCheckBox"
+                                  Content="Hide footer (make Add/Settings/Exit searchable)"
+                                  FontSize="13"
+                                  Checked="OnHideFooterChanged"
+                                  Unchecked="OnHideFooterChanged"
+                                  TabIndex="11"/>
+
+                        <!-- Search URL -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Search URL (use {query} as placeholder)"
+                                       FontSize="12"
+                                       Opacity="0.7"/>
+
+                            <TextBox x:Name="SearchUrlTextBox"
+                                     PlaceholderText="https://chatgpt.com/?q={query}"
+                                     FontSize="13"
+                                     CornerRadius="6"
+                                     Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                     BorderThickness="1"
+                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                     Padding="10,8"
+                                     TextChanged="OnSearchUrlChanged"
+                                     TabIndex="12"/>
+                        </StackPanel>
+
+                        <!-- Hotkey -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Click and press a key combination"
+                                       FontSize="12"
+                                       Opacity="0.7"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox x:Name="HotkeyTextBox"
+                                         Grid.Column="0"
+                                         PlaceholderText="Press keys..."
+                                         FontSize="13"
+                                         CornerRadius="6"
+                                         Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                         BorderThickness="1"
+                                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                         Padding="10,8"
+                                         IsReadOnly="True"
+                                         PreviewKeyDown="OnHotkeyKeyDown"
+                                         LostFocus="OnHotkeyTextBoxLostFocus"
+                                         Margin="0,0,8,0"
+                                         TabIndex="13"/>
+
+                                <Button x:Name="ApplyHotkeyButton"
+                                        Grid.Column="1"
+                                        Content="Apply"
+                                        Click="OnApplyHotkey"
+                                        CornerRadius="6"
+                                        Padding="16,8"
+                                        FontSize="12"
+                                        IsEnabled="False"
+                                        Margin="0,0,8,0"
+                                        TabIndex="14"
+                                        Style="{ThemeResource AccentButtonStyle}"/>
+
+                                <Button Grid.Column="2"
+                                        Content="Reset"
+                                        Click="OnResetHotkey"
+                                        CornerRadius="6"
+                                        Padding="16,8"
+                                        FontSize="12"
+                                        TabIndex="15"/>
+                            </Grid>
+
+                            <TextBlock x:Name="HotkeyStatusText"
+                                       FontSize="11"
+                                       Opacity="0.5"
+                                       TextWrapping="Wrap"
+                                       Text="Must include modifier (Ctrl, Shift, or Alt) + key"/>
+                        </StackPanel>
+
+                        <!-- Close Button -->
+                        <Button Content="Close"
+                                Click="OnCloseSettings"
+                                CornerRadius="6"
+                                Padding="20,10"
+                                FontSize="13"
+                                HorizontalAlignment="Right"
+                                TabIndex="16"
+                                Style="{ThemeResource AccentButtonStyle}"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Minimal Loading Indicator -->
+                <Grid x:Name="LoadingOverlay"
+                      Grid.RowSpan="2"
+                      Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                      Visibility="Collapsed">
+                    <ProgressRing IsActive="True"
+                            Width="40"
+                            Height="40"/>
+                </Grid>
             </Grid>
         </Border>
     </Grid>

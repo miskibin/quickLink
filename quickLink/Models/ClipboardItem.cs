@@ -122,7 +122,22 @@ get => _title;
             ? (IsLink ? "🔗 Link" : IsCommand ? "⚡ Command" : "📄 Text") 
             : Title;
 
-        public string DisplayValue => IsEncrypted ? "••••••••" : Value;        // Helper properties for icon visibility
+        public string DisplayValue
+        {
+            get
+            {
+                if (IsEncrypted) return "••••••••";
+                // For commands (including internal command items), trim the > prefix for display
+                if ((IsCommand || IsInternalCommand) && Value.StartsWith(">"))
+                {
+                    var trimmed = Value.Substring(1).Trim();
+                    return string.IsNullOrWhiteSpace(trimmed) ? "..." : trimmed;
+                }
+                return Value;
+            }
+        }
+        
+        // Helper properties for icon visibility
         public bool IsEncryptedAndNotLink => IsEncrypted && !IsLink;
         public bool IsCommandAndNotLink => IsCommand && !IsLink && !IsInternalCommand;
         public bool IsPlainText => !IsEncrypted && !IsLink && !IsCommand && !IsInternalCommand;

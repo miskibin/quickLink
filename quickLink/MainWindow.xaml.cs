@@ -53,6 +53,7 @@ namespace quickLink
         private readonly ObservableCollection<ClipboardItem> _filteredItems;
         private readonly List<ClipboardItem> _internalCommands;
         private readonly ClipboardItem _searchConversationItem;
+        private readonly ClipboardItem _executeCommandItem;
         
         private GlobalHotkeyService? _hotkeyService;
         private IntPtr _windowHandle;
@@ -98,6 +99,12 @@ namespace quickLink
             {
                 Title = "Start conversation",
                 Value = "search:",
+                IsInternalCommand = true
+            };
+            _executeCommandItem = new ClipboardItem
+            {
+                Title = "Execute command",
+                Value = ">",
                 IsInternalCommand = true
             };
 
@@ -406,10 +413,21 @@ namespace quickLink
                 }
                 
                 // If no results and not a command, show search suggestion
-                if (newItems.Count == 0 && !searchText.StartsWith(">"))
+                if (newItems.Count == 0)
                 {
-                    _searchConversationItem.Value = $"search:{searchText}";
-                    newItems.Add(_searchConversationItem);
+                    if (searchText.StartsWith(">"))
+                    {
+                        // Show execute command suggestion
+                        _executeCommandItem.Title = "Execute command";
+                        _executeCommandItem.Value = searchText; // Keep the > prefix for command execution
+                        newItems.Add(_executeCommandItem);
+                    }
+                    else
+                    {
+                        // Show search suggestion
+                        _searchConversationItem.Value = $"search:{searchText}";
+                        newItems.Add(_searchConversationItem);
+                    }
                 }
             }
 
@@ -598,6 +616,15 @@ namespace quickLink
                 var query = Uri.EscapeDataString(searchText);
                 var url = _searchUrl.Replace("{query}", query);
                 await _clipboardService.OpenUrlAsync(url);
+                AppWindow.Hide();
+                return;
+            }
+
+            // Handle execute command (when user types >command)
+            if (commandValue.StartsWith(">"))
+            {
+                var command = commandValue.TrimStart('>').Trim();
+                await ExecuteCommandAsync(command);
                 AppWindow.Hide();
                 return;
             }
@@ -819,6 +846,9 @@ namespace quickLink
             FooterPanel.Visibility = Visibility.Collapsed;
             EditPanel.Visibility = Visibility.Collapsed;
             SettingsPanel.Visibility = Visibility.Visible;
+            
+            // Set focus to the first interactive element
+            StartWithSystemCheckBox.Focus(FocusState.Programmatic);
         }
 
         private void HideSettingsPanel()
@@ -879,8 +909,8 @@ namespace quickLink
             }
             catch
             {
-                _hideFooter = false;
-                HideFooterCheckBox.IsChecked = false;
+                _hideFooter = true; // Default to hidden
+                HideFooterCheckBox.IsChecked = true;
             }
         }
 
@@ -961,6 +991,13 @@ namespace quickLink
         #region Hotkey Configuration
         private void OnHotkeyKeyDown(object sender, KeyRoutedEventArgs e)
         {
+            // Allow Tab key to navigate away
+            if (e.Key == Windows.System.VirtualKey.Tab)
+            {
+                e.Handled = false;
+                return;
+            }
+            
             e.Handled = true;
             var key = e.Key;
             
@@ -987,6 +1024,17 @@ namespace quickLink
             UpdateHotkeyDisplay();
             HotkeyStatusText.Text = "✓ Ready to apply — click the Apply button";
             ApplyHotkeyButton.IsEnabled = true;
+        }
+
+        private void OnHotkeyTextBoxLostFocus(object sender, RoutedEventArgs e)
+        {
+            // Reset the new hotkey values when losing focus without applying
+            // This ensures that if user tabs away, they don't accidentally keep pending changes
+            if (!ApplyHotkeyButton.IsEnabled)
+            {
+                _newHotkeyModifiers = Windows.System.VirtualKeyModifiers.None;
+                _newHotkeyKey = Windows.System.VirtualKey.None;
+            }
         }
 
         private static bool IsModifierKey(Windows.System.VirtualKey key)

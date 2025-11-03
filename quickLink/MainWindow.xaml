@@ -97,13 +97,6 @@
                      <KeyboardAccelerator Key="Up" Invoked="OnUpArrow"/>
                  </TextBox.KeyboardAccelerators>
              </TextBox>
-             
-             <!-- Subtle bottom border like PowerToys -->
-             <Rectangle Grid.Row="1"
-                        Height="1"
-                        Fill="#40FFFFFF"
-                        HorizontalAlignment="Stretch"
-                        Margin="0,4,0,0"/>
          </Grid>
 
     <!-- List View (hidden when editing) -->
@@ -464,113 +457,117 @@ Style="{StaticResource AccentButtonStyle}"
         </StackPanel>
 
       <!-- Settings View -->
-      <StackPanel x:Name="SettingsPanel"
-                  Grid.Row="1"
-                  Grid.RowSpan="2"
-                  Spacing="10"
-                  Visibility="Collapsed"
-                  Background="Transparent">
-          <StackPanel.KeyboardAccelerators>
-              <KeyboardAccelerator Key="Escape" Invoked="OnCloseSettingsKey"/>
-          </StackPanel.KeyboardAccelerators>
-          
-          <!-- Start with system -->
-          <CheckBox x:Name="StartWithSystemCheckBox"
-                   Content="Launch on system startup"
-                   FontSize="13"
-                   Checked="OnStartWithSystemChanged"
-                   Unchecked="OnStartWithSystemChanged"
-                   TabIndex="10"/>
-          
-          <!-- Hide footer -->
-          <CheckBox x:Name="HideFooterCheckBox"
-                   Content="Hide footer (make Add/Settings/Exit searchable)"
-                   FontSize="13"
-                   Checked="OnHideFooterChanged"
-                   Unchecked="OnHideFooterChanged"
-                   TabIndex="11"/>
-          
-          <!-- Search URL customization -->
-          <StackPanel Spacing="5">
-              <TextBlock Text="Search URL (use {query} as placeholder)"
-                        FontSize="13"
-                        FontWeight="SemiBold"/>
-              <TextBlock Text="Examples: https://google.com/search?q={query} or https://claude.ai/new?q={query}"
-                        FontSize="11"
-                        Opacity="0.6"
-                        TextWrapping="Wrap"/>
-              <TextBox x:Name="SearchUrlTextBox"
-                      PlaceholderText="https://chatgpt.com/?q={query}"
-                      FontSize="13"
-                      CornerRadius="6"
-                      Background="{ThemeResource LayerFillColorDefaultBrush}"
-                      BorderThickness="0"
-                      Padding="10,8"
-                      TextChanged="OnSearchUrlChanged"
-                      TabIndex="12"/>
-          </StackPanel>
-          
-          <!-- Hotkey customization -->
-          <StackPanel Spacing="5">
-              <TextBlock Text="Click the box below and press a key combination (e.g., Ctrl+Shift+Q)"
-                        FontSize="11"
-                        Opacity="0.6"/>
-              <Grid>
-                  <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*"/>
-                      <ColumnDefinition Width="Auto"/>
-                      <ColumnDefinition Width="Auto"/>
-                  </Grid.ColumnDefinitions>
+      <ScrollViewer x:Name="SettingsPanel"
+                    Grid.Row="1"
+                    Grid.RowSpan="2"
+                    Visibility="Collapsed"
+                    VerticalScrollBarVisibility="Auto"
+                    Padding="0,0,0,0">
+          <StackPanel Spacing="16" Background="Transparent">
+              <StackPanel.KeyboardAccelerators>
+                  <KeyboardAccelerator Key="Escape" Invoked="OnCloseSettingsKey"/>
+              </StackPanel.KeyboardAccelerators>
+              
+              <!-- Checkboxes -->
+              <CheckBox x:Name="StartWithSystemCheckBox"
+                       Content="Launch on system startup"
+                       FontSize="13"
+                       Checked="OnStartWithSystemChanged"
+                       Unchecked="OnStartWithSystemChanged"
+                       TabIndex="10"/>
+              
+              <CheckBox x:Name="HideFooterCheckBox"
+                       Content="Hide footer (make Add/Settings/Exit searchable)"
+                       FontSize="13"
+                       Checked="OnHideFooterChanged"
+                       Unchecked="OnHideFooterChanged"
+                       TabIndex="11"/>
+              
+              <!-- Search URL -->
+              <StackPanel Spacing="6">
+                  <TextBlock Text="Search URL (use {query} as placeholder)"
+                            FontSize="12"
+                            Opacity="0.7"/>
                   
-                  <TextBox x:Name="HotkeyTextBox"
-                          Grid.Column="0"
-                          PlaceholderText="Click and press keys..."
+                  <TextBox x:Name="SearchUrlTextBox"
+                          PlaceholderText="https://chatgpt.com/?q={query}"
                           FontSize="13"
                           CornerRadius="6"
                           Background="{ThemeResource LayerFillColorDefaultBrush}"
-                          BorderThickness="0"
+                          BorderThickness="1"
+                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                           Padding="10,8"
-                          IsReadOnly="True"
-                          PreviewKeyDown="OnHotkeyKeyDown"
-                          Margin="0,0,6,0"
-                          TabIndex="13"/>
+                          TextChanged="OnSearchUrlChanged"
+                          TabIndex="12"/>
+              </StackPanel>
+              
+              <!-- Hotkey -->
+              <StackPanel Spacing="6">
+                  <TextBlock Text="Click and press a key combination"
+                            FontSize="12"
+                            Opacity="0.7"/>
                   
-                  <Button x:Name="ApplyHotkeyButton"
-                         Grid.Column="1"
-                         Content="Apply"
-                         Click="OnApplyHotkey"
-                         CornerRadius="6"
-                         Padding="14,8"
-                         FontSize="12"
-                         IsEnabled="False"
-                         Margin="0,0,6,0"
-                         TabIndex="14"
-                         Style="{ThemeResource AccentButtonStyle}"/>
+                  <Grid>
+                      <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*"/>
+                          <ColumnDefinition Width="Auto"/>
+                          <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+                      
+                      <TextBox x:Name="HotkeyTextBox"
+                              Grid.Column="0"
+                              PlaceholderText="Press keys..."
+                              FontSize="13"
+                              CornerRadius="6"
+                              Background="{ThemeResource LayerFillColorDefaultBrush}"
+                              BorderThickness="1"
+                              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                              Padding="10,8"
+                              IsReadOnly="True"
+                              PreviewKeyDown="OnHotkeyKeyDown"
+                              LostFocus="OnHotkeyTextBoxLostFocus"
+                              Margin="0,0,8,0"
+                              TabIndex="13"/>
+                      
+                      <Button x:Name="ApplyHotkeyButton"
+                             Grid.Column="1"
+                             Content="Apply"
+                             Click="OnApplyHotkey"
+                             CornerRadius="6"
+                             Padding="16,8"
+                             FontSize="12"
+                             IsEnabled="False"
+                             Margin="0,0,8,0"
+                             TabIndex="14"
+                             Style="{ThemeResource AccentButtonStyle}"/>
+                      
+                      <Button Grid.Column="2"
+                             Content="Reset"
+                             Click="OnResetHotkey"
+                             CornerRadius="6"
+                             Padding="16,8"
+                             FontSize="12"
+                             TabIndex="15"/>
+                  </Grid>
                   
-                  <Button Grid.Column="2"
-                         Content="Reset"
-                         Click="OnResetHotkey"
-                         CornerRadius="6"
-                         Padding="14,8"
-                         FontSize="12"
-                         TabIndex="15"/>
-              </Grid>
-              <TextBlock x:Name="HotkeyStatusText"
-                        FontSize="11"
-                        Opacity="0.6"
-                        Margin="0,2,0,0"
-                        Text="Hotkeys must be: Modifier(s) + one key (no sequences like Ctrl+Space+A)"/>
-          </StackPanel>
-          
-          <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                  <TextBlock x:Name="HotkeyStatusText"
+                            FontSize="11"
+                            Opacity="0.5"
+                            TextWrapping="Wrap"
+                            Text="Must include modifier (Ctrl, Shift, or Alt) + key"/>
+              </StackPanel>
+              
+              <!-- Close Button -->
               <Button Content="Close"
                      Click="OnCloseSettings"
                      CornerRadius="6"
-                     Padding="14,8"
-                     FontSize="12"
-                     TabIndex="16"/>
+                     Padding="20,10"
+                     FontSize="13"
+                     HorizontalAlignment="Right"
+                     TabIndex="16"
+                     Style="{ThemeResource AccentButtonStyle}"/>
           </StackPanel>
-      </StackPanel>
+      </ScrollViewer>
 
       <!-- Minimal Loading Indicator -->
  <Grid x:Name="LoadingOverlay" 

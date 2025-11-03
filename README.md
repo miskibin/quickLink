@@ -5,8 +5,6 @@
 
 > A fast, elegant link, clipboard, and commands manager for Windows with global hotkey support.
 
-![Demo Screenshot](https://github.com/user-attachments/assets/cc0d0edc-f90a-407b-b23c-133546bc0099)
-
 
 <div align="center">
 
@@ -107,3 +105,9 @@ It might seem like simmilar product, but it does not share any functionalities.
 - QuickLink focuses on managing links, text snippets, and commands with a global hotkey.
 - PowerToys command palette is more general-purpose and does not specialize in link/snippet management.
 - QuickLink offers features like encrypted password storage and media controls, which are not available in PowerToys.
+
+
+
+
+
+![Demo Screenshot](https://github.com/user-attachments/assets/cc0d0edc-f90a-407b-b23c-133546bc0099)

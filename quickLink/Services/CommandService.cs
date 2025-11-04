@@ -8,6 +8,8 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using quickLink.Models;
+using quickLink.Constants;
+using quickLink.Services.Helpers;
 
 namespace quickLink.Services
 {
@@ -25,19 +27,9 @@ namespace quickLink.Services
         [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "AOT is not used for this application")]
         public CommandService()
         {
-            var appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var appFolder = Path.Combine(appDataFolder, "QuickLink");
-            
-            Directory.CreateDirectory(appFolder);
-
-            _commandsFilePath = Path.Combine(appFolder, "commands.json");
+            _commandsFilePath = ServiceInitializer.GetDataFilePath(AppConstants.Files.CommandsFile);
             _fileLock = new SemaphoreSlim(1, 1);
-            _jsonOptions = new JsonSerializerOptions 
-            { 
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                Converters = { new JsonStringEnumConverter() }
-            };
+            _jsonOptions = ServiceInitializer.GetJsonSerializerOptions();
         }
 
         public async Task EnsureCommandsFileExistsAsync()

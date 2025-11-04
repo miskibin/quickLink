@@ -22,7 +22,6 @@
             <!-- Converters -->
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
-            <converters:InternalCommandIconConverter x:Key="InternalCommandIconConverter"/>
             <converters:SafeImageConverter x:Key="SafeImageConverter"/>
 
             <!-- PowerToys-style animations -->
@@ -225,7 +224,7 @@
                         </Style>
                     </ListView.ItemContainerStyle>
                     <ListView.ItemTemplate>
-                        <DataTemplate x:DataType="models:ClipboardItem">
+                        <DataTemplate>
                             <Grid Background="Transparent"
                                   Padding="8,6">
                                 <Grid.ColumnDefinitions>
@@ -234,21 +233,21 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
+                                <!-- Icon area - supports favicons, emoji, and glyph icons -->
                                 <Grid Grid.Column="0"
-                                        Width="28"
-                                        Height="28"
-                                        Margin="0,0,10,0"
-                                        VerticalAlignment="Center">
-                                    <!-- Favicon for links -->
+                                      Width="28"
+                                      Height="28"
+                                      Margin="0,0,10,0"
+                                      VerticalAlignment="Center">
+                                    
+                                    <!-- Favicon for LinkItems (highest priority) -->
                                     <Border Width="28"
                                             Height="28"
                                             CornerRadius="5"
                                             Background="#E0FFFFFF"
                                             Padding="1">
                                         <Border.Visibility>
-                                            <Binding Path="HasFavicon"
-                                                    Mode="OneWay">
+                                            <Binding Path="HasFavicon" Mode="OneWay">
                                                 <Binding.Converter>
                                                     <StaticResource ResourceKey="BoolToVisibilityConverter"/>
                                                 </Binding.Converter>
@@ -256,8 +255,7 @@
                                         </Border.Visibility>
                                         <Image Stretch="Uniform">
                                             <Image.Source>
-                                                <Binding Path="FaviconUrl"
-                                                        Mode="OneWay">
+                                                <Binding Path="FaviconUrl" Mode="OneWay">
                                                     <Binding.Converter>
                                                         <StaticResource ResourceKey="SafeImageConverter"/>
                                                     </Binding.Converter>
@@ -265,108 +263,46 @@
                                             </Image.Source>
                                         </Image>
                                     </Border>
-
-                                    <!-- Fallback Link icon (only for links without favicons) -->
-                                    <FontIcon FontFamily="Segoe Fluent Icons"
-                                              Glyph="&#xE774;"
-                                              FontSize="24"
-                                              Foreground="#3AADFF">
-                                        <FontIcon.Visibility>
-                                            <Binding Path="IsLinkWithoutFavicon"
-                                                    Mode="OneWay">
-                                                <Binding.Converter>
-                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-                                                </Binding.Converter>
-                                            </Binding>
-                                        </FontIcon.Visibility>
-                                    </FontIcon>
-                                    <!-- Encrypted text icon (lock) - only for non-links that are encrypted -->
-                                    <FontIcon FontFamily="Segoe Fluent Icons"
-                                              Glyph="&#xE72E;"
-                                              FontSize="24"
-                                              Foreground="#FFB900">
-                                        <FontIcon.Visibility>
-                                            <Binding Path="IsEncryptedAndNotLink"
-                                                    Mode="OneWay">
-                                                <Binding.Converter>
-                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-                                                </Binding.Converter>
-                                            </Binding>
-                                        </FontIcon.Visibility>
-                                    </FontIcon>
-                                    <!-- Command icon (terminal) - only for commands -->
-                                    <FontIcon FontFamily="Segoe Fluent Icons"
-                                              Glyph="&#xE756;"
-                                              FontSize="24"
-                                              Foreground="#00CC6A">
-                                        <FontIcon.Visibility>
-                                            <Binding Path="IsCommandAndNotLink"
-                                                    Mode="OneWay">
-                                                <Binding.Converter>
-                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-                                                </Binding.Converter>
-                                            </Binding>
-                                        </FontIcon.Visibility>
-                                    </FontIcon>
-                                    <!-- Internal command icon - shows different icon based on command -->
-                                    <FontIcon FontFamily="Segoe Fluent Icons"
-                                              FontSize="24"
-                                              Foreground="#FF6BCB">
-                                        <FontIcon.Glyph>
-                                            <Binding Path="Value"
-                                                    Mode="OneWay">
-                                                <Binding.Converter>
-                                                    <StaticResource ResourceKey="InternalCommandIconConverter"/>
-                                                </Binding.Converter>
-                                            </Binding>
-                                        </FontIcon.Glyph>
-                                        <FontIcon.Visibility>
-                                            <Binding Path="IsInternalCommand"
-                                                    Mode="OneWay">
-                                                <Binding.Converter>
-                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
-                                                </Binding.Converter>
-                                            </Binding>
-                                        </FontIcon.Visibility>
-                                    </FontIcon>
-                                    <!-- User command icon - emoji from CommandResult -->
-                                    <TextBlock Text="{x:Bind UserCommandIcon, Mode=OneWay}"
+                                    
+                                    <!-- Emoji icon for UserCommandResultItem and CommandSuggestionItem -->
+                                    <TextBlock Text="{Binding EmojiIcon, Mode=OneWay}"
                                                FontSize="20"
                                                VerticalAlignment="Center"
                                                HorizontalAlignment="Center">
                                         <TextBlock.Visibility>
-                                            <Binding Path="IsUserCommandItem"
-                                                    Mode="OneWay">
+                                            <Binding Path="UseEmojiIcon" Mode="OneWay">
                                                 <Binding.Converter>
                                                     <StaticResource ResourceKey="BoolToVisibilityConverter"/>
                                                 </Binding.Converter>
                                             </Binding>
                                         </TextBlock.Visibility>
                                     </TextBlock>
-                                    <!-- Regular text icon (document) - only for non-links that are not encrypted -->
+                                    
+                                    <!-- FontIcon fallback (shows when not using favicon or emoji) -->
                                     <FontIcon FontFamily="Segoe Fluent Icons"
-                                              Glyph="&#xE8A5;"
                                               FontSize="24"
-                                              Foreground="#A0A0A0">
+                                              Foreground="{Binding IconColor, Mode=OneWay}">
                                         <FontIcon.Visibility>
-                                            <Binding Path="IsPlainText"
-                                                    Mode="OneWay">
+                                            <Binding Path="UseGlyphIcon" Mode="OneWay">
                                                 <Binding.Converter>
                                                     <StaticResource ResourceKey="BoolToVisibilityConverter"/>
                                                 </Binding.Converter>
                                             </Binding>
                                         </FontIcon.Visibility>
+                                        <FontIcon.Glyph>
+                                            <Binding Path="IconGlyph" Mode="OneWay"/>
+                                        </FontIcon.Glyph>
                                     </FontIcon>
                                 </Grid>
 
                                 <StackPanel Grid.Column="1"
                                         Spacing="2"
                                         VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind DisplayTitle, Mode=OneWay}"
+                                    <TextBlock Text="{Binding DisplayTitle, Mode=OneWay}"
                                                FontWeight="SemiBold"
                                                FontSize="13"
                                                TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Text="{x:Bind DisplayValue, Mode=OneWay}"
+                                    <TextBlock Text="{Binding DisplayValue, Mode=OneWay}"
                                                FontSize="11"
                                                TextTrimming="CharacterEllipsis"
                                                MaxLines="1"
@@ -377,10 +313,8 @@
                                             Orientation="Horizontal"
                                             Spacing="1"
                                             VerticalAlignment="Center">
-                                    <!-- Show for plain text items AND command suggestions -->
                                     <StackPanel.Visibility>
-                                        <Binding Path="ShowEditDeleteButtons"
-                                                Mode="OneWay">
+                                        <Binding Path="ShowEditButton" Mode="OneWay">
                                             <Binding.Converter>
                                                 <StaticResource ResourceKey="BoolToVisibilityConverter"/>
                                             </Binding.Converter>
@@ -393,7 +327,7 @@
                                             Background="Transparent"
                                             BorderThickness="0"
                                             Click="OnEditClicked"
-                                            Tag="{x:Bind}">
+                                            Tag="{Binding}">
                                         <Button.Transitions>
                                             <TransitionCollection>
                                                 <RepositionThemeTransition/>
@@ -410,7 +344,14 @@
                                             Background="Transparent"
                                             BorderThickness="0"
                                             Click="OnDeleteClicked"
-                                            Tag="{x:Bind}">
+                                            Tag="{Binding}">
+                                        <Button.Visibility>
+                                            <Binding Path="ShowDeleteButton" Mode="OneWay">
+                                                <Binding.Converter>
+                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </Button.Visibility>
                                         <Button.Transitions>
                                             <TransitionCollection>
                                                 <RepositionThemeTransition/>

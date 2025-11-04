@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.FileSystemGlobbing;
 using quickLink.Models;
+using quickLink.Models.ListItems;
 
 namespace quickLink.Services
 {
@@ -14,18 +15,18 @@ namespace quickLink.Services
         /// Lists files from a directory based on glob pattern and recursive option.
         /// Optimized for performance with lazy evaluation and limited results.
         /// </summary>
-        public async Task<List<CommandResultItem>> GetItemsAsync(SourceConfig config, int maxResults = 50)
+        public async Task<List<UserCommandResultItem>> GetItemsAsync(SourceConfig config, string executeTemplate, int maxResults = 50)
         {
             if (string.IsNullOrWhiteSpace(config.Path) || !Directory.Exists(config.Path))
             {
-                return new List<CommandResultItem>();
+                return new List<UserCommandResultItem>();
             }
 
             return await Task.Run(() =>
             {
                 try
                 {
-                    var items = new List<CommandResultItem>();
+                    var items = new List<UserCommandResultItem>();
                     var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
                     
                     // Add the glob pattern - if recursive, ensure pattern matches subdirectories
@@ -56,21 +57,21 @@ namespace quickLink.Services
                             continue;
                         
                         var fileInfo = new FileInfo(file);
-                        items.Add(new CommandResultItem
-                        {
-                            Name = Path.GetFileNameWithoutExtension(file),
-                            Path = file,
-                            Extension = fileInfo.Extension,
-                            DisplayName = Path.GetFileName(file),
-                            IconDisplay = GetFileIcon(fileInfo.Extension)
-                        });
+                        items.Add(new UserCommandResultItem(
+                            name: Path.GetFileNameWithoutExtension(file),
+                            path: file,
+                            extension: fileInfo.Extension,
+                            displayName: Path.GetFileName(file),
+                            icon: GetFileIcon(fileInfo.Extension),
+                            executeTemplate: executeTemplate
+                        ));
                     }
                     
-                    return items.OrderBy(i => i.DisplayName).ToList();
+                    return items.OrderBy(i => i.FileDisplayName).ToList();
                 }
                 catch
                 {
-                    return new List<CommandResultItem>();
+                    return new List<UserCommandResultItem>();
                 }
             });
         }
@@ -78,9 +79,9 @@ namespace quickLink.Services
         /// <summary>
         /// Searches files by name in addition to glob pattern.
         /// </summary>
-        public async Task<List<CommandResultItem>> SearchItemsAsync(SourceConfig config, string searchText, int maxResults = 50)
+        public async Task<List<UserCommandResultItem>> SearchItemsAsync(SourceConfig config, string executeTemplate, string searchText, int maxResults = 50)
         {
-            var allItems = await GetItemsAsync(config, maxResults * 2);
+            var allItems = await GetItemsAsync(config, executeTemplate, maxResults * 2);
             
             if (string.IsNullOrWhiteSpace(searchText))
                 return allItems.Take(maxResults).ToList();
@@ -89,7 +90,7 @@ namespace quickLink.Services
             
             return allItems
                 .Where(item => 
-                    item.DisplayName.Contains(searchLower, StringComparison.OrdinalIgnoreCase) ||
+                    item.FileDisplayName.Contains(searchLower, StringComparison.OrdinalIgnoreCase) ||
                     item.Name.Contains(searchLower, StringComparison.OrdinalIgnoreCase))
                 .Take(maxResults)
                 .ToList();

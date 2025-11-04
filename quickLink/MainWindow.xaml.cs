@@ -17,13 +17,15 @@ using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using quickLink.Models;
+using quickLink.Models.ListItems;
 using quickLink.Services;
+using quickLink.Constants;
 using Windows.UI;
 using WinRT.Interop;
 
 namespace quickLink
 {
-    public sealed partial class MainWindow : Window
+    public sealed partial class MainWindow : Window, IExecutionContext
     {
         #region Constants
         private const int WM_HOTKEY = 0x0312;
@@ -51,20 +53,19 @@ namespace quickLink
         private readonly MediaControlService _mediaControlService;
         private readonly CommandService _commandService;
         private readonly DirectoryCommandProvider _directoryProvider;
-        private readonly ObservableCollection<ClipboardItem> _allItems;
-        private readonly ObservableCollection<ClipboardItem> _filteredItems;
-        private readonly List<ClipboardItem> _internalCommands;
-        private readonly ClipboardItem _searchConversationItem;
-        private readonly ClipboardItem _executeCommandItem;
+        private readonly ObservableCollection<IListItem> _allItems;
+        private readonly ObservableCollection<IListItem> _filteredItems;
+        private readonly List<InternalCommandItem> _internalCommands;
+        private readonly SearchSuggestionItem _searchSuggestionItem;
         private List<UserCommand> _userCommands;
         
         private GlobalHotkeyService? _hotkeyService;
         private IntPtr _windowHandle;
-        private ClipboardItem? _editingItem;
+        private IListItem? _editingItem;
         private bool _isEditing;
         private bool _isInSettings;
         private bool _hideFooter;
-        private string _searchUrl = "https://chatgpt.com/?q={query}";
+        private string _searchUrl = AppConstants.DefaultSettings.DefaultSearchUrl;
         private Windows.System.VirtualKeyModifiers _newHotkeyModifiers = DefaultHotkeyModifiers;
         private Windows.System.VirtualKey _newHotkeyKey = DefaultHotkeyKey;
         
@@ -81,8 +82,6 @@ namespace quickLink
             set
             {
                 _userCommands = value;
-                // Notify UI of change
-                this.Bindings.Update();
             }
         }
         #endregion
@@ -110,22 +109,11 @@ namespace quickLink
                 _mediaControlService = new MediaControlService();
                 _commandService = new CommandService();
                 _directoryProvider = new DirectoryCommandProvider();
-                _allItems = new ObservableCollection<ClipboardItem>();
-                _filteredItems = new ObservableCollection<ClipboardItem>();
-                _internalCommands = new List<ClipboardItem>();
+                _allItems = new ObservableCollection<IListItem>();
+                _filteredItems = new ObservableCollection<IListItem>();
+                _internalCommands = new List<InternalCommandItem>();
                 _userCommands = new List<UserCommand>();
-                _searchConversationItem = new ClipboardItem
-                {
-                    Title = "Start conversation",
-                    Value = "search:",
-                    IsInternalCommand = true
-                };
-                _executeCommandItem = new ClipboardItem
-                {
-                    Title = "Execute command",
-                    Value = ">",
-                    IsInternalCommand = true
-                };
+                _searchSuggestionItem = new SearchSuggestionItem();
 
                 InitializeComponent();
                 InitializeInternalCommands();
@@ -157,42 +145,15 @@ namespace quickLink
         private void InitializeInternalCommands()
         {
             // Media control commands
-            var mediaCommands = new[]
-            {
-                ("Next Track", ">next"),
-                ("Previous Track", ">prev"),
-                ("Play/Pause", ">playpause")
-            };
-
-            foreach (var (title, value) in mediaCommands)
-            {
-                _internalCommands.Add(new ClipboardItem
-                {
-                    Title = title,
-                    Value = value,
-                    IsInternalCommand = true,
-                    IsCommand = true
-                });
-            }
+            _internalCommands.Add(new InternalCommandItem("Next Track", AppConstants.MediaCommands.Next));
+            _internalCommands.Add(new InternalCommandItem("Previous Track", AppConstants.MediaCommands.Previous));
+            _internalCommands.Add(new InternalCommandItem("Play/Pause", AppConstants.MediaCommands.PlayPause));
             
             // App commands
-            var appCommands = new[]
-            {
-                ("Add new item", "internal:add"),
-                ("Add new command (advanced)", "internal:addcommand"),
-                ("Settings", "internal:settings"),
-                ("Exit app", "internal:exit")
-            };
-
-            foreach (var (title, value) in appCommands)
-            {
-                _internalCommands.Add(new ClipboardItem
-                {
-                    Title = title,
-                    Value = value,
-                    IsInternalCommand = true
-                });
-            }
+            _internalCommands.Add(new InternalCommandItem("Add new item", AppConstants.CommandPrefixes.AddCommand));
+            _internalCommands.Add(new InternalCommandItem("Add new command (advanced)", AppConstants.CommandPrefixes.AddCommandAdvanced));
+            _internalCommands.Add(new InternalCommandItem("Settings", AppConstants.CommandPrefixes.SettingsCommand));
+            _internalCommands.Add(new InternalCommandItem("Exit app", AppConstants.CommandPrefixes.ExitCommand));
         }
 
         private void InitializeWindow()
@@ -335,7 +296,6 @@ namespace quickLink
                 
                 // Load user commands
                 _userCommands = await _commandService.LoadCommandsAsync();
-                this.Bindings.Update();
                 
                 // Load footer setting
                 var settings = await _dataService.LoadSettingsAsync();
@@ -380,10 +340,10 @@ namespace quickLink
             var isEmpty = string.IsNullOrWhiteSpace(searchText);
             
             // Check if it's a user command
-            if (!isEmpty && searchText.StartsWith("/"))
+            if (!isEmpty && searchText.StartsWith(AppConstants.CommandPrefixes.UserCommandPrefix))
             {
                 // Show command suggestions if just "/" typed or partial command
-                if (searchText == "/" || !_userCommands.Any(c => c.Prefix.Equals(searchText.Split(' ')[0], StringComparison.OrdinalIgnoreCase)))
+                if (searchText == AppConstants.CommandPrefixes.UserCommandPrefix || !_userCommands.Any(c => c.Prefix.Equals(searchText.Split(' ')[0], StringComparison.OrdinalIgnoreCase)))
                 {
                     ShowCommandSuggestions(searchText);
                     return;
@@ -397,22 +357,20 @@ namespace quickLink
             var includeInternalCommands = _hideFooter || !isEmpty;
             
             // Optimize: avoid multiple enumerations
-            List<ClipboardItem> newItems;
+            List<IListItem> newItems;
             
             if (isEmpty)
             {
                 // No search - just take first 6 items plus internal commands if needed
-                // Smooth transition: clear immediately to avoid visual clutter when text is removed
                 _filteredItems.Clear();
                 
-                newItems = new List<ClipboardItem>(7); // Pre-allocate capacity
+                newItems = new List<IListItem>(7); // Pre-allocate capacity
                 var count = 0;
                 
                 foreach (var item in _allItems)
                 {
                     if (count >= 6) break;
-                    newItems.Add(item);
-                    _filteredItems.Add(item); // Add directly to avoid extra update
+                    _filteredItems.Add(item);
                     count++;
                 }
                 
@@ -436,13 +394,13 @@ namespace quickLink
             {
                 // With search - filter and sort
                 var capacity = Math.Min(_allItems.Count + (includeInternalCommands ? _internalCommands.Count : 0), 7);
-                newItems = new List<ClipboardItem>(capacity);
+                newItems = new List<IListItem>(capacity);
                 
                 // Search user items
                 foreach (var item in _allItems)
                 {
                     if (newItems.Count >= 6) break;
-                    if (ItemMatchesSearch(item, searchText))
+                    if (item.MatchesSearch(searchText))
                     {
                         newItems.Add(item);
                     }
@@ -454,7 +412,7 @@ namespace quickLink
                     foreach (var cmd in _internalCommands)
                     {
                         if (newItems.Count >= 6) break;
-                        if (ItemMatchesSearch(cmd, searchText))
+                        if (cmd.MatchesSearch(searchText))
                         {
                             newItems.Add(cmd);
                         }
@@ -464,33 +422,29 @@ namespace quickLink
                 // If no results and not a command, show search suggestion
                 if (newItems.Count == 0)
                 {
-                    if (searchText.StartsWith(">"))
+                    if (searchText.StartsWith(AppConstants.CommandPrefixes.CommandPrefix))
                     {
-                        // Show execute command suggestion
-                        _executeCommandItem.Title = "Execute command";
-                        _executeCommandItem.Value = searchText; // Keep the > prefix for command execution
-                        newItems.Add(_executeCommandItem);
+                        // Show execute command suggestion - create a simple command item
+                        var executeCmd = new CommandItem("Execute command", searchText);
+                        newItems.Add(executeCmd);
                     }
                     else
                     {
                         // Show search suggestion
-                        _searchConversationItem.Value = $"search:{searchText}";
-                        newItems.Add(_searchConversationItem);
+                        _searchSuggestionItem.SearchQuery = searchText;
+                        _searchSuggestionItem.SearchUrl = _searchUrl;
+                        newItems.Add(_searchSuggestionItem);
                     }
                 }
             }
 
-            // Only update if the items actually changed
-            if (!ItemsAreEqual(newItems, _filteredItems))
-            {
-                // Optimize: use indexed updates when possible instead of Clear + AddRange
-                UpdateFilteredItems(newItems);
+            // Update filtered items
+            UpdateFilteredItems(newItems);
 
-                // Auto-select first item
-                if (_filteredItems.Count > 0)
-                {
-                    ItemsList.SelectedIndex = 0;
-                }
+            // Auto-select first item
+            if (_filteredItems.Count > 0)
+            {
+                ItemsList.SelectedIndex = 0;
             }
         }
 
@@ -507,19 +461,7 @@ namespace quickLink
             
             foreach (var cmd in matchingCommands)
             {
-                _filteredItems.Add(new ClipboardItem
-                {
-                    Title = $"{cmd.Prefix} - {cmd.Source} command",
-                    Value = cmd.Prefix,
-                    IsUserCommand = true,
-                    IsCommandSuggestion = true, // Flag to show edit/delete buttons
-                    CommandResult = new CommandResultItem
-                    {
-                        IconDisplay = cmd.IconDisplay,
-                        DisplayName = cmd.Prefix,
-                        Path = $"{cmd.Source} → {cmd.SourceConfig.Path}"
-                    }
-                });
+                _filteredItems.Add(new CommandSuggestionItem(cmd));
             }
             
             if (_filteredItems.Count > 0)
@@ -546,14 +488,14 @@ namespace quickLink
             }
             
             // Get items from provider based on source type
-            List<CommandResultItem> resultItems;
+            List<UserCommandResultItem> resultItems;
             
             switch (command.Source)
             {
                 case CommandSourceType.Directory:
                     resultItems = string.IsNullOrWhiteSpace(query)
-                        ? await _directoryProvider.GetItemsAsync(command.SourceConfig, 6)
-                        : await _directoryProvider.SearchItemsAsync(command.SourceConfig, query, 6);
+                        ? await _directoryProvider.GetItemsAsync(command.SourceConfig, command.ExecuteTemplate, 6)
+                        : await _directoryProvider.SearchItemsAsync(command.SourceConfig, command.ExecuteTemplate, query, 6);
                     break;
                 
                 case CommandSourceType.Static:
@@ -561,31 +503,23 @@ namespace quickLink
                         .Where(item => string.IsNullOrWhiteSpace(query) || 
                                      item.Contains(query, StringComparison.OrdinalIgnoreCase))
                         .Take(6)
-                        .Select(item => new CommandResultItem
-                        {
-                            Name = item,
-                            Path = item,
-                            DisplayName = item,
-                            IconDisplay = command.IconDisplay
-                        })
+                        .Select(item => new UserCommandResultItem(
+                            name: item,
+                            path: item,
+                            extension: string.Empty,
+                            displayName: item,
+                            icon: command.IconDisplay,
+                            executeTemplate: command.ExecuteTemplate
+                        ))
                         .ToList();
                     break;
                 
                 default:
-                    resultItems = new List<CommandResultItem>();
+                    resultItems = new List<UserCommandResultItem>();
                     break;
             }
             
-            // Convert to ClipboardItems
-            var newItems = resultItems.Select(r => new ClipboardItem
-            {
-                Title = r.DisplayName,
-                Value = command.ExecuteTemplate,
-                IsUserCommand = true,
-                CommandResult = r
-            }).ToList();
-            
-            UpdateFilteredItems(newItems);
+            UpdateFilteredItems(resultItems.Cast<IListItem>().ToList());
             
             if (_filteredItems.Count > 0)
             {
@@ -593,7 +527,7 @@ namespace quickLink
             }
         }
         
-        private void UpdateFilteredItems(List<ClipboardItem> newItems)
+        private void UpdateFilteredItems(List<IListItem> newItems)
         {
             // Remove items from the end that are no longer needed
             while (_filteredItems.Count > newItems.Count)
@@ -620,7 +554,7 @@ namespace quickLink
             }
         }
 
-        private static bool ItemsAreEqual(List<ClipboardItem> newItems, ObservableCollection<ClipboardItem> currentItems)
+        private static bool ItemsAreEqual(List<IListItem> newItems, ObservableCollection<IListItem> currentItems)
         {
             if (newItems.Count != currentItems.Count)
                 return false;
@@ -634,23 +568,9 @@ namespace quickLink
             return true;
         }
 
-        private static bool ItemMatchesSearch(ClipboardItem item, string searchText)
+        private static bool ItemMatchesSearch(IListItem item, string searchText)
         {
-            // Early exit if search text is empty (should not happen due to caller check)
-            if (string.IsNullOrEmpty(searchText))
-                return true;
-            
-            // Check title first (most common match)
-            if (!string.IsNullOrWhiteSpace(item.Title) && 
-                item.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase))
-                return true;
-            
-            // Check value second
-            if (!string.IsNullOrWhiteSpace(item.Value) && 
-                item.Value.Contains(searchText, StringComparison.OrdinalIgnoreCase))
-                return true;
-            
-            return false;
+            return item.MatchesSearch(searchText);
         }
 
         private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
@@ -675,6 +595,59 @@ namespace quickLink
             return (key >= Windows.System.VirtualKey.A && key <= Windows.System.VirtualKey.Z) ||
                    (key >= Windows.System.VirtualKey.Number0 && key <= Windows.System.VirtualKey.Number9) ||
                    key == Windows.System.VirtualKey.Space;
+        }
+        #endregion
+
+        #region IExecutionContext Implementation
+        public async Task OpenUrlAsync(string url)
+        {
+            await _clipboardService.OpenUrlAsync(url);
+        }
+
+        public void CopyToClipboard(string text)
+        {
+            _clipboardService.CopyToClipboard(text);
+        }
+
+        public async Task ExecuteCommandAsync(string command)
+        {
+            await ExecuteCommandInternalAsync(command);
+        }
+
+        public async Task ExecuteMediaCommandAsync(string command)
+        {
+            await TryExecuteMediaCommandAsync(command);
+        }
+
+        public void HideWindow()
+        {
+            AppWindow.Hide();
+        }
+
+        void IExecutionContext.HideWindow()
+        {
+            HideWindow();
+        }
+
+        void IExecutionContext.ShowEditPanel(IEditableItem? item)
+        {
+            ShowEditPanelInternal(item);
+        }
+
+        void IExecutionContext.ShowCommandPanel(UserCommand? command)
+        {
+            ShowCommandPanelInternal(command);
+        }
+
+        void IExecutionContext.ShowSettingsPanel()
+        {
+            ShowSettingsPanelInternal();
+        }
+
+        public void ExitApplication()
+        {
+            _hotkeyService?.Dispose();
+            Application.Current.Exit();
         }
         #endregion
 
@@ -719,7 +692,7 @@ namespace quickLink
 
         private void OnEnterPressed(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            if (ItemsList.SelectedItem is ClipboardItem selectedItem)
+            if (ItemsList.SelectedItem is IListItem selectedItem)
             {
                 _ = ExecuteItemAsync(selectedItem);
             }
@@ -731,160 +704,82 @@ namespace quickLink
             args.Handled = true;
         }
 
-        private async Task ExecuteItemAsync(ClipboardItem item)
+        private async Task ExecuteItemAsync(IListItem item)
         {
-            // Handle command suggestion autocomplete - check IsCommandSuggestion first
-            if (item.IsCommandSuggestion && item.Value.StartsWith("/"))
+            // Handle autocomplete for command suggestions
+            if (item.SupportsAutocomplete)
             {
-                // Autocomplete the command
-                SearchBox.Text = item.Value + " ";
+                SearchBox.Text = item.AutocompleteText;
                 SearchBox.SelectionStart = SearchBox.Text.Length;
                 SearchBox.Focus(FocusState.Programmatic);
                 return;
             }
             
-            if (item.IsUserCommand && item.CommandResult != null && !item.IsCommandSuggestion)
-            {
-                await ExecuteUserCommandAsync(item);
-            }
-            else if (item.IsInternalCommand)
-            {
-                await HandleInternalCommandAsync(item.Value);
-            }
-            else if (item.IsCommand)
-            {
-                var command = item.Value.TrimStart('>').Trim();
-                await ExecuteCommandAsync(command);
-                AppWindow.Hide();
-            }
-            else if (item.IsLink)
-            {
-                await _clipboardService.OpenUrlAsync(item.Value);
-                AppWindow.Hide();
-            }
-            else
-            {
-                _clipboardService.CopyToClipboard(item.Value);
-                AppWindow.Hide();
-            }
-        }
-
-        private async Task ExecuteUserCommandAsync(ClipboardItem item)
-        {
-            if (item.CommandResult == null) return;
-            
-            // Replace placeholders in execute template
-            var command = item.Value
-                .Replace("{item.path}", item.CommandResult.Path)
-                .Replace("{item.name}", item.CommandResult.Name)
-                .Replace("{item.extension}", item.CommandResult.Extension);
-            
-            await ExecuteCommandAsync(command);
-            AppWindow.Hide();
-        }
-
-        private async Task HandleInternalCommandAsync(string commandValue)
-        {
-            // Handle search command
-            if (commandValue.StartsWith("search:"))
-            {
-                var searchText = commandValue.Substring(7); // Remove "search:" prefix
-                var query = Uri.EscapeDataString(searchText);
-                var url = _searchUrl.Replace("{query}", query);
-                await _clipboardService.OpenUrlAsync(url);
-                AppWindow.Hide();
-                return;
-            }
-
-            // Handle execute command (when user types >command)
-            if (commandValue.StartsWith(">"))
-            {
-                var command = commandValue.TrimStart('>').Trim();
-                await ExecuteCommandAsync(command);
-                AppWindow.Hide();
-                return;
-            }
-
-            switch (commandValue)
-            {
-                case "internal:add":
-                    ShowEditPanel(null);
-                    break;
-                case "internal:addcommand":
-                    await ShowAddCommandDialogAsync();
-                    break;
-                case "internal:settings":
-                    ShowSettingsPanel();
-                    break;
-                case "internal:exit":
-                    _hotkeyService?.Dispose();
-                    Application.Current.Exit();
-                    break;
-                case ">next":
-                    await _mediaControlService.SkipToNextAsync();
-                    AppWindow.Hide();
-                    break;
-                case ">prev":
-                    await _mediaControlService.SkipToPreviousAsync();
-                    AppWindow.Hide();
-                    break;
-                case ">playpause":
-                    await _mediaControlService.PlayPauseAsync();
-                    AppWindow.Hide();
-                    break;
-            }
+            // Delegate to the item's execute method
+            await item.ExecuteAsync(this);
         }
 
         private async Task HandleNoMatchAsync(string searchText)
         {
-            if (searchText.StartsWith(">"))
+            if (searchText.StartsWith(AppConstants.CommandPrefixes.CommandPrefix))
             {
-                var command = searchText.TrimStart('>').Trim();
-                await ExecuteCommandAsync(command);
+                var command = searchText.TrimStart(AppConstants.CommandPrefixes.CommandPrefix[0]).Trim();
+                await ExecuteCommandInternalAsync(command);
                 AppWindow.Hide();
             }
             else
             {
                 var query = Uri.EscapeDataString(searchText);
-                var url = _searchUrl.Replace("{query}", query);
+                var url = _searchUrl.Replace(AppConstants.DefaultSettings.QueryPlaceholder, query);
                 await _clipboardService.OpenUrlAsync(url);
                 AppWindow.Hide();
             }
         }
 
-        private async Task ExecuteCommandAsync(string command)
+        private async Task ExecuteCommandInternalAsync(string command)
         {
             // Check if it's a media control command
             if (await TryExecuteMediaCommandAsync(command))
                 return;
 
-            // Execute user-defined command
+            // Execute user-defined command silently in background
             // Note: Commands are user-created and stored locally in the app's data.
             // The user is intentionally executing their own commands, so command injection
             // from untrusted sources is not a concern. All commands originate from the user.
-            await Task.Run(async () =>
+            await Task.Run(() =>
             {
                 try
                 {
                     var psi = new ProcessStartInfo
                     {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c {command}",
-                        UseShellExecute = false,
+                        FileName = command,
+                        UseShellExecute = true,
                         CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
+                        WindowStyle = ProcessWindowStyle.Hidden
                     };
 
-                    using var process = Process.Start(psi);
-                    if (process != null)
-                    {
-                        await process.WaitForExitAsync();
-                    }
+                    Process.Start(psi);
                 }
                 catch
                 {
-                    // Silently fail - command execution errors
+                    // If direct execution fails, try with cmd.exe
+                    try
+                    {
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = $"/c {command}",
+                            UseShellExecute = true,
+                            CreateNoWindow = true,
+                            WindowStyle = ProcessWindowStyle.Hidden
+                        };
+
+                        Process.Start(psi);
+                    }
+                    catch
+                    {
+                        // Silently fail - command execution errors
+                    }
                 }
             });
         }
@@ -918,32 +813,31 @@ namespace quickLink
         #endregion
 
         #region Edit Panel
-        private void OnAddNewTapped(object sender, RoutedEventArgs e) => ShowEditPanel(null);
+        private void OnAddNewTapped(object sender, RoutedEventArgs e) => ShowEditPanelInternal(null);
 
         private void OnEditClicked(object sender, RoutedEventArgs e)
         {
-            if (sender is Button { Tag: ClipboardItem item })
+            if (sender is Button { Tag: IListItem item })
             {
                 // If it's a command suggestion, find and edit the actual command
-                if (item.IsCommandSuggestion && item.Value.StartsWith("/"))
+                if (item is CommandSuggestionItem cmdSuggestion && cmdSuggestion.RelatedCommand != null)
                 {
-                    var command = _userCommands.FirstOrDefault(c => 
-                        c.Prefix.Equals(item.Value, StringComparison.OrdinalIgnoreCase));
-                    if (command != null)
-                    {
-                        ShowCommandPanel(command);
-                        return;
-                    }
+                    ShowCommandPanelInternal(cmdSuggestion.RelatedCommand);
+                    return;
                 }
                 
-                ShowEditPanel(item);
+                // If it's an editable item, show edit panel
+                if (item is IEditableItem editableItem)
+                {
+                    ShowEditPanelInternal(editableItem);
+                }
             }
         }
 
-        private void ShowEditPanel(ClipboardItem? item)
+        private void ShowEditPanelInternal(IEditableItem? item)
         {
             _isEditing = true;
-            _editingItem = item;
+            _editingItem = item as IListItem;
             
             if (item != null)
             {
@@ -986,12 +880,40 @@ namespace quickLink
         {
             if (string.IsNullOrWhiteSpace(EditValue.Text)) return;
 
-            var item = new ClipboardItem
+            IEditableItem item;
+            var value = EditValue.Text;
+            var title = EditTitle.Text;
+            var isEncrypted = EditEncrypt.IsChecked ?? false;
+
+            // Determine type based on value
+            if (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                value.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
-                Title = EditTitle.Text,
-                Value = EditValue.Text,
-                IsEncrypted = EditEncrypt.IsChecked ?? false
-            };
+                item = new LinkItem
+                {
+                    Title = title,
+                    Value = value,
+                    IsEncrypted = isEncrypted
+                };
+            }
+            else if (value.StartsWith(">"))
+            {
+                item = new CommandItem
+                {
+                    Title = title,
+                    Value = value,
+                    IsEncrypted = isEncrypted
+                };
+            }
+            else
+            {
+                item = new TextItem
+                {
+                    Title = title,
+                    Value = value,
+                    IsEncrypted = isEncrypted
+                };
+            }
 
             if (_editingItem != null)
             {
@@ -1014,13 +936,13 @@ namespace quickLink
 
         private async void OnDeleteClicked(object sender, RoutedEventArgs e)
         {
-            if (sender is Button { Tag: ClipboardItem item })
+            if (sender is Button { Tag: IListItem item })
             {
                 // If it's a command suggestion, delete the actual command
-                if (item.IsCommandSuggestion && item.Value.StartsWith("/"))
+                if (item is CommandSuggestionItem suggestionItem && suggestionItem.CommandPrefix.StartsWith(AppConstants.CommandPrefixes.UserCommandPrefix))
                 {
                     var command = _userCommands.FirstOrDefault(c => 
-                        c.Prefix.Equals(item.Value, StringComparison.OrdinalIgnoreCase));
+                        c.Prefix.Equals(suggestionItem.CommandPrefix, StringComparison.OrdinalIgnoreCase));
                     if (command != null)
                     {
                         var dialog = new ContentDialog
@@ -1038,7 +960,6 @@ namespace quickLink
                         {
                             await _commandService.DeleteCommandAsync(command, _userCommands);
                             _userCommands = await _commandService.LoadCommandsAsync();
-                            this.Bindings.Update();
                             
                             // Refresh the command suggestions
                             ShowCommandSuggestions(SearchBox.Text);
@@ -1057,7 +978,7 @@ namespace quickLink
         #region Command Panel
         private UserCommand? _editingCommand;
 
-        private void ShowCommandPanel(UserCommand? command = null)
+        private void ShowCommandPanelInternal(UserCommand? command = null)
         {
             _editingCommand = command;
             
@@ -1175,7 +1096,6 @@ namespace quickLink
 
             // Reload commands to refresh the list
             _userCommands = await _commandService.LoadCommandsAsync();
-            this.Bindings.Update();
 
             HideCommandPanel();
             AppWindow.Hide();
@@ -1183,9 +1103,9 @@ namespace quickLink
         #endregion
 
         #region Settings Panel
-        private void OnSettingsClicked(object sender, RoutedEventArgs e) => ShowSettingsPanel();
+        private void OnSettingsClicked(object sender, RoutedEventArgs e) => ShowSettingsPanelInternal();
 
-        private void ShowSettingsPanel()
+        private void ShowSettingsPanelInternal()
         {
             _isInSettings = true;
             LoadSettings();
@@ -1523,8 +1443,6 @@ namespace quickLink
         #endregion
 
         #region Public Methods
-        public void HideWindow() => AppWindow.Hide();
-
         public bool HasNoCommands(int count) => count == 0;
         
         public int GetCommandCount() => _userCommands?.Count ?? 0;
@@ -1533,7 +1451,7 @@ namespace quickLink
         #region Command Management
         private async Task ShowAddCommandDialogAsync()
         {
-            ShowCommandPanel(null);
+            ShowCommandPanelInternal(null);
         }
 
         private async void OnAddCommandClicked(object sender, RoutedEventArgs e)
@@ -1545,7 +1463,7 @@ namespace quickLink
         {
             if (sender is Button { Tag: UserCommand command })
             {
-                ShowCommandPanel(command);
+                ShowCommandPanelInternal(command);
             }
         }
 
@@ -1568,7 +1486,6 @@ namespace quickLink
                 {
                     await _commandService.DeleteCommandAsync(command, _userCommands);
                     _userCommands = await _commandService.LoadCommandsAsync();
-                    this.Bindings.Update();
                 }
             }
         }

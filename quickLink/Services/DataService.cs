@@ -7,6 +7,9 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using quickLink.Models;
+using quickLink.Models.ListItems;
+using quickLink.Constants;
+using quickLink.Services.Helpers;
 
 namespace quickLink.Services
 {
@@ -18,32 +21,23 @@ namespace quickLink.Services
         private readonly SemaphoreSlim _fileLock;
         private readonly JsonSerializerOptions _jsonOptions;
         
-        private List<ClipboardItem>? _cachedItems;
+        private List<IListItem>? _cachedItems;
 
         public DataService()
         {
-            var appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var appFolder = Path.Combine(appDataFolder, "QuickLink");
-            
-            Directory.CreateDirectory(appFolder);
-
-            _dataFilePath = Path.Combine(appFolder, "data.json");
-            _settingsFilePath = Path.Combine(appFolder, "settings.json");
+            _dataFilePath = ServiceInitializer.GetDataFilePath(AppConstants.Files.DataFile);
+            _settingsFilePath = ServiceInitializer.GetDataFilePath(AppConstants.Files.SettingsFile);
             _encryptionService = new EncryptionService();
             _fileLock = new SemaphoreSlim(1, 1);
-            _jsonOptions = new JsonSerializerOptions 
-            { 
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            };
+            _jsonOptions = ServiceInitializer.GetJsonSerializerOptions();
         }
 
-        public async Task<List<ClipboardItem>> LoadItemsAsync()
+        public async Task<List<IListItem>> LoadItemsAsync()
         {
             // Return cached items if available
             if (_cachedItems != null)
             {
-                return new List<ClipboardItem>(_cachedItems);
+                return new List<IListItem>(_cachedItems);
             }
 
             await _fileLock.WaitAsync();
@@ -51,21 +45,21 @@ namespace quickLink.Services
             {
                 if (!File.Exists(_dataFilePath))
                 {
-                    _cachedItems = new List<ClipboardItem>();
-                    return new List<ClipboardItem>();
+                    _cachedItems = new List<IListItem>();
+                    return new List<IListItem>();
                 }
 
                 var json = await File.ReadAllTextAsync(_dataFilePath);
-                var items = JsonSerializer.Deserialize<List<ClipboardItemDto>>(json, _jsonOptions) 
-                    ?? new List<ClipboardItemDto>();
+                var items = JsonSerializer.Deserialize<List<ItemDto>>(json, _jsonOptions) 
+                    ?? new List<ItemDto>();
                 
                 _cachedItems = items.Select(MapDtoToItem).ToList();
-                return new List<ClipboardItem>(_cachedItems);
+                return new List<IListItem>(_cachedItems);
             }
             catch
             {
-                _cachedItems = new List<ClipboardItem>();
-                return new List<ClipboardItem>();
+                _cachedItems = new List<IListItem>();
+                return new List<IListItem>();
             }
             finally
             {
@@ -73,16 +67,19 @@ namespace quickLink.Services
             }
         }
 
-        public async Task SaveItemsAsync(List<ClipboardItem> items)
+        public async Task SaveItemsAsync(List<IListItem> items)
         {
             await _fileLock.WaitAsync();
             try
             {
-                var dtos = items.Select(MapItemToDto).ToList();
+                var dtos = items
+                    .Where(item => item is IEditableItem) // Only save editable items
+                    .Select(MapItemToDto)
+                    .ToList();
                 var json = JsonSerializer.Serialize(dtos, _jsonOptions);
                 await File.WriteAllTextAsync(_dataFilePath, json);
                 
-                _cachedItems = new List<ClipboardItem>(items);
+                _cachedItems = new List<IListItem>(items.Where(item => item is IEditableItem));
             }
             finally
             {
@@ -90,24 +87,28 @@ namespace quickLink.Services
             }
         }
 
-        public Task AddItemAsync(ClipboardItem item, List<ClipboardItem> currentItems)
+        public Task AddItemAsync(IEditableItem item, List<IListItem> currentItems)
         {
-            currentItems.Add(item);
+            var listItem = item as IListItem;
+            if (listItem != null)
+            {
+                currentItems.Add(listItem);
+            }
             return SaveItemsAsync(currentItems);
         }
 
-        public Task UpdateItemAsync(ClipboardItem oldItem, ClipboardItem newItem, List<ClipboardItem> currentItems)
+        public Task UpdateItemAsync(IListItem oldItem, IEditableItem newItem, List<IListItem> currentItems)
         {
             var index = currentItems.IndexOf(oldItem);
-            if (index >= 0)
+            if (index >= 0 && newItem is IListItem newListItem)
             {
-                currentItems[index] = newItem;
+                currentItems[index] = newListItem;
                 return SaveItemsAsync(currentItems);
             }
             return Task.CompletedTask;
         }
 
-        public Task DeleteItemAsync(ClipboardItem item, List<ClipboardItem> currentItems)
+        public Task DeleteItemAsync(IListItem item, List<IListItem> currentItems)
         {
             currentItems.Remove(item);
             return SaveItemsAsync(currentItems);
@@ -144,42 +145,57 @@ namespace quickLink.Services
             }
         }
 
-        private ClipboardItem MapDtoToItem(ClipboardItemDto dto)
+        private IListItem MapDtoToItem(ItemDto dto)
         {
             var value = dto.IsEncrypted 
                 ? _encryptionService.Decrypt(dto.Value ?? string.Empty) 
                 : dto.Value ?? string.Empty;
 
-            return new ClipboardItem
+            // Detect type based on value patterns
+            var isLink = !string.IsNullOrWhiteSpace(value) && 
+                (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                 value.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
+            var isCommand = !string.IsNullOrWhiteSpace(value) && value.StartsWith(">");
+
+            if (isLink)
             {
-                Title = dto.Title ?? string.Empty,
-                Value = value,
-                IsEncrypted = dto.IsEncrypted,
-                IsLink = dto.IsLink
-            };
+                return new LinkItem(dto.Title ?? string.Empty, value, dto.IsEncrypted);
+            }
+            else if (isCommand)
+            {
+                return new CommandItem(dto.Title ?? string.Empty, value, dto.IsEncrypted);
+            }
+            else
+            {
+                return new TextItem(dto.Title ?? string.Empty, value, dto.IsEncrypted);
+            }
         }
 
-        private ClipboardItemDto MapItemToDto(ClipboardItem item)
+        private ItemDto MapItemToDto(IListItem item)
         {
-            var value = item.IsEncrypted 
-                ? _encryptionService.Encrypt(item.Value) 
-                : item.Value;
-
-            return new ClipboardItemDto
+            if (item is not IEditableItem editableItem)
             {
-                Title = item.Title,
+                throw new InvalidOperationException("Can only save editable items");
+            }
+
+            var value = editableItem.IsEncrypted 
+                ? _encryptionService.Encrypt(editableItem.Value) 
+                : editableItem.Value;
+
+            return new ItemDto
+            {
+                Title = editableItem.Title,
                 Value = value,
-                IsEncrypted = item.IsEncrypted,
-                IsLink = item.IsLink
+                IsEncrypted = editableItem.IsEncrypted
             };
         }
 
-        private sealed class ClipboardItemDto
+        private sealed class ItemDto
         {
             public string? Title { get; set; }
             public string? Value { get; set; }
             public bool IsEncrypted { get; set; }
-            public bool IsLink { get; set; }
         }
     }
 }

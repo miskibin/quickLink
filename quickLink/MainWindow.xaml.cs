@@ -53,6 +53,7 @@ namespace quickLink
         private readonly MediaControlService _mediaControlService;
         private readonly CommandService _commandService;
         private readonly DirectoryCommandProvider _directoryProvider;
+        private readonly UsageTrackingService _usageTrackingService;
         private readonly ObservableCollection<IListItem> _allItems;
         private readonly ObservableCollection<IListItem> _filteredItems;
         private readonly List<InternalCommandItem> _internalCommands;
@@ -109,6 +110,7 @@ namespace quickLink
                 _mediaControlService = new MediaControlService();
                 _commandService = new CommandService();
                 _directoryProvider = new DirectoryCommandProvider();
+                _usageTrackingService = new UsageTrackingService();
                 _allItems = new ObservableCollection<IListItem>();
                 _filteredItems = new ObservableCollection<IListItem>();
                 _internalCommands = new List<InternalCommandItem>();
@@ -287,6 +289,9 @@ namespace quickLink
             {
                 await _commandService.EnsureCommandsFileExistsAsync();
                 
+                // Load usage stats first
+                await _usageTrackingService.LoadAsync();
+                
                 var items = await _dataService.LoadItemsAsync();
                 _allItems.Clear();
                 foreach (var item in items)
@@ -361,17 +366,21 @@ namespace quickLink
             
             if (isEmpty)
             {
-                // No search - just take first 6 items plus internal commands if needed
+                // No search - take first 6 items sorted by usage, plus internal commands if needed
                 _filteredItems.Clear();
                 
                 newItems = new List<IListItem>(7); // Pre-allocate capacity
-                var count = 0;
                 
-                foreach (var item in _allItems)
+                // Sort all items by usage score (descending)
+                var sortedItems = _allItems
+                    .Select(item => new { Item = item, Score = _usageTrackingService.GetUsageScore(item) })
+                    .OrderByDescending(x => x.Score)
+                    .Take(6)
+                    .Select(x => x.Item);
+                
+                foreach (var item in sortedItems)
                 {
-                    if (count >= 6) break;
                     _filteredItems.Add(item);
-                    count++;
                 }
                 
                 if (includeInternalCommands)
@@ -392,32 +401,46 @@ namespace quickLink
             }
             else
             {
-                // With search - filter and sort
+                // With search - filter, calculate combined score (text match + usage), and sort
                 var capacity = Math.Min(_allItems.Count + (includeInternalCommands ? _internalCommands.Count : 0), 7);
-                newItems = new List<IListItem>(capacity);
+                var scoredItems = new List<(IListItem Item, double Score)>(capacity);
                 
-                // Search user items
+                // Search user items with scoring
                 foreach (var item in _allItems)
                 {
-                    if (newItems.Count >= 6) break;
                     if (item.MatchesSearch(searchText))
                     {
-                        newItems.Add(item);
+                        // Calculate text match score (1.0 for exact match, 0.5 for partial)
+                        var textScore = item.DisplayValue?.ToLowerInvariant().StartsWith(searchText) == true ? 1.0 : 0.5;
+                        
+                        // Add usage score boost
+                        var usageScore = _usageTrackingService.GetUsageScore(item);
+                        var combinedScore = textScore + usageScore;
+                        
+                        scoredItems.Add((item, combinedScore));
                     }
                 }
                 
                 // Search internal commands if needed
-                if (includeInternalCommands && newItems.Count < 6)
+                if (includeInternalCommands)
                 {
                     foreach (var cmd in _internalCommands)
                     {
-                        if (newItems.Count >= 6) break;
                         if (cmd.MatchesSearch(searchText))
                         {
-                            newItems.Add(cmd);
+                            // Internal commands get text match score only (no usage tracking)
+                            var textScore = cmd.DisplayValue?.ToLowerInvariant().StartsWith(searchText) == true ? 1.0 : 0.5;
+                            scoredItems.Add((cmd, textScore));
                         }
                     }
                 }
+                
+                // Sort by score descending and take top 6
+                newItems = scoredItems
+                    .OrderByDescending(x => x.Score)
+                    .Take(6)
+                    .Select(x => x.Item)
+                    .ToList();
                 
                 // If no results and not a command, show search suggestion
                 if (newItems.Count == 0)
@@ -714,6 +737,9 @@ namespace quickLink
                 SearchBox.Focus(FocusState.Programmatic);
                 return;
             }
+            
+            // Record usage for ranking (before execution)
+            await _usageTrackingService.RecordUsageAsync(item);
             
             // Delegate to the item's execute method
             await item.ExecuteAsync(this);

@@ -13,6 +13,7 @@ namespace quickLink.Models.ListItems
         public string FileDisplayName { get; set; } = string.Empty;
         public string FileIcon { get; set; } = string.Empty;
         public string ExecuteTemplate { get; set; } = string.Empty;
+        public bool OpenInTerminal { get; set; } = false;
 
         public string DisplayTitle => FileDisplayName;
         public string DisplayValue => Path;
@@ -34,7 +35,7 @@ namespace quickLink.Models.ListItems
 
         public UserCommandResultItem() { }
 
-        public UserCommandResultItem(string name, string path, string extension, string displayName, string icon, string executeTemplate)
+        public UserCommandResultItem(string name, string path, string extension, string displayName, string icon, string executeTemplate, bool openInTerminal = false)
         {
             Name = name;
             Path = path;
@@ -42,6 +43,7 @@ namespace quickLink.Models.ListItems
             FileDisplayName = displayName;
             FileIcon = icon;
             ExecuteTemplate = executeTemplate;
+            OpenInTerminal = openInTerminal;
         }
 
         public async Task ExecuteAsync(IExecutionContext context)
@@ -51,7 +53,15 @@ namespace quickLink.Models.ListItems
                 .Replace("{item.name}", Name)
                 .Replace("{item.extension}", Extension);
 
-            await context.ExecuteCommandAsync(command);
+            if (OpenInTerminal)
+            {
+                await context.ExecuteCommandInTerminalAsync(command);
+            }
+            else
+            {
+                await context.ExecuteCommandAsync(command);
+            }
+            
             context.HideWindow();
         }
 

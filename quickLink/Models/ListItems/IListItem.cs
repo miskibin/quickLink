@@ -66,6 +66,7 @@ namespace quickLink.Models.ListItems
         Task OpenUrlAsync(string url);
         void CopyToClipboard(string text);
         Task ExecuteCommandAsync(string command);
+        Task ExecuteCommandInTerminalAsync(string command);
         Task ExecuteMediaCommandAsync(string command);
         void HideWindow();
         void ShowEditPanel(IEditableItem item);

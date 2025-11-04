@@ -517,8 +517,8 @@ namespace quickLink
             {
                 case CommandSourceType.Directory:
                     resultItems = string.IsNullOrWhiteSpace(query)
-                        ? await _directoryProvider.GetItemsAsync(command.SourceConfig, command.ExecuteTemplate, 6)
-                        : await _directoryProvider.SearchItemsAsync(command.SourceConfig, command.ExecuteTemplate, query, 6);
+                        ? await _directoryProvider.GetItemsAsync(command.SourceConfig, command.ExecuteTemplate, command.OpenInTerminal, 6)
+                        : await _directoryProvider.SearchItemsAsync(command.SourceConfig, command.ExecuteTemplate, command.OpenInTerminal, query, 6);
                     break;
                 
                 case CommandSourceType.Static:
@@ -532,7 +532,8 @@ namespace quickLink
                             extension: string.Empty,
                             displayName: item,
                             icon: command.IconDisplay,
-                            executeTemplate: command.ExecuteTemplate
+                            executeTemplate: command.ExecuteTemplate,
+                            openInTerminal: command.OpenInTerminal
                         ))
                         .ToList();
                     break;
@@ -635,6 +636,30 @@ namespace quickLink
         public async Task ExecuteCommandAsync(string command)
         {
             await ExecuteCommandInternalAsync(command);
+        }
+
+        public async Task ExecuteCommandInTerminalAsync(string command)
+        {
+            // Execute command in a visible terminal window
+            await Task.Run(() =>
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "pwsh.exe",
+                        Arguments = $"-NoExit -Command \"{command}\"",
+                        UseShellExecute = true,
+                        CreateNoWindow = false,
+                        WindowStyle = ProcessWindowStyle.Normal
+                    };
+                    Process.Start(psi);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"ExecuteCommandInTerminalAsync ERROR: {ex.Message}");
+                }
+            });
         }
 
         public async Task ExecuteMediaCommandAsync(string command)

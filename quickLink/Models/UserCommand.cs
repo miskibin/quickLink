@@ -26,6 +26,7 @@ namespace quickLink.Models
         private SourceConfig _sourceConfig = new SourceConfig();
         private string _executeTemplate = string.Empty;
         private CommandIcon _icon = CommandIcon.Folder;
+        private bool _openInTerminal = false;
 
         public string Prefix
         {
@@ -55,6 +56,12 @@ namespace quickLink.Models
         {
             get => _icon;
             set => SetProperty(ref _icon, value);
+        }
+
+        public bool OpenInTerminal
+        {
+            get => _openInTerminal;
+            set => SetProperty(ref _openInTerminal, value);
         }
 
         public string IconDisplay => Icon switch

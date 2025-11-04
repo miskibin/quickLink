@@ -15,7 +15,7 @@ namespace quickLink.Services
         /// Lists files from a directory based on glob pattern and recursive option.
         /// Optimized for performance with lazy evaluation and limited results.
         /// </summary>
-        public async Task<List<UserCommandResultItem>> GetItemsAsync(SourceConfig config, string executeTemplate, int maxResults = 50)
+        public async Task<List<UserCommandResultItem>> GetItemsAsync(SourceConfig config, string executeTemplate, bool openInTerminal = false, int maxResults = 50)
         {
             if (string.IsNullOrWhiteSpace(config.Path) || !Directory.Exists(config.Path))
             {
@@ -63,7 +63,8 @@ namespace quickLink.Services
                             extension: fileInfo.Extension,
                             displayName: Path.GetFileName(file),
                             icon: GetFileIcon(fileInfo.Extension),
-                            executeTemplate: executeTemplate
+                            executeTemplate: executeTemplate,
+                            openInTerminal: openInTerminal
                         ));
                     }
                     
@@ -79,9 +80,9 @@ namespace quickLink.Services
         /// <summary>
         /// Searches files by name in addition to glob pattern.
         /// </summary>
-        public async Task<List<UserCommandResultItem>> SearchItemsAsync(SourceConfig config, string executeTemplate, string searchText, int maxResults = 50)
+        public async Task<List<UserCommandResultItem>> SearchItemsAsync(SourceConfig config, string executeTemplate, bool openInTerminal, string searchText, int maxResults = 50)
         {
-            var allItems = await GetItemsAsync(config, executeTemplate, maxResults * 2);
+            var allItems = await GetItemsAsync(config, executeTemplate, openInTerminal, maxResults * 2);
             
             if (string.IsNullOrWhiteSpace(searchText))
                 return allItems.Take(maxResults).ToList();

@@ -1048,6 +1048,14 @@ namespace quickLink
                 CommandRecursive.IsChecked = command.SourceConfig.Recursive;
                 CommandExecuteTemplate.Text = command.ExecuteTemplate;
                 CommandIconCombo.SelectedIndex = (int)command.Icon;
+                CommandOpenInTerminal.IsChecked = command.OpenInTerminal;
+                
+                // Populate static items list
+                StaticItemsList.Items.Clear();
+                foreach (var item in command.SourceConfig.Items)
+                {
+                    StaticItemsList.Items.Add(item);
+                }
             }
             else
             {
@@ -1059,6 +1067,8 @@ namespace quickLink
                 CommandRecursive.IsChecked = true;
                 CommandExecuteTemplate.Text = "code \"{item.path}\"";
                 CommandIconCombo.SelectedIndex = 0;
+                CommandOpenInTerminal.IsChecked = false;
+                StaticItemsList.Items.Clear();
             }
             
             SearchBox.Visibility = Visibility.Collapsed;
@@ -1105,6 +1115,34 @@ namespace quickLink
                 // Static
                 DirectoryConfigPanel.Visibility = Visibility.Collapsed;
                 StaticItemsConfigPanel.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void OnAddStaticItem(object sender, RoutedEventArgs e)
+        {
+            var newItem = NewStaticItemTextBox.Text?.Trim();
+            if (!string.IsNullOrWhiteSpace(newItem))
+            {
+                StaticItemsList.Items.Add(newItem);
+                NewStaticItemTextBox.Text = string.Empty;
+                NewStaticItemTextBox.Focus(FocusState.Programmatic);
+            }
+        }
+
+        private void OnRemoveStaticItem(object sender, RoutedEventArgs e)
+        {
+            if (StaticItemsList.SelectedItem != null)
+            {
+                StaticItemsList.Items.Remove(StaticItemsList.SelectedItem);
+            }
+        }
+
+        private void OnStaticItemTextBoxKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                OnAddStaticItem(sender, new RoutedEventArgs());
+                e.Handled = true;
             }
         }
 

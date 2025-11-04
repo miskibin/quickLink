@@ -689,11 +689,7 @@
                         <CheckBox x:Name="CommandOpenInTerminal"
                                  Content="Open in terminal window"
                                  FontSize="12"
-                                 Margin="0,4,0,0">
-                            <CheckBox.ToolTip>
-                                <ToolTip Content="Execute command in a visible terminal instead of silently in background"/>
-                            </CheckBox.ToolTip>
-                        </CheckBox>
+                                 Margin="0,4,0,0"/>
 
                         <!-- Buttons -->
                         <StackPanel Orientation="Horizontal"

@@ -12,6 +12,9 @@ namespace quickLink.Models
      private bool _isLink;
         private bool _isCommand;
         private bool _isInternalCommand;
+        private bool _isUserCommand;
+        private CommandResultItem? _commandResult;
+        private bool _isCommandSuggestion;
 
         public string Title
         {
@@ -118,14 +121,67 @@ get => _title;
             }
         }
 
-        public string DisplayTitle => string.IsNullOrWhiteSpace(Title) 
-            ? (IsLink ? "🔗 Link" : IsCommand ? "⚡ Command" : "📄 Text") 
-            : Title;
+        public bool IsUserCommand
+        {
+            get => _isUserCommand;
+            set
+            {
+                if (SetProperty(ref _isUserCommand, value))
+                {
+                    OnPropertyChanged(nameof(IsPlainText));
+                    OnPropertyChanged(nameof(IsUserCommandItem));
+                    OnPropertyChanged(nameof(UserCommandIcon));
+                }
+            }
+        }
+
+        public bool IsCommandSuggestion
+        {
+            get => _isCommandSuggestion;
+            set
+            {
+                if (SetProperty(ref _isCommandSuggestion, value))
+                {
+                    OnPropertyChanged(nameof(ShowEditDeleteButtons));
+                }
+            }
+        }
+
+        public CommandResultItem? CommandResult
+        {
+            get => _commandResult;
+            set
+            {
+                if (SetProperty(ref _commandResult, value))
+                {
+                    OnPropertyChanged(nameof(IsUserCommandItem));
+                    OnPropertyChanged(nameof(UserCommandIcon));
+                    OnPropertyChanged(nameof(DisplayTitle));
+                    OnPropertyChanged(nameof(DisplayValue));
+                }
+            }
+        }
+
+        public string DisplayTitle
+        {
+            get
+            {
+                if (IsUserCommand && CommandResult != null)
+                    return CommandResult.DisplayName;
+                
+                return string.IsNullOrWhiteSpace(Title) 
+                    ? (IsLink ? "🔗 Link" : IsCommand ? "⚡ Command" : "📄 Text") 
+                    : Title;
+            }
+        }
 
         public string DisplayValue
         {
             get
             {
+                if (IsUserCommand && CommandResult != null)
+                    return CommandResult.Path;
+                
                 if (IsEncrypted) return "••••••••";
                 // For commands (including internal command items), trim the > prefix for display
                 if ((IsCommand || IsInternalCommand) && Value.StartsWith(">"))
@@ -139,10 +195,14 @@ get => _title;
         
         // Helper properties for icon visibility
         public bool IsEncryptedAndNotLink => IsEncrypted && !IsLink;
-        public bool IsCommandAndNotLink => IsCommand && !IsLink && !IsInternalCommand;
-        public bool IsPlainText => !IsEncrypted && !IsLink && !IsCommand && !IsInternalCommand;
+        public bool IsCommandAndNotLink => IsCommand && !IsLink && !IsInternalCommand && !IsUserCommand;
+        public bool IsPlainText => !IsEncrypted && !IsLink && !IsCommand && !IsInternalCommand && !IsUserCommand;
         public bool IsLinkWithoutFavicon => IsLink && string.IsNullOrEmpty(FaviconUrl);
         public bool HasFavicon => IsLink && !string.IsNullOrEmpty(FaviconUrl);
+        public bool IsUserCommandItem => IsUserCommand && CommandResult != null;
+        public string UserCommandIcon => IsUserCommand && CommandResult != null ? CommandResult.IconDisplay : string.Empty;
+        // Show edit/delete for: command suggestions, OR regular saved items (not internal commands, not user command results)
+        public bool ShowEditDeleteButtons => IsCommandSuggestion || (!IsInternalCommand && !IsUserCommandItem);
 
         // Favicon support
         public string? FaviconUrl

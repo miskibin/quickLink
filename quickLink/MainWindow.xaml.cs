@@ -49,11 +49,14 @@ namespace quickLink
         private readonly DataService _dataService;
         private readonly ClipboardService _clipboardService;
         private readonly MediaControlService _mediaControlService;
+        private readonly CommandService _commandService;
+        private readonly DirectoryCommandProvider _directoryProvider;
         private readonly ObservableCollection<ClipboardItem> _allItems;
         private readonly ObservableCollection<ClipboardItem> _filteredItems;
         private readonly List<ClipboardItem> _internalCommands;
         private readonly ClipboardItem _searchConversationItem;
         private readonly ClipboardItem _executeCommandItem;
+        private List<UserCommand> _userCommands;
         
         private GlobalHotkeyService? _hotkeyService;
         private IntPtr _windowHandle;
@@ -71,6 +74,17 @@ namespace quickLink
         // Window subclassing
         private WinProc? _newWndProc;
         private IntPtr _oldWndProc;
+        
+        public List<UserCommand> UserCommands
+        {
+            get => _userCommands;
+            set
+            {
+                _userCommands = value;
+                // Notify UI of change
+                this.Bindings.Update();
+            }
+        }
         #endregion
 
         #region P/Invoke Declarations
@@ -89,32 +103,43 @@ namespace quickLink
         #region Constructor & Initialization
         public MainWindow()
         {
-            _dataService = new DataService();
-            _clipboardService = new ClipboardService();
-            _mediaControlService = new MediaControlService();
-            _allItems = new ObservableCollection<ClipboardItem>();
-            _filteredItems = new ObservableCollection<ClipboardItem>();
-            _internalCommands = new List<ClipboardItem>();
-            _searchConversationItem = new ClipboardItem
+            try
             {
-                Title = "Start conversation",
-                Value = "search:",
-                IsInternalCommand = true
-            };
-            _executeCommandItem = new ClipboardItem
-            {
-                Title = "Execute command",
-                Value = ">",
-                IsInternalCommand = true
-            };
+                _dataService = new DataService();
+                _clipboardService = new ClipboardService();
+                _mediaControlService = new MediaControlService();
+                _commandService = new CommandService();
+                _directoryProvider = new DirectoryCommandProvider();
+                _allItems = new ObservableCollection<ClipboardItem>();
+                _filteredItems = new ObservableCollection<ClipboardItem>();
+                _internalCommands = new List<ClipboardItem>();
+                _userCommands = new List<UserCommand>();
+                _searchConversationItem = new ClipboardItem
+                {
+                    Title = "Start conversation",
+                    Value = "search:",
+                    IsInternalCommand = true
+                };
+                _executeCommandItem = new ClipboardItem
+                {
+                    Title = "Execute command",
+                    Value = ">",
+                    IsInternalCommand = true
+                };
 
-            InitializeComponent();
-            InitializeInternalCommands();
-            InitializeWindow();
-            InitializeHotkey();
-            
-            _ = LoadDataAsync();
-            _ = InitializeMediaServiceAsync();
+                InitializeComponent();
+                InitializeInternalCommands();
+                InitializeWindow();
+                InitializeHotkey();
+                
+                _ = LoadDataAsync();
+                _ = InitializeMediaServiceAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"FATAL ERROR: {ex.Message}");
+                throw;
+            }
         }
 
         private async Task InitializeMediaServiceAsync()
@@ -154,6 +179,7 @@ namespace quickLink
             var appCommands = new[]
             {
                 ("Add new item", "internal:add"),
+                ("Add new command (advanced)", "internal:addcommand"),
                 ("Settings", "internal:settings"),
                 ("Exit app", "internal:exit")
             };
@@ -298,13 +324,18 @@ namespace quickLink
             
             try
             {
+                await _commandService.EnsureCommandsFileExistsAsync();
+                
                 var items = await _dataService.LoadItemsAsync();
                 _allItems.Clear();
-                
                 foreach (var item in items)
                 {
                     _allItems.Add(item);
                 }
+                
+                // Load user commands
+                _userCommands = await _commandService.LoadCommandsAsync();
+                this.Bindings.Update();
                 
                 // Load footer setting
                 var settings = await _dataService.LoadSettingsAsync();
@@ -313,6 +344,10 @@ namespace quickLink
                 UpdateFooterVisibility();
                 
                 FilterItems();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadDataAsync ERROR: {ex.Message}");
             }
             finally
             {
@@ -339,10 +374,24 @@ namespace quickLink
         #endregion
 
         #region Filtering & Search
-        private void FilterItems()
+        private async void FilterItems()
         {
             var searchText = SearchBox.Text?.ToLowerInvariant() ?? string.Empty;
             var isEmpty = string.IsNullOrWhiteSpace(searchText);
+            
+            // Check if it's a user command
+            if (!isEmpty && searchText.StartsWith("/"))
+            {
+                // Show command suggestions if just "/" typed or partial command
+                if (searchText == "/" || !_userCommands.Any(c => c.Prefix.Equals(searchText.Split(' ')[0], StringComparison.OrdinalIgnoreCase)))
+                {
+                    ShowCommandSuggestions(searchText);
+                    return;
+                }
+                
+                await HandleUserCommandAsync(searchText);
+                return;
+            }
             
             // Pre-calculate whether to include internal commands
             var includeInternalCommands = _hideFooter || !isEmpty;
@@ -442,6 +491,105 @@ namespace quickLink
                 {
                     ItemsList.SelectedIndex = 0;
                 }
+            }
+        }
+
+        private void ShowCommandSuggestions(string searchText)
+        {
+            var query = searchText.TrimStart('/').ToLowerInvariant();
+            
+            _filteredItems.Clear();
+            
+            // Filter commands by prefix
+            var matchingCommands = _userCommands
+                .Where(c => string.IsNullOrEmpty(query) || c.Prefix.ToLowerInvariant().Contains(query))
+                .Take(6);
+            
+            foreach (var cmd in matchingCommands)
+            {
+                _filteredItems.Add(new ClipboardItem
+                {
+                    Title = $"{cmd.Prefix} - {cmd.Source} command",
+                    Value = cmd.Prefix,
+                    IsUserCommand = true,
+                    IsCommandSuggestion = true, // Flag to show edit/delete buttons
+                    CommandResult = new CommandResultItem
+                    {
+                        IconDisplay = cmd.IconDisplay,
+                        DisplayName = cmd.Prefix,
+                        Path = $"{cmd.Source} → {cmd.SourceConfig.Path}"
+                    }
+                });
+            }
+            
+            if (_filteredItems.Count > 0)
+            {
+                ItemsList.SelectedIndex = 0;
+            }
+        }
+
+        private async Task HandleUserCommandAsync(string searchText)
+        {
+            // Extract command prefix and search query
+            var parts = searchText.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var commandPrefix = parts.Length > 0 ? parts[0] : searchText;
+            var query = parts.Length > 1 ? parts[1] : string.Empty;
+            
+            // Find matching command
+            var command = _userCommands.FirstOrDefault(c => 
+                c.Prefix.Equals(commandPrefix, StringComparison.OrdinalIgnoreCase));
+            
+            if (command == null)
+            {
+                _filteredItems.Clear();
+                return;
+            }
+            
+            // Get items from provider based on source type
+            List<CommandResultItem> resultItems;
+            
+            switch (command.Source)
+            {
+                case CommandSourceType.Directory:
+                    resultItems = string.IsNullOrWhiteSpace(query)
+                        ? await _directoryProvider.GetItemsAsync(command.SourceConfig, 6)
+                        : await _directoryProvider.SearchItemsAsync(command.SourceConfig, query, 6);
+                    break;
+                
+                case CommandSourceType.Static:
+                    resultItems = command.SourceConfig.Items
+                        .Where(item => string.IsNullOrWhiteSpace(query) || 
+                                     item.Contains(query, StringComparison.OrdinalIgnoreCase))
+                        .Take(6)
+                        .Select(item => new CommandResultItem
+                        {
+                            Name = item,
+                            Path = item,
+                            DisplayName = item,
+                            IconDisplay = command.IconDisplay
+                        })
+                        .ToList();
+                    break;
+                
+                default:
+                    resultItems = new List<CommandResultItem>();
+                    break;
+            }
+            
+            // Convert to ClipboardItems
+            var newItems = resultItems.Select(r => new ClipboardItem
+            {
+                Title = r.DisplayName,
+                Value = command.ExecuteTemplate,
+                IsUserCommand = true,
+                CommandResult = r
+            }).ToList();
+            
+            UpdateFilteredItems(newItems);
+            
+            if (_filteredItems.Count > 0)
+            {
+                ItemsList.SelectedIndex = 0;
             }
         }
         
@@ -585,7 +733,21 @@ namespace quickLink
 
         private async Task ExecuteItemAsync(ClipboardItem item)
         {
-            if (item.IsInternalCommand)
+            // Handle command suggestion autocomplete - check IsCommandSuggestion first
+            if (item.IsCommandSuggestion && item.Value.StartsWith("/"))
+            {
+                // Autocomplete the command
+                SearchBox.Text = item.Value + " ";
+                SearchBox.SelectionStart = SearchBox.Text.Length;
+                SearchBox.Focus(FocusState.Programmatic);
+                return;
+            }
+            
+            if (item.IsUserCommand && item.CommandResult != null && !item.IsCommandSuggestion)
+            {
+                await ExecuteUserCommandAsync(item);
+            }
+            else if (item.IsInternalCommand)
             {
                 await HandleInternalCommandAsync(item.Value);
             }
@@ -605,6 +767,20 @@ namespace quickLink
                 _clipboardService.CopyToClipboard(item.Value);
                 AppWindow.Hide();
             }
+        }
+
+        private async Task ExecuteUserCommandAsync(ClipboardItem item)
+        {
+            if (item.CommandResult == null) return;
+            
+            // Replace placeholders in execute template
+            var command = item.Value
+                .Replace("{item.path}", item.CommandResult.Path)
+                .Replace("{item.name}", item.CommandResult.Name)
+                .Replace("{item.extension}", item.CommandResult.Extension);
+            
+            await ExecuteCommandAsync(command);
+            AppWindow.Hide();
         }
 
         private async Task HandleInternalCommandAsync(string commandValue)
@@ -633,6 +809,9 @@ namespace quickLink
             {
                 case "internal:add":
                     ShowEditPanel(null);
+                    break;
+                case "internal:addcommand":
+                    await ShowAddCommandDialogAsync();
                     break;
                 case "internal:settings":
                     ShowSettingsPanel();
@@ -745,6 +924,18 @@ namespace quickLink
         {
             if (sender is Button { Tag: ClipboardItem item })
             {
+                // If it's a command suggestion, find and edit the actual command
+                if (item.IsCommandSuggestion && item.Value.StartsWith("/"))
+                {
+                    var command = _userCommands.FirstOrDefault(c => 
+                        c.Prefix.Equals(item.Value, StringComparison.OrdinalIgnoreCase));
+                    if (command != null)
+                    {
+                        ShowCommandPanel(command);
+                        return;
+                    }
+                }
+                
                 ShowEditPanel(item);
             }
         }
@@ -825,10 +1016,169 @@ namespace quickLink
         {
             if (sender is Button { Tag: ClipboardItem item })
             {
+                // If it's a command suggestion, delete the actual command
+                if (item.IsCommandSuggestion && item.Value.StartsWith("/"))
+                {
+                    var command = _userCommands.FirstOrDefault(c => 
+                        c.Prefix.Equals(item.Value, StringComparison.OrdinalIgnoreCase));
+                    if (command != null)
+                    {
+                        var dialog = new ContentDialog
+                        {
+                            Title = "Delete Command",
+                            Content = $"Are you sure you want to delete the command '{command.Prefix}'?",
+                            PrimaryButtonText = "Delete",
+                            CloseButtonText = "Cancel",
+                            DefaultButton = ContentDialogButton.Close,
+                            XamlRoot = this.Content.XamlRoot
+                        };
+
+                        var result = await dialog.ShowAsync();
+                        if (result == ContentDialogResult.Primary)
+                        {
+                            await _commandService.DeleteCommandAsync(command, _userCommands);
+                            _userCommands = await _commandService.LoadCommandsAsync();
+                            this.Bindings.Update();
+                            
+                            // Refresh the command suggestions
+                            ShowCommandSuggestions(SearchBox.Text);
+                        }
+                        return;
+                    }
+                }
+                
                 _allItems.Remove(item);
                 await _dataService.DeleteItemAsync(item, _allItems.ToList());
                 FilterItems();
             }
+        }
+        #endregion
+
+        #region Command Panel
+        private UserCommand? _editingCommand;
+
+        private void ShowCommandPanel(UserCommand? command = null)
+        {
+            _editingCommand = command;
+            
+            if (command != null)
+            {
+                // Edit mode
+                CommandPrefix.Text = command.Prefix;
+                CommandSourceCombo.SelectedIndex = command.Source == Models.CommandSourceType.Directory ? 0 : 1;
+                CommandPath.Text = command.SourceConfig.Path;
+                CommandGlob.Text = command.SourceConfig.Glob;
+                CommandRecursive.IsChecked = command.SourceConfig.Recursive;
+                CommandExecuteTemplate.Text = command.ExecuteTemplate;
+                CommandIconCombo.SelectedIndex = (int)command.Icon;
+            }
+            else
+            {
+                // Add mode - set defaults
+                CommandPrefix.Text = "/";
+                CommandSourceCombo.SelectedIndex = 0;
+                CommandPath.Text = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                CommandGlob.Text = "*.md";
+                CommandRecursive.IsChecked = true;
+                CommandExecuteTemplate.Text = "code \"{item.path}\"";
+                CommandIconCombo.SelectedIndex = 0;
+            }
+            
+            SearchBox.Visibility = Visibility.Collapsed;
+            ItemsList.Visibility = Visibility.Collapsed;
+            FooterPanel.Visibility = Visibility.Collapsed;
+            EditPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CommandPanel.Visibility = Visibility.Visible;
+            CommandPrefix.Focus(FocusState.Programmatic);
+        }
+
+        private void HideCommandPanel()
+        {
+            _editingCommand = null;
+            SearchBox.Visibility = Visibility.Visible;
+            CommandPanel.Visibility = Visibility.Collapsed;
+            ItemsList.Visibility = Visibility.Visible;
+            UpdateFooterVisibility();
+            SearchBox.Focus(FocusState.Programmatic);
+        }
+
+        private void OnCancelCommandEdit(object sender, RoutedEventArgs e) => HideCommandPanel();
+
+        private void OnCancelCommandEditKey(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            HideCommandPanel();
+            args.Handled = true;
+        }
+
+        private void OnCommandSourceTypeChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Null check - this can be called during XAML initialization before elements are ready
+            if (DirectoryConfigPanel == null)
+                return;
+                
+            if (CommandSourceCombo.SelectedIndex == 0)
+            {
+                // Directory
+                DirectoryConfigPanel.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // Static or other
+                DirectoryConfigPanel.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private async void OnSaveCommandEdit(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(CommandPrefix.Text) || 
+                string.IsNullOrWhiteSpace(CommandExecuteTemplate.Text))
+            {
+                return;
+            }
+
+            var sourceType = CommandSourceCombo.SelectedIndex == 0 
+                ? Models.CommandSourceType.Directory 
+                : Models.CommandSourceType.Static;
+
+            var iconType = CommandIconCombo.SelectedIndex switch
+            {
+                0 => Models.CommandIcon.Folder,
+                1 => Models.CommandIcon.Web,
+                2 => Models.CommandIcon.Script,
+                3 => Models.CommandIcon.Document,
+                _ => Models.CommandIcon.Folder
+            };
+
+            var newCommand = new UserCommand
+            {
+                Prefix = CommandPrefix.Text,
+                Source = sourceType,
+                SourceConfig = new SourceConfig
+                {
+                    Path = CommandPath.Text ?? string.Empty,
+                    Recursive = CommandRecursive.IsChecked ?? true,
+                    Glob = CommandGlob.Text ?? "*.*"
+                },
+                ExecuteTemplate = CommandExecuteTemplate.Text,
+                Icon = iconType
+            };
+
+            if (_editingCommand != null)
+            {
+                await _commandService.UpdateCommandAsync(_editingCommand, newCommand, _userCommands);
+            }
+            else
+            {
+                await _commandService.AddCommandAsync(newCommand, _userCommands);
+            }
+
+            // Reload commands to refresh the list
+            _userCommands = await _commandService.LoadCommandsAsync();
+            this.Bindings.Update();
+
+            HideCommandPanel();
+            AppWindow.Hide();
         }
         #endregion
 
@@ -1174,6 +1524,54 @@ namespace quickLink
 
         #region Public Methods
         public void HideWindow() => AppWindow.Hide();
+
+        public bool HasNoCommands(int count) => count == 0;
+        
+        public int GetCommandCount() => _userCommands?.Count ?? 0;
+        #endregion
+
+        #region Command Management
+        private async Task ShowAddCommandDialogAsync()
+        {
+            ShowCommandPanel(null);
+        }
+
+        private async void OnAddCommandClicked(object sender, RoutedEventArgs e)
+        {
+            await ShowAddCommandDialogAsync();
+        }
+
+        private async void OnEditCommandClicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { Tag: UserCommand command })
+            {
+                ShowCommandPanel(command);
+            }
+        }
+
+        private async void OnDeleteCommandClicked(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { Tag: UserCommand command })
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Delete Command",
+                    Content = $"Are you sure you want to delete the command '{command.Prefix}'?",
+                    PrimaryButtonText = "Delete",
+                    CloseButtonText = "Cancel",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    await _commandService.DeleteCommandAsync(command, _userCommands);
+                    _userCommands = await _commandService.LoadCommandsAsync();
+                    this.Bindings.Update();
+                }
+            }
+        }
         #endregion
     }
 }

@@ -235,7 +235,6 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
-                                <!-- Icon based on IsLink and IsEncrypted properties - more vibrant colors -->
                                 <Grid Grid.Column="0"
                                         Width="28"
                                         Height="28"
@@ -330,6 +329,20 @@
                                             </Binding>
                                         </FontIcon.Visibility>
                                     </FontIcon>
+                                    <!-- User command icon - emoji from CommandResult -->
+                                    <TextBlock Text="{x:Bind UserCommandIcon, Mode=OneWay}"
+                                               FontSize="20"
+                                               VerticalAlignment="Center"
+                                               HorizontalAlignment="Center">
+                                        <TextBlock.Visibility>
+                                            <Binding Path="IsUserCommandItem"
+                                                    Mode="OneWay">
+                                                <Binding.Converter>
+                                                    <StaticResource ResourceKey="BoolToVisibilityConverter"/>
+                                                </Binding.Converter>
+                                            </Binding>
+                                        </TextBlock.Visibility>
+                                    </TextBlock>
                                     <!-- Regular text icon (document) - only for non-links that are not encrypted -->
                                     <FontIcon FontFamily="Segoe Fluent Icons"
                                               Glyph="&#xE8A5;"
@@ -364,11 +377,12 @@
                                             Orientation="Horizontal"
                                             Spacing="1"
                                             VerticalAlignment="Center">
+                                    <!-- Show for plain text items AND command suggestions -->
                                     <StackPanel.Visibility>
-                                        <Binding Path="IsInternalCommand"
+                                        <Binding Path="ShowEditDeleteButtons"
                                                 Mode="OneWay">
                                             <Binding.Converter>
-                                                <StaticResource ResourceKey="InverseBoolToVisibilityConverter"/>
+                                                <StaticResource ResourceKey="BoolToVisibilityConverter"/>
                                             </Binding.Converter>
                                         </Binding>
                                     </StackPanel.Visibility>
@@ -545,6 +559,157 @@
                     </StackPanel>
                 </StackPanel>
 
+                <!-- Inline Command Add/Edit View -->
+                <ScrollViewer x:Name="CommandPanel"
+                              Grid.Row="1"
+                              Grid.RowSpan="2"
+                              Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto"
+                              Background="Transparent">
+                    <StackPanel Spacing="12" Padding="0,0,0,10">
+                        <StackPanel.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="Escape"
+                                    Invoked="OnCancelCommandEditKey"/>
+                        </StackPanel.KeyboardAccelerators>
+
+                        <!-- Title -->
+                        <TextBlock Text="Add New Command"
+                                  FontWeight="SemiBold"
+                                  FontSize="16"/>
+
+                        <!-- Prefix -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Command Prefix" 
+                                      FontSize="12"
+                                      Opacity="0.8"/>
+                            <TextBox x:Name="CommandPrefix"
+                                    PlaceholderText="/docs"
+                                    FontSize="13"
+                                    CornerRadius="6"
+                                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                    BorderThickness="0"
+                                    Padding="10,8"
+                                    MaxLength="50"/>
+                            <TextBlock Text="Type this prefix to trigger the command"
+                                      FontSize="10"
+                                      Opacity="0.6"/>
+                        </StackPanel>
+
+                        <!-- Source Type -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Source Type" 
+                                      FontSize="12"
+                                      Opacity="0.8"/>
+                            <ComboBox x:Name="CommandSourceCombo"
+                                     FontSize="13"
+                                     HorizontalAlignment="Stretch"
+                                     SelectionChanged="OnCommandSourceTypeChanged">
+                                <ComboBoxItem Content="Directory" IsSelected="True" Tag="Directory"/>
+                                <ComboBoxItem Content="Static" Tag="Static"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Directory Configuration -->
+                        <Border x:Name="DirectoryConfigPanel"
+                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                               BorderThickness="1"
+                               CornerRadius="6"
+                               Padding="10"
+                               Background="{ThemeResource LayerFillColorDefaultBrush}">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Directory Configuration" 
+                                          FontWeight="SemiBold"
+                                          FontSize="12"/>
+                                
+                                <!-- Path -->
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Folder Path" FontSize="11" Opacity="0.8"/>
+                                    <TextBox x:Name="CommandPath"
+                                            PlaceholderText="C:\Users\YourName\Documents"
+                                            FontSize="12"
+                                            CornerRadius="4"
+                                            Padding="8,6"/>
+                                </StackPanel>
+
+                                <!-- Glob Pattern -->
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="File Pattern (glob)" FontSize="11" Opacity="0.8"/>
+                                    <TextBox x:Name="CommandGlob"
+                                            PlaceholderText="*.md"
+                                            FontSize="12"
+                                            CornerRadius="4"
+                                            Padding="8,6"/>
+                                    <TextBlock Text="Examples: *.md, *.txt, *.pdf"
+                                              FontSize="10"
+                                              Opacity="0.6"/>
+                                </StackPanel>
+
+                                <!-- Recursive -->
+                                <CheckBox x:Name="CommandRecursive"
+                                         Content="Search in subdirectories"
+                                         IsChecked="True"
+                                         FontSize="12"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Execute Template -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Execute Template" 
+                                      FontSize="12"
+                                      Opacity="0.8"/>
+                            <TextBox x:Name="CommandExecuteTemplate"
+                                    PlaceholderText='code "{item.path}"'
+                                    FontSize="13"
+                                    CornerRadius="6"
+                                    Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                    BorderThickness="0"
+                                    Padding="10,8"
+                                    TextWrapping="Wrap"
+                                    AcceptsReturn="True"
+                                    MinHeight="60"
+                                    MaxHeight="100"/>
+                            <TextBlock TextWrapping="Wrap"
+                                      FontSize="10"
+                                      Opacity="0.6">
+                                <Run Text="Placeholders: {item.path}, {item.name}, {item.extension}"/>
+                            </TextBlock>
+                        </StackPanel>
+
+                        <!-- Icon Selection -->
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="Icon" 
+                                      FontSize="12"
+                                      Opacity="0.8"/>
+                            <ComboBox x:Name="CommandIconCombo"
+                                     FontSize="13"
+                                     HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="📁 Folder" IsSelected="True" Tag="Folder"/>
+                                <ComboBoxItem Content="🌐 Web" Tag="Web"/>
+                                <ComboBoxItem Content="⚙️ Script" Tag="Script"/>
+                                <ComboBoxItem Content="📄 Document" Tag="Document"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Buttons -->
+                        <StackPanel Orientation="Horizontal"
+                                Spacing="6"
+                                HorizontalAlignment="Right"
+                                Margin="0,8,0,0">
+                            <Button Content="Cancel"
+                                    Click="OnCancelCommandEdit"
+                                    CornerRadius="6"
+                                    Padding="14,8"
+                                    FontSize="12"/>
+                            <Button Content="Save"
+                                    Click="OnSaveCommandEdit"
+                                    Style="{StaticResource AccentButtonStyle}"
+                                    CornerRadius="6"
+                                    Padding="14,8"
+                                    FontSize="12"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
                 <!-- Settings View -->
                 <ScrollViewer x:Name="SettingsPanel"
                               Grid.Row="1"
@@ -558,6 +723,95 @@
                             <KeyboardAccelerator Key="Escape"
                                     Invoked="OnCloseSettingsKey"/>
                         </StackPanel.KeyboardAccelerators>
+
+                        <!-- Commands Section -->
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="User Commands" 
+                                      FontWeight="SemiBold"
+                                      FontSize="14"
+                                      VerticalAlignment="Center"/>
+                            
+                            <TextBlock Text="Type 'Add new command' or search for it to create custom commands."
+                                      FontSize="11"
+                                      Opacity="0.7"
+                                      TextWrapping="Wrap"
+                                      Margin="0,0,0,8"/>
+                            
+                            <ItemsControl x:Name="CommandsList"
+                                        ItemsSource="{x:Bind UserCommands, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:UserCommand">
+                                        <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                               BorderThickness="1"
+                                               CornerRadius="6"
+                                               Padding="10"
+                                               Margin="0,0,0,6">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Grid.Column="0"
+                                                          Text="{x:Bind IconDisplay}"
+                                                          FontSize="20"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,10,0"/>
+
+                                                <StackPanel Grid.Column="1" Spacing="4">
+                                                    <TextBlock Text="{x:Bind Prefix}"
+                                                              FontWeight="SemiBold"
+                                                              FontSize="13"/>
+                                                    <TextBlock Text="{x:Bind ExecuteTemplate}"
+                                                              FontSize="11"
+                                                              Opacity="0.7"
+                                                              TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="2"
+                                                          Orientation="Horizontal"
+                                                          Spacing="4">
+                                                    <Button Width="28"
+                                                           Height="28"
+                                                           Padding="0"
+                                                           CornerRadius="4"
+                                                           Background="Transparent"
+                                                           Click="OnEditCommandClicked"
+                                                           Tag="{x:Bind}">
+                                                        <FontIcon FontFamily="Segoe Fluent Icons"
+                                                                 Glyph="&#xE70F;"
+                                                                 FontSize="12"/>
+                                                    </Button>
+                                                    <Button Width="28"
+                                                           Height="28"
+                                                           Padding="0"
+                                                           CornerRadius="4"
+                                                           Background="Transparent"
+                                                           Click="OnDeleteCommandClicked"
+                                                           Tag="{x:Bind}">
+                                                        <FontIcon FontFamily="Segoe Fluent Icons"
+                                                                 Glyph="&#xE74D;"
+                                                                 FontSize="12"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="No commands yet. Add your first command to get started!"
+                                      FontSize="12"
+                                      Opacity="0.6"
+                                      TextAlignment="Center"
+                                      Margin="0,10,0,0"/>
+                        </StackPanel>
+
+                        <Border Height="1" 
+                               Background="{ThemeResource DividerStrokeColorDefaultBrush}"
+                               Margin="0,8,0,8"/>
 
                         <!-- Checkboxes -->
                         <CheckBox x:Name="StartWithSystemCheckBox"

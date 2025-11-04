@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ContentDialog
+    x:Class="quickLink.Views.AddEditCommandDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:quickLink.Views"
+    xmlns:models="using:quickLink.Models"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Add Command (Advanced)"
+    PrimaryButtonText="Save"
+    CloseButtonText="Cancel"
+    PrimaryButtonCommand="{x:Bind ViewModel.SaveCommand}"
+    CloseButtonCommand="{x:Bind ViewModel.CancelCommand}"
+    DefaultButton="Primary"
+    Style="{StaticResource DefaultContentDialogStyle}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="600">
+        <StackPanel Spacing="16" Padding="0,8,0,0">
+            <!-- Prefix -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Command Prefix" 
+                          FontWeight="SemiBold"
+                          FontSize="13"/>
+                <TextBox PlaceholderText="/docs"
+                        Text="{x:Bind ViewModel.Prefix, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        MaxLength="50" />
+                <TextBlock Text="Type this prefix to trigger the command (e.g., /docs)"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                          TextWrapping="Wrap"
+                          FontSize="11"
+                          Opacity="0.7"/>
+            </StackPanel>
+
+            <!-- Source Type -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Source Type" 
+                          FontWeight="SemiBold"
+                          FontSize="13"/>
+                <ComboBox ItemsSource="{x:Bind ViewModel.SourceTypes}"
+                         SelectedItem="{x:Bind ViewModel.SelectedSource, Mode=TwoWay}"
+                         HorizontalAlignment="Stretch"/>
+                <TextBlock Text="Where to get the items from"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                          FontSize="11"
+                          Opacity="0.7"/>
+            </StackPanel>
+
+            <!-- Directory Configuration -->
+            <StackPanel Spacing="12" 
+                       Visibility="{x:Bind IsDirectorySource(ViewModel.SelectedSource), Mode=OneWay}">
+                <Border BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                       BorderThickness="1"
+                       CornerRadius="8"
+                       Padding="12"
+                       Background="{ThemeResource LayerFillColorDefaultBrush}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Directory Configuration" 
+                                  FontWeight="SemiBold"
+                                  FontSize="12"/>
+                        
+                        <!-- Path -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Folder Path" FontSize="12"/>
+                            <TextBox PlaceholderText="C:\Users\YourName\Documents"
+                                    Text="{x:Bind ViewModel.Path, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+
+                        <!-- Glob Pattern -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="File Pattern (glob)" FontSize="12"/>
+                            <TextBox PlaceholderText="*.md"
+                                    Text="{x:Bind ViewModel.Glob, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBlock Text="Examples: *.md, *.txt, *.pdf, **/*.cs"
+                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                      FontSize="11"
+                                      Opacity="0.7"/>
+                        </StackPanel>
+
+                        <!-- Recursive -->
+                        <CheckBox Content="Search in subdirectories"
+                                 IsChecked="{x:Bind ViewModel.Recursive, Mode=TwoWay}"
+                                 FontSize="12"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Execute Template -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Execute Template" 
+                          FontWeight="SemiBold"
+                          FontSize="13"/>
+                <TextBox PlaceholderText='code "{item.path}"'
+                        Text="{x:Bind ViewModel.ExecuteTemplate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                        TextWrapping="Wrap"
+                        AcceptsReturn="True"
+                        MinHeight="80"
+                        MaxHeight="120"/>
+                <TextBlock TextWrapping="Wrap"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                          FontSize="11"
+                          Opacity="0.7">
+                    <Run Text="Command to execute when item is selected."/>
+                    <LineBreak/>
+                    <Run Text="Placeholders: {item.path}, {item.name}, {item.extension}"/>
+                    <LineBreak/>
+                    <Run Text='Example: code "{item.path}" opens file in VS Code'/>
+                </TextBlock>
+            </StackPanel>
+
+            <!-- Icon Selection -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="Icon" 
+                          FontWeight="SemiBold"
+                          FontSize="13"/>
+                <ComboBox ItemsSource="{x:Bind ViewModel.IconOptions}"
+                         SelectedValue="{x:Bind ViewModel.SelectedIcon, Mode=TwoWay}"
+                         SelectedValuePath="Icon"
+                         DisplayMemberPath="Display"
+                         HorizontalAlignment="Stretch"/>
+            </StackPanel>
+
+            <!-- Example Usage -->
+            <Border BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                   BorderThickness="1"
+                   CornerRadius="8"
+                   Padding="12"
+                   Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="💡 Example Usage" 
+                              FontWeight="SemiBold"
+                              FontSize="12"
+                              Foreground="{ThemeResource AccentFillColorDefaultBrush}"/>
+                    <TextBlock TextWrapping="Wrap"
+                              FontSize="11">
+                        <Run Text="1. Type"/>
+                        <Run Text="{x:Bind ViewModel.Prefix, Mode=OneWay}" FontWeight="Bold"/>
+                        <Run Text="in QuickLink"/>
+                        <LineBreak/>
+                        <Run Text="2. See matching files"/>
+                        <LineBreak/>
+                        <Run Text="3. Select a file to execute the command"/>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</ContentDialog>

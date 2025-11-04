@@ -87,6 +87,32 @@ Store passwords with encryption and copy them to clipboard instantly. *(Encrypti
   - `>notepad C:\path\to\file.txt` - Open files instantly
 - **Use case:** Media control, file management, workflow automation
 
+### 🎯 User-Defined Commands (Advanced)
+**NEW!** Create dynamic commands that list items and execute custom actions.
+
+- **Trigger:** Prefix with `/` (e.g., `/docs`, `/scripts`)
+- **Dynamic Sources:** List files from directories, static items, or HTTP endpoints
+- **Template Execution:** Execute custom commands with placeholders like `{item.path}`, `{item.name}`, `{item.extension}`
+- **Custom Icons:** Choose from 📁 Folder, 🌐 Web, ⚙️ Script, 📄 Document
+
+**Example Use Cases:**
+- `/docs` → List markdown files from your Documents folder → Opens selected file in VS Code
+- `/scripts` → List PowerShell scripts → Executes selected script
+- `/projects` → List project folders → Opens folder in File Explorer
+
+**How to Add:**
+1. Open Settings (click ⚙️ or search for "Settings")
+2. Click "Add Command" in the User Commands section
+3. Configure:
+   - **Prefix:** The trigger text (e.g., `/docs`)
+   - **Source Type:** Directory, Static, or HTTP
+   - **Directory Config:** Path, file pattern (glob), recursive search
+   - **Execute Template:** Command to run (e.g., `code "{item.path}"`)
+   - **Icon:** Visual indicator for your command
+4. Save and start using your command!
+
+**Performance Note:** Commands are lazily loaded - results only appear when you type the prefix, keeping QuickLink fast.
+
 ### 🔍 Search Engine Queries
 - No matching items? Press <kbd>Enter</kbd> to search using your configured search engine
 - **Customizable:** Modify the search URL in Settings

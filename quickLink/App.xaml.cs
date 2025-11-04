@@ -35,6 +35,33 @@ namespace quickLink
         public App()
         {
             InitializeComponent();
+            
+            // Add unhandled exception handler
+            this.UnhandledException += (sender, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine($"UNHANDLED EXCEPTION: {e.Message}");
+                System.Diagnostics.Debug.WriteLine($"Exception type: {e.Exception?.GetType().Name}");
+                System.Diagnostics.Debug.WriteLine($"Stack trace: {e.Exception?.StackTrace}");
+                
+                // Write to a log file
+                try
+                {
+                    var logPath = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                        "QuickLink",
+                        "crash.log"
+                    );
+                    var logDirectory = System.IO.Path.GetDirectoryName(logPath);
+                    if (!string.IsNullOrEmpty(logDirectory))
+                    {
+                        Directory.CreateDirectory(logDirectory);
+                        File.AppendAllText(logPath, $"\n[{DateTime.Now}] CRASH:\n{e.Message}\n{e.Exception}\n");
+                    }
+                }
+                catch { }
+                
+                e.Handled = true;
+            };
         }
 
         /// <summary>

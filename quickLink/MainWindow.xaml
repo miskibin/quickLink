@@ -593,6 +593,60 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Static Items Configuration -->
+                        <Border x:Name="StaticItemsConfigPanel"
+                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                               BorderThickness="1"
+                               CornerRadius="6"
+                               Padding="10"
+                               Background="{ThemeResource LayerFillColorDefaultBrush}"
+                               Visibility="Collapsed">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Static Items Configuration" 
+                                          FontWeight="SemiBold"
+                                          FontSize="12"/>
+                                
+                                <!-- Items List -->
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Items" FontSize="11" Opacity="0.8"/>
+                                    <ListBox x:Name="StaticItemsList"
+                                            MinHeight="100"
+                                            MaxHeight="200"
+                                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Padding="4"
+                                            FontSize="12"/>
+                                </StackPanel>
+
+                                <!-- Add Item -->
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBox x:Name="NewStaticItemTextBox"
+                                            PlaceholderText="Enter new item..."
+                                            FontSize="12"
+                                            CornerRadius="4"
+                                            Padding="8,6"
+                                            MinWidth="200"
+                                            KeyDown="OnStaticItemTextBoxKeyDown"/>
+                                    <Button Content="Add"
+                                           Click="OnAddStaticItem"
+                                           CornerRadius="4"
+                                           Padding="12,6"
+                                           FontSize="12"/>
+                                    <Button Content="Remove"
+                                           Click="OnRemoveStaticItem"
+                                           CornerRadius="4"
+                                           Padding="12,6"
+                                           FontSize="12"/>
+                                </StackPanel>
+                                
+                                <TextBlock Text="These items will appear as options when you type the command prefix"
+                                          FontSize="10"
+                                          Opacity="0.6"
+                                          TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Execute Template -->
                         <StackPanel Spacing="4">
                             <TextBlock Text="Execute Template" 
@@ -630,6 +684,16 @@
                                 <ComboBoxItem Content="📄 Document" Tag="Document"/>
                             </ComboBox>
                         </StackPanel>
+
+                        <!-- Open in Terminal -->
+                        <CheckBox x:Name="CommandOpenInTerminal"
+                                 Content="Open in terminal window"
+                                 FontSize="12"
+                                 Margin="0,4,0,0">
+                            <CheckBox.ToolTip>
+                                <ToolTip Content="Execute command in a visible terminal instead of silently in background"/>
+                            </CheckBox.ToolTip>
+                        </CheckBox>
 
                         <!-- Buttons -->
                         <StackPanel Orientation="Horizontal"

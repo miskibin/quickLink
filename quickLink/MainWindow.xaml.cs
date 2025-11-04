@@ -641,6 +641,8 @@ namespace quickLink
         public async Task ExecuteCommandInTerminalAsync(string command)
         {
             // Execute command in a visible terminal window
+            System.Diagnostics.Debug.WriteLine($"ExecuteCommandInTerminalAsync: Opening terminal with command: {command}");
+            
             await Task.Run(() =>
             {
                 try
@@ -653,11 +655,14 @@ namespace quickLink
                         CreateNoWindow = false,
                         WindowStyle = ProcessWindowStyle.Normal
                     };
-                    Process.Start(psi);
+                    
+                    var process = Process.Start(psi);
+                    System.Diagnostics.Debug.WriteLine($"ExecuteCommandInTerminalAsync: Process started: {process != null}");
                 }
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"ExecuteCommandInTerminalAsync ERROR: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"ExecuteCommandInTerminalAsync STACK: {ex.StackTrace}");
                 }
             });
         }
@@ -1086,18 +1091,20 @@ namespace quickLink
         private void OnCommandSourceTypeChanged(object sender, SelectionChangedEventArgs e)
         {
             // Null check - this can be called during XAML initialization before elements are ready
-            if (DirectoryConfigPanel == null)
+            if (DirectoryConfigPanel == null || StaticItemsConfigPanel == null)
                 return;
                 
             if (CommandSourceCombo.SelectedIndex == 0)
             {
                 // Directory
                 DirectoryConfigPanel.Visibility = Visibility.Visible;
+                StaticItemsConfigPanel.Visibility = Visibility.Collapsed;
             }
             else
             {
-                // Static or other
+                // Static
                 DirectoryConfigPanel.Visibility = Visibility.Collapsed;
+                StaticItemsConfigPanel.Visibility = Visibility.Visible;
             }
         }
 
@@ -1122,6 +1129,14 @@ namespace quickLink
                 _ => Models.CommandIcon.Folder
             };
 
+            // Collect static items from the list
+            var staticItems = new List<string>();
+            foreach (var item in StaticItemsList.Items)
+            {
+                if (item is string str)
+                    staticItems.Add(str);
+            }
+
             var newCommand = new UserCommand
             {
                 Prefix = CommandPrefix.Text,
@@ -1130,10 +1145,12 @@ namespace quickLink
                 {
                     Path = CommandPath.Text ?? string.Empty,
                     Recursive = CommandRecursive.IsChecked ?? true,
-                    Glob = CommandGlob.Text ?? "*.*"
+                    Glob = CommandGlob.Text ?? "*.*",
+                    Items = staticItems
                 },
                 ExecuteTemplate = CommandExecuteTemplate.Text,
-                Icon = iconType
+                Icon = iconType,
+                OpenInTerminal = CommandOpenInTerminal.IsChecked ?? false
             };
 
             if (_editingCommand != null)

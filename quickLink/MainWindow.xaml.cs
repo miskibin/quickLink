@@ -1065,11 +1065,20 @@ namespace quickLink
                 CommandPath.Text = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
                 CommandGlob.Text = "*.md";
                 CommandRecursive.IsChecked = true;
-                CommandExecuteTemplate.Text = "code \"{item.path}\"";
+                CommandExecuteTemplate.Text = string.Empty; // Empty by default
                 CommandIconCombo.SelectedIndex = 0;
                 CommandOpenInTerminal.IsChecked = false;
                 StaticItemsList.Items.Clear();
             }
+            
+            // Wire up text changed events for live preview
+            CommandExecuteTemplate.TextChanged -= OnCommandTemplateChanged;
+            CommandExecuteTemplate.TextChanged += OnCommandTemplateChanged;
+            CommandPath.TextChanged -= OnCommandPathChanged;
+            CommandPath.TextChanged += OnCommandPathChanged;
+            
+            // Update preview
+            UpdateCommandPreview();
             
             SearchBox.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Collapsed;
@@ -1083,11 +1092,55 @@ namespace quickLink
         private void HideCommandPanel()
         {
             _editingCommand = null;
+            
+            // Unsubscribe from text changed events
+            CommandExecuteTemplate.TextChanged -= OnCommandTemplateChanged;
+            CommandPath.TextChanged -= OnCommandPathChanged;
+            
             SearchBox.Visibility = Visibility.Visible;
             CommandPanel.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Visible;
             UpdateFooterVisibility();
             SearchBox.Focus(FocusState.Programmatic);
+        }
+
+        private void OnCommandTemplateChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateCommandPreview();
+        }
+
+        private void OnCommandPathChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateCommandPreview();
+        }
+
+        private void UpdateCommandPreview()
+        {
+            var template = CommandExecuteTemplate.Text ?? string.Empty;
+            var path = CommandPath.Text ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            
+            // Create a sample file path for preview
+            var sampleFileName = "example.md";
+            var samplePath = System.IO.Path.Combine(path, sampleFileName);
+            
+            // Replace placeholders
+            var preview = template
+                .Replace("{item.path}", samplePath)
+                .Replace("{item.name}", sampleFileName)
+                .Replace("{item.extension}", ".md");
+            
+            // Show placeholder if empty
+            if (string.IsNullOrWhiteSpace(preview))
+            {
+                preview = "Enter a command template above to see preview";
+                CommandPreviewText.Opacity = 0.5;
+            }
+            else
+            {
+                CommandPreviewText.Opacity = 0.8;
+            }
+            
+            CommandPreviewText.Text = preview;
         }
 
         private void OnCancelCommandEdit(object sender, RoutedEventArgs e) => HideCommandPanel();

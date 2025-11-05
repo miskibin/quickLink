@@ -507,7 +507,7 @@
                               Visibility="Collapsed"
                               VerticalScrollBarVisibility="Auto"
                               Background="Transparent">
-                    <StackPanel Spacing="12" Padding="0,0,0,10">
+                    <StackPanel Spacing="16" Padding="0,0,0,10">
                         <StackPanel.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Escape"
                                     Invoked="OnCancelCommandEditKey"/>
@@ -518,11 +518,10 @@
                                   FontWeight="SemiBold"
                                   FontSize="16"/>
 
-                        <!-- Prefix -->
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Command Prefix" 
-                                      FontSize="12"
-                                      Opacity="0.8"/>
+                        <!-- BASICS GROUP -->
+                        <StackPanel Spacing="8">
+        
+                            <!-- Command Prefix -->
                             <TextBox x:Name="CommandPrefix"
                                     PlaceholderText="/docs"
                                     FontSize="13"
@@ -530,88 +529,70 @@
                                     Background="{ThemeResource LayerFillColorDefaultBrush}"
                                     BorderThickness="0"
                                     Padding="10,8"
-                                    MaxLength="50"/>
-                            <TextBlock Text="Type this prefix to trigger the command"
-                                      FontSize="10"
-                                      Opacity="0.6"/>
-                        </StackPanel>
+                                    MaxLength="50"
+                                    Header="Command Prefix"
+                                    Description="Type this prefix to trigger the command"/>
 
-                        <!-- Source Type -->
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Source Type" 
-                                      FontSize="12"
-                                      Opacity="0.8"/>
-                            <ComboBox x:Name="CommandSourceCombo"
-                                     FontSize="13"
-                                     HorizontalAlignment="Stretch"
-                                     SelectionChanged="OnCommandSourceTypeChanged">
-                                <ComboBoxItem Content="Directory" IsSelected="True" Tag="Directory"/>
-                                <ComboBoxItem Content="Static" Tag="Static"/>
-                            </ComboBox>
-                        </StackPanel>
-
-                        <!-- Directory Configuration -->
-                        <Border x:Name="DirectoryConfigPanel"
-                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                               BorderThickness="1"
-                               CornerRadius="6"
-                               Padding="10"
-                               Background="{ThemeResource LayerFillColorDefaultBrush}">
-                            <StackPanel Spacing="10">
-                                <TextBlock Text="Directory Configuration" 
-                                          FontWeight="SemiBold"
-                                          FontSize="12"/>
-                                
-                                <!-- Path -->
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="Folder Path" FontSize="11" Opacity="0.8"/>
-                                    <TextBox x:Name="CommandPath"
-                                            PlaceholderText="C:\Users\YourName\Documents"
-                                            FontSize="12"
-                                            CornerRadius="4"
-                                            Padding="8,6"/>
-                                </StackPanel>
-
-                                <!-- Glob Pattern -->
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="File Pattern (glob)" FontSize="11" Opacity="0.8"/>
-                                    <TextBox x:Name="CommandGlob"
-                                            PlaceholderText="*.md"
-                                            FontSize="12"
-                                            CornerRadius="4"
-                                            Padding="8,6"/>
-                                    <TextBlock Text="Examples: *.md, *.txt, *.pdf"
-                                              FontSize="10"
-                                              Opacity="0.6"/>
-                                </StackPanel>
-
-                                <!-- Recursive -->
-                                <CheckBox x:Name="CommandRecursive"
-                                         Content="Search in subdirectories"
-                                         IsChecked="True"
-                                         FontSize="12"/>
+                            <!-- Source Type Picker (Compact) -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Source" FontSize="12" Opacity="0.8"/>
+                                <ComboBox x:Name="CommandSourceCombo"
+                                         FontSize="13"
+                                         HorizontalAlignment="Stretch"
+                                         SelectionChanged="OnCommandSourceTypeChanged">
+                                    <ComboBoxItem Content="Directory" IsSelected="True" Tag="Directory"/>
+                                    <ComboBoxItem Content="Static List" Tag="Static"/>
+                                </ComboBox>
                             </StackPanel>
-                        </Border>
 
-                        <!-- Static Items Configuration -->
-                        <Border x:Name="StaticItemsConfigPanel"
-                               BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                               BorderThickness="1"
-                               CornerRadius="6"
-                               Padding="10"
-                               Background="{ThemeResource LayerFillColorDefaultBrush}"
-                               Visibility="Collapsed">
-                            <StackPanel Spacing="10">
-                                <TextBlock Text="Static Items Configuration" 
-                                          FontWeight="SemiBold"
-                                          FontSize="12"/>
+                            <!-- Directory Source (shown when Directory is selected) -->
+                            <StackPanel x:Name="DirectoryConfigPanel" Spacing="6">
+                                <!-- Source Folder -->
+                                <TextBox x:Name="CommandPath"
+                                        PlaceholderText="C:\Users\Michal\Documents"
+                                        FontSize="13"
+                                        CornerRadius="6"
+                                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                        BorderThickness="0"
+                                        Padding="10,8"
+                                        Header="Source Folder"/>
                                 
+                                <!-- Advanced Settings Expander -->
+                                <Expander HorizontalAlignment="Stretch"
+                                         HorizontalContentAlignment="Stretch"
+                                         IsExpanded="False">
+                                    <Expander.Header>
+                                        <TextBlock Text="Advanced settings" FontSize="11" Opacity="0.7"/>
+                                    </Expander.Header>
+                                    <StackPanel Spacing="8" Padding="0,8,0,0">
+                                        <!-- File Pattern -->
+                                        <TextBox x:Name="CommandGlob"
+                                                PlaceholderText="*.*"
+                                                FontSize="12"
+                                                CornerRadius="4"
+                                                Padding="8,6"
+                                                Header="File Pattern (glob)"
+                                                Description="Examples: *.md, *.txt, *.pdf"/>
+                                        
+                                        <!-- Recursive Checkbox -->
+                                        <CheckBox x:Name="CommandRecursive"
+                                                 Content="Search in subdirectories"
+                                                 IsChecked="True"
+                                                 FontSize="12"/>
+                                    </StackPanel>
+                                </Expander>
+                            </StackPanel>
+
+                            <!-- Static Items Configuration (shown when Static is selected) -->
+                            <StackPanel x:Name="StaticItemsConfigPanel"
+                                       Spacing="6"
+                                       Visibility="Collapsed">
                                 <!-- Items List -->
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="Items" FontSize="11" Opacity="0.8"/>
+                                    <TextBlock Text="Items" FontSize="12" Opacity="0.8"/>
                                     <ListBox x:Name="StaticItemsList"
-                                            MinHeight="100"
-                                            MaxHeight="200"
+                                            MinHeight="80"
+                                            MaxHeight="160"
                                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                             BorderThickness="1"
                                             CornerRadius="4"
@@ -619,77 +600,118 @@
                                             FontSize="12"/>
                                 </StackPanel>
 
-                                <!-- Add Item -->
-                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                <!-- Add/Remove Item -->
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
                                     <TextBox x:Name="NewStaticItemTextBox"
-                                            PlaceholderText="Enter new item..."
+                                            Grid.Column="0"
+                                            PlaceholderText="Add item..."
                                             FontSize="12"
                                             CornerRadius="4"
                                             Padding="8,6"
-                                            MinWidth="200"
+                                            Margin="0,0,6,0"
                                             KeyDown="OnStaticItemTextBoxKeyDown"/>
-                                    <Button Content="Add"
+                                    <Button Grid.Column="1"
+                                           Content="Add"
                                            Click="OnAddStaticItem"
                                            CornerRadius="4"
                                            Padding="12,6"
-                                           FontSize="12"/>
-                                    <Button Content="Remove"
+                                           FontSize="12"
+                                           Margin="0,0,6,0"/>
+                                    <Button Grid.Column="2"
+                                           Content="Remove"
                                            Click="OnRemoveStaticItem"
                                            CornerRadius="4"
                                            Padding="12,6"
                                            FontSize="12"/>
-                                </StackPanel>
-                                
-                                <TextBlock Text="These items will appear as options when you type the command prefix"
-                                          FontSize="10"
-                                          Opacity="0.6"
-                                          TextWrapping="Wrap"/>
+                                </Grid>
                             </StackPanel>
-                        </Border>
-
-                        <!-- Execute Template -->
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Execute Template" 
-                                      FontSize="12"
-                                      Opacity="0.8"/>
-                            <TextBox x:Name="CommandExecuteTemplate"
-                                    PlaceholderText='code "{item.path}"'
-                                    FontSize="13"
-                                    CornerRadius="6"
-                                    Background="{ThemeResource LayerFillColorDefaultBrush}"
-                                    BorderThickness="0"
-                                    Padding="10,8"
-                                    TextWrapping="Wrap"
-                                    AcceptsReturn="True"
-                                    MinHeight="60"
-                                    MaxHeight="100"/>
-                            <TextBlock TextWrapping="Wrap"
-                                      FontSize="10"
-                                      Opacity="0.6">
-                                <Run Text="Placeholders: {item.path}, {item.name}, {item.extension}"/>
-                            </TextBlock>
                         </StackPanel>
 
-                        <!-- Icon Selection -->
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="Icon" 
-                                      FontSize="12"
-                                      Opacity="0.8"/>
-                            <ComboBox x:Name="CommandIconCombo"
-                                     FontSize="13"
-                                     HorizontalAlignment="Stretch">
-                                <ComboBoxItem Content="📁 Folder" IsSelected="True" Tag="Folder"/>
-                                <ComboBoxItem Content="🌐 Web" Tag="Web"/>
-                                <ComboBoxItem Content="⚙️ Script" Tag="Script"/>
-                                <ComboBoxItem Content="📄 Document" Tag="Document"/>
-                            </ComboBox>
+                        <!-- ACTION GROUP -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Action"
+                                      FontWeight="SemiBold"
+                                      FontSize="13"
+                                      Opacity="0.9"
+                                      Margin="0,0,0,4"/>
+                            
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="When I select an item, run:" 
+                                          FontSize="12"
+                                          Opacity="0.8"/>
+                                <TextBox x:Name="CommandExecuteTemplate"
+                                        PlaceholderText='Example: code "{item.path}"'
+                                        FontSize="13"
+                                        CornerRadius="6"
+                                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                        BorderThickness="0"
+                                        Padding="10,8"
+                                        TextWrapping="Wrap"
+                                        MinHeight="56"/>
+                                
+                                <!-- Hint examples (compact, inline) -->
+                                <TextBlock FontSize="10" Opacity="0.5" TextWrapping="Wrap">
+                                    <Run Text="Examples:"/>
+                                    <LineBreak/>
+                                    <Run Text='notepad "{item.path}"'/>
+                                    <Run Text=" • "/>
+                                    <Run Text='code "{item.path}"'/>
+                                    <Run Text=" • "/>
+                                    <Run Text='explorer /select,"{item.path}"'/>
+                                </TextBlock>
+
+                                <!-- Live Preview -->
+                                <Border x:Name="CommandPreviewBorder"
+                                       Background="#10FFFFFF"
+                                       BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                       BorderThickness="1"
+                                       CornerRadius="4"
+                                       Padding="8,6"
+                                       Margin="0,4,0,0">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="Preview:" FontSize="10" Opacity="0.6"/>
+                                        <TextBlock x:Name="CommandPreviewText"
+                                                  Text='notepad "C:\Users\Michal\Documents\example.md"'
+                                                  FontSize="11"
+                                                  FontFamily="Consolas"
+                                                  Opacity="0.8"
+                                                  TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </StackPanel>
 
-                        <!-- Open in Terminal -->
-                        <CheckBox x:Name="CommandOpenInTerminal"
-                                 Content="Open in terminal window"
-                                 FontSize="12"
-                                 Margin="0,4,0,0"/>
+                        <!-- DISPLAY GROUP -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Display"
+                                      FontWeight="SemiBold"
+                                      FontSize="13"
+                                      Opacity="0.9"
+                                      Margin="0,0,0,4"/>
+                            
+                            <!-- Icon Picker (Visual buttons) -->
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Icon" FontSize="12" Opacity="0.8"/>
+                                <ComboBox x:Name="CommandIconCombo"
+                                         FontSize="13"
+                                         HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="📁 Folder" IsSelected="True" Tag="Folder"/>
+                                    <ComboBoxItem Content="🌐 Web" Tag="Web"/>
+                                    <ComboBoxItem Content="⚙️ Script" Tag="Script"/>
+                                    <ComboBoxItem Content="📄 Document" Tag="Document"/>
+                                </ComboBox>
+                            </StackPanel>
+                            
+                            <!-- Terminal Checkbox -->
+                            <CheckBox x:Name="CommandOpenInTerminal"
+                                     Content="Run in terminal window"
+                                     FontSize="12"/>
+                        </StackPanel>
 
                         <!-- Buttons -->
                         <StackPanel Orientation="Horizontal"

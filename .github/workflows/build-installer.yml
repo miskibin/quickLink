@@ -3,112 +3,102 @@ name: Build MSI Installer
 on:
   push:
     tags:
-      - "v*.*.*.*" # Triggers on version tags like v1.0.3.0
-      - "v*.*.*" # Also supports v1.0.3
+      - 'v*.*.*.*'
+      - 'v*.*.*'
 
 jobs:
   build-installer:
     runs-on: windows-latest
-
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
-
-      - name: Install WiX Toolset
-        shell: pwsh
-        run: |
-          Write-Host "Installing WiX Toolset v6..."
-          dotnet tool install --global wix --version 6.0.0
-
-          Write-Host "Installing UI extension NuGet package..."
-          dotnet package search WixToolset.UI.wixext --exact-match
-
-          Write-Host "Adding WiX UI extension..."
-          wix extension add WixToolset.UI.wixext --version 6.0.2
-
-          Write-Host "Listing installed extensions..."
-          wix extension list
-          Write-Host "WiX setup complete"
-
-      - name: Extract version from tag
-        id: get_version
-        shell: pwsh
-        run: |
-          $tag = "${{ github.ref_name }}"
-          $version = $tag -replace '^v', ''
-          # Ensure 4-part version (1.0.0.0)
-          if ($version -notmatch '\.\d+\.\d+\.\d+$') {
-            $version = "$version.0"
-          }
-          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-          echo "Building version: $version"
-
-      - name: Publish QuickLink (x64)
-        run: |
-          dotnet publish quickLink/quickLink.csproj `
-            -c Release `
-            --self-contained true `
-            -r win-x64 `
-            -o publish `
-            -p:PublishSingleFile=false `
-            -p:PublishReadyToRun=false `
-            -p:Platform=x64
-
-      - name: Build MSI Installer
-        working-directory: quickLink.Installer
-        shell: pwsh
-        run: |
-          wix build Package.wxs `
-            -ext WixToolset.UI.wixext `
-            -arch x64 `
-            -d Version=${{ steps.get_version.outputs.VERSION }} `
-            -bindpath bin=..\publish `
-            -o bin\QuickLink-${{ steps.get_version.outputs.VERSION }}.msi
-
-      - name: Get MSI file info
-        id: msi_info
-        working-directory: quickLink.Installer
-        shell: pwsh
-        run: |
-          $msiPath = "bin\QuickLink-${{ steps.get_version.outputs.VERSION }}.msi"
-          $fileInfo = Get-Item $msiPath
-          $sizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
-          echo "SIZE=$sizeMB MB" >> $env:GITHUB_OUTPUT
-          echo "MSI Size: $sizeMB MB"
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: quickLink.Installer/bin/QuickLink-${{ steps.get_version.outputs.VERSION }}.msi
-          body: |
-            ## QuickLink Installer v${{ steps.get_version.outputs.VERSION }}
-
-            **Download**: QuickLink-${{ steps.get_version.outputs.VERSION }}.msi (${{ steps.msi_info.outputs.SIZE }})
-
-            ### Installation
-            1. Download the MSI file
-            2. Run the installer
-            3. Follow the installation wizard
-
-            ### Features
-            - ✅ x64 Windows installer
-            - ✅ Self-contained (.NET runtime included)
-            - ✅ Start Menu & Desktop shortcuts
-            - ✅ Auto-start with Windows option
-            - ✅ Automatic upgrades from previous versions
-
-            ### System Requirements
-            - Windows 10/11 (64-bit)
-            - ~200 MB disk space
-
-            ---
-            Built with WiX Toolset v6
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Install WiX Toolset
+      shell: pwsh
+      run: |
+        Write-Host "Installing WiX Toolset v6..."
+        dotnet tool install --global wix --version 6.0.0
+        Write-Host "WiX setup complete"
+      
+    - name: Extract version from tag
+      id: get_version
+      shell: pwsh
+      run: |
+        $tag = "${{ github.ref_name }}"
+        $version = $tag -replace '^v', ''
+        if ($version -notmatch '\.\d+\.\d+\.\d+$') {
+          $version = "$version.0"
+        }
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "Building version: $version"
+        
+    - name: Publish QuickLink (x64)
+      run: |
+        dotnet publish quickLink/quickLink.csproj `
+          -c Release `
+          --self-contained true `
+          -r win-x64 `
+          -o publish `
+          -p:PublishSingleFile=false `
+          -p:PublishReadyToRun=false `
+          -p:Platform=x64
+          
+    - name: Build MSI Installer
+      working-directory: quickLink.Installer
+      shell: pwsh
+      run: |
+        dotnet build quickLink.Installer.wixproj `
+          -c Release `
+          -p:Platform=x64 `
+          -p:Version=${{ steps.get_version.outputs.VERSION }} `
+          -p:OutputPath=bin\
+          -p:BindPath=..\publish
+      
+    - name: Get MSI file info
+      id: msi_info
+      working-directory: quickLink.Installer
+      shell: pwsh
+      run: |
+        $msiPath = "bin\QuickLink-${{ steps.get_version.outputs.VERSION }}.msi"
+        $fileInfo = Get-Item $msiPath
+        $sizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
+        echo "SIZE=$sizeMB MB" >> $env:GITHUB_OUTPUT
+        echo "MSI Size: $sizeMB MB"
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: quickLink.Installer/bin/QuickLink-${{ steps.get_version.outputs.VERSION }}.msi
+        body: |
+          ## QuickLink Installer v${{ steps.get_version.outputs.VERSION }}
+          
+          **Download**: QuickLink-${{ steps.get_version.outputs.VERSION }}.msi (${{ steps.msi_info.outputs.SIZE }})
+          
+          ### Installation
+          1. Download the MSI file
+          2. Run the installer
+          3. Follow the installation wizard
+          
+          ### Features
+          - ✅ x64 Windows installer
+          - ✅ Self-contained (.NET runtime included)
+          - ✅ Start Menu & Desktop shortcuts
+          - ✅ Auto-start with Windows option
+          - ✅ Automatic upgrades from previous versions
+          
+          ### System Requirements
+          - Windows 10/11 (64-bit)
+          - ~200 MB disk space
+          
+          ---
+          Built with WiX Toolset v6
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

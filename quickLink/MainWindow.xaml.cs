@@ -263,19 +263,16 @@ namespace quickLink
             DispatcherQueue.TryEnqueue(() =>
             {
                 AppWindow.Show();
-                SearchBox.Text = string.Empty;
                 Activate();
                 SetForegroundWindow(_windowHandle);
                 
-                // Trigger entrance animation
+                // Trigger entrance animation - no delays, app opens instantly!
                 WindowEnterAnimation.Begin();
                 
-                // Small delay to ensure window is fully shown before setting focus
-                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-                {
-                    SearchBox.Focus(FocusState.Programmatic);
-                    SearchBox.SelectAll();
-                });
+                // Set focus and clear search box
+                SearchBox.Text = string.Empty;
+                SearchBox.Focus(FocusState.Programmatic);
+                SearchBox.SelectAll();
             });
         }
         #endregion
@@ -674,6 +671,8 @@ namespace quickLink
 
         public void HideWindow()
         {
+            // Clear search box when hiding so it's fresh when app opens next time
+            SearchBox.Text = string.Empty;
             AppWindow.Hide();
         }
 

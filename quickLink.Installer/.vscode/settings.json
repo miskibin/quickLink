@@ -1,0 +1,11 @@
+{
+    "xml.format.enabled": true,
+    "xml.format.emptyElements": "expand",
+    "xml.format.splitAttributes": "preserve",
+    "files.associations": {
+        "*.wxs": "xml",
+        "*.wxi": "xml"
+    },
+    "xml.validation.enabled": true,
+    "xml.validation.namespaces.enabled": "always"
+}

@@ -46,9 +46,21 @@ Store passwords with encryption and copy them to clipboard instantly. *(Encrypti
 
 ## 🚀 Getting Started
 
+### Installation
+
+**Windows Installer (Recommended)**
+1. Download the latest MSI installer from [releases page](https://github.com/miskibin/quickLink/releases)
+2. Run `QuickLink-{version}.msi`
+3. Follow the installation wizard
+4. QuickLink will start automatically and appear in the system tray
+
+**Portable Version**
+1. Download the portable ZIP from [releases page](https://github.com/miskibin/quickLink/releases)
+2. Extract and run `QuickLink.exe`
+
 ### Quick Start
 
-1. **Download & Launch** QuickLink from the [releases page](https://github.com/miskibin/quickLink/releases)
+1. **Launch** QuickLink (it will appear in the system tray)
 2. Press <kbd>Ctrl+Space</kbd> (default hotkey) to open the search window
 3. Type to find your link, snippet, or command
 4. Press <kbd>Enter</kbd> or click to execute

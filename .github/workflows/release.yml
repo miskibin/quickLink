@@ -1,120 +1,120 @@
-name: Release
+# name: Release
 
-on:
-  push:
-    tags:
-      - 'v*'
+# on:
+#   push:
+#     tags:
+#       - 'v*'
 
-permissions:
-  contents: write
+# permissions:
+#   contents: write
 
-jobs:
-  build-and-release:
-    runs-on: windows-latest
+# jobs:
+#   build-and-release:
+#     runs-on: windows-latest
     
-    env:
-      Project_Path: quickLink/quickLink.csproj
+#     env:
+#       Project_Path: quickLink/quickLink.csproj
       
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+#     steps:
+#     - name: Checkout
+#       uses: actions/checkout@v4
+#       with:
+#         fetch-depth: 0
         
-    - name: Install .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
+#     - name: Install .NET
+#       uses: actions/setup-dotnet@v4
+#       with:
+#         dotnet-version: 8.0.x
         
-    - name: Setup MSBuild.exe
-      uses: microsoft/setup-msbuild@v2
+#     - name: Setup MSBuild.exe
+#       uses: microsoft/setup-msbuild@v2
       
-    - name: Restore the application
-      run: dotnet restore $env:Project_Path
+#     - name: Restore the application
+#       run: dotnet restore $env:Project_Path
       
-    - name: Get version from tag
-      id: get_version
-      run: |
-        $tag = "${{ github.ref_name }}"
-        $version = $tag -replace '^v', ''
-        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-        echo "TAG=$tag" >> $env:GITHUB_OUTPUT
-      shell: pwsh
+#     - name: Get version from tag
+#       id: get_version
+#       run: |
+#         $tag = "${{ github.ref_name }}"
+#         $version = $tag -replace '^v', ''
+#         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+#         echo "TAG=$tag" >> $env:GITHUB_OUTPUT
+#       shell: pwsh
       
-    - name: Generate release notes from commits
-      id: release_notes
-      run: |
-        $currentTag = "${{ github.ref_name }}"
-        # Try to find previous tag; if not found, use repository root as start
-        $previousTag = git describe --tags --abbrev=0 "$currentTag^" 2>$null
-        if ($previousTag) {
-          echo "PREVIOUS_TAG=$previousTag" >> $env:GITHUB_OUTPUT
-          $range = "$previousTag..$currentTag"
-        }
-        else {
-          echo "PREVIOUS_TAG=" >> $env:GITHUB_OUTPUT
-          $initial = git rev-list --max-parents=0 HEAD
-          $range = "$initial..$currentTag"
-        }
+#     - name: Generate release notes from commits
+#       id: release_notes
+#       run: |
+#         $currentTag = "${{ github.ref_name }}"
+#         # Try to find previous tag; if not found, use repository root as start
+#         $previousTag = git describe --tags --abbrev=0 "$currentTag^" 2>$null
+#         if ($previousTag) {
+#           echo "PREVIOUS_TAG=$previousTag" >> $env:GITHUB_OUTPUT
+#           $range = "$previousTag..$currentTag"
+#         }
+#         else {
+#           echo "PREVIOUS_TAG=" >> $env:GITHUB_OUTPUT
+#           $initial = git rev-list --max-parents=0 HEAD
+#           $range = "$initial..$currentTag"
+#         }
 
-        # Collect commit messages (one per line)
-        $commits = git log $range --pretty=format:"- %s" --no-merges | Where-Object { $_ -ne "" }
+#         # Collect commit messages (one per line)
+#         $commits = git log $range --pretty=format:"- %s" --no-merges | Where-Object { $_ -ne "" }
 
-        if (-not $commits -or $commits.Count -eq 0) {
-          $notes = "No commits found.`n`n"
-        }
-        else {
-          $notes = ($commits -join "`n") + "`n`n"
-        }
+#         if (-not $commits -or $commits.Count -eq 0) {
+#           $notes = "No commits found.`n`n"
+#         }
+#         else {
+#           $notes = ($commits -join "`n") + "`n`n"
+#         }
 
-        # Escape for GitHub Actions output and write
-        $notes = $notes -replace '%', '%25' -replace "`n", '%0A' -replace "`r", '%0D'
-        echo "NOTES=$notes" >> $env:GITHUB_OUTPUT
-      shell: pwsh
+#         # Escape for GitHub Actions output and write
+#         $notes = $notes -replace '%', '%25' -replace "`n", '%0A' -replace "`r", '%0D'
+#         echo "NOTES=$notes" >> $env:GITHUB_OUTPUT
+#       shell: pwsh
       
-    - name: Build x64
-      run: |
-        dotnet publish $env:Project_Path -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=true --self-contained
+#     - name: Build x64
+#       run: |
+#         dotnet publish $env:Project_Path -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=true --self-contained
         
-    - name: Create ZIP archive
-      run: |
-        $version = "${{ steps.get_version.outputs.VERSION }}"
-        Compress-Archive -Path "quickLink/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/*" -DestinationPath "quickLink-$version-win-x64.zip"
-      shell: pwsh
+#     - name: Create ZIP archive
+#       run: |
+#         $version = "${{ steps.get_version.outputs.VERSION }}"
+#         Compress-Archive -Path "quickLink/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/*" -DestinationPath "quickLink-$version-win-x64.zip"
+#       shell: pwsh
       
-    - name: Generate checksums
-      run: |
-        $version = "${{ steps.get_version.outputs.VERSION }}"
-        $hash = (Get-FileHash -Path "quickLink-$version-win-x64.zip" -Algorithm SHA256).Hash
-        "$hash  quickLink-$version-win-x64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
-      shell: pwsh
+#     - name: Generate checksums
+#       run: |
+#         $version = "${{ steps.get_version.outputs.VERSION }}"
+#         $hash = (Get-FileHash -Path "quickLink-$version-win-x64.zip" -Algorithm SHA256).Hash
+#         "$hash  quickLink-$version-win-x64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
+#       shell: pwsh
       
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        name: QuickLink ${{ steps.get_version.outputs.TAG }}
-        body: |
-          ## QuickLink ${{ steps.get_version.outputs.VERSION }}
+#     - name: Create Release
+#       uses: softprops/action-gh-release@v1
+#       with:
+#         name: QuickLink ${{ steps.get_version.outputs.TAG }}
+#         body: |
+#           ## QuickLink ${{ steps.get_version.outputs.VERSION }}
           
-          ${{ steps.release_notes.outputs.NOTES }}
+#           ${{ steps.release_notes.outputs.NOTES }}
           
-          ### 📦 Installation
-          1. Download the appropriate ZIP file for your system
-          2. Extract the archive
-          3. Run `quickLink.exe`
-          4. Configure your hotkey in Settings (default: Ctrl+Space)
+#           ### 📦 Installation
+#           1. Download the appropriate ZIP file for your system
+#           2. Extract the archive
+#           3. Run `quickLink.exe`
+#           4. Configure your hotkey in Settings (default: Ctrl+Space)
           
-          ### 💻 Requirements
-          - Windows 10 (19041 or later) or Windows 11
-          - No additional runtime installation required (self-contained)
+#           ### 💻 Requirements
+#           - Windows 10 (19041 or later) or Windows 11
+#           - No additional runtime installation required (self-contained)
           
-          ### 🔐 Checksums
-          See `SHA256SUMS.txt` for file verification.
-        files: |
-          quickLink-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
-          SHA256SUMS.txt
-        draft: false
-        prerelease: false
-        generate_release_notes: ${{ steps.release_notes.outputs.PREVIOUS_TAG == '' }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#           ### 🔐 Checksums
+#           See `SHA256SUMS.txt` for file verification.
+#         files: |
+#           quickLink-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
+#           SHA256SUMS.txt
+#         draft: false
+#         prerelease: false
+#         generate_release_notes: ${{ steps.release_notes.outputs.PREVIOUS_TAG == '' }}
+#       env:
+#         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

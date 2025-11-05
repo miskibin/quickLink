@@ -56,8 +56,10 @@ jobs:
           
     - name: Build MSI Installer
       working-directory: quickLink.Installer
+      shell: pwsh
       run: |
         wix build Package.wxs `
+          -ext WixToolset.UI.wixext `
           -arch x64 `
           -d Version=${{ steps.get_version.outputs.VERSION }} `
           -bindpath bin=..\publish `

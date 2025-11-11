@@ -38,8 +38,8 @@ namespace quickLink.Services
                     return false;
 
                 // Only allow http, https, and mailto schemes for security
-                if (uri.Scheme != Uri.UriSchemeHttp && 
-                    uri.Scheme != Uri.UriSchemeHttps && 
+                if (uri.Scheme != Uri.UriSchemeHttp &&
+                    uri.Scheme != Uri.UriSchemeHttps &&
                     uri.Scheme != Uri.UriSchemeMailto)
                     return false;
 

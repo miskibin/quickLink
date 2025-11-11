@@ -18,7 +18,7 @@ namespace quickLink.Models.ListItems
             {
                 if (IsEncrypted)
                     return "••••••••";
-                    
+
                 // Strip the ">" prefix for display
                 if (Value.StartsWith(">"))
                 {

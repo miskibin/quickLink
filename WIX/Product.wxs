@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<?define BuildOutputPath=..\quickLink\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64?>
+	
+	<Product Id="*" Name="quickLink" Language="1033" Version="1.0.0.0" Manufacturer="miskibin" UpgradeCode="0b4d7b18-dc77-47f8-9777-2e36feb00250">
+		<Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Platform="x64" />
+
+		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+		<MediaTemplate EmbedCab="yes" />
+
+		<Feature Id="ProductFeature" Title="quickLink" Level="1">
+			<ComponentGroupRef Id="ProductComponents" />
+		</Feature>
+	</Product>
+
+	<Fragment>
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFilesFolder">
+				<Directory Id="INSTALLFOLDER" Name="quickLink" />
+			</Directory>
+		</Directory>
+	</Fragment>
+
+	<Fragment>
+		<ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+			<!-- Harvested components from build output -->
+			<?include $(sys.currentfileDir)ProductComponents.wxi?>
+		</ComponentGroup>
+	</Fragment>
+</Wix>

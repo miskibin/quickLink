@@ -54,7 +54,7 @@ namespace quickLink.Models.ListItems
                 .Replace("{item.extension}", Extension);
 
             System.Diagnostics.Debug.WriteLine($"UserCommandResultItem.ExecuteAsync: OpenInTerminal={OpenInTerminal}, Command={command}");
-            
+
             if (OpenInTerminal)
             {
                 System.Diagnostics.Debug.WriteLine("UserCommandResultItem.ExecuteAsync: Calling ExecuteCommandInTerminalAsync");
@@ -65,7 +65,7 @@ namespace quickLink.Models.ListItems
                 System.Diagnostics.Debug.WriteLine("UserCommandResultItem.ExecuteAsync: Calling ExecuteCommandAsync (silent)");
                 await context.ExecuteCommandAsync(command);
             }
-            
+
             context.HideWindow();
         }
 

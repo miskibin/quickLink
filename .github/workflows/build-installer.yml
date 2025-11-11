@@ -24,7 +24,7 @@ jobs:
       run: |
         Write-Host "Installing WiX Toolset v6..."
         dotnet tool install --global wix --version 6.0.0
-        Write-Host "WiX setup complete"
+        Write-Host "WiX installation complete"
       
     - name: Extract version from tag
       id: get_version
@@ -38,47 +38,37 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
         echo "Building version: $version"
         
-    - name: Publish QuickLink (x64)
-      run: |
-        dotnet publish quickLink/quickLink.csproj `
-          -c Release `
-          --self-contained true `
-          -r win-x64 `
-          -o publish `
-          -p:PublishSingleFile=false `
-          -p:PublishReadyToRun=false `
-          -p:Platform=x64
-          
-    - name: Build MSI Installer
+    - name: Build MSI Installer (with auto-publish)
       working-directory: quickLink.Installer
       shell: pwsh
       run: |
         dotnet build quickLink.Installer.wixproj `
           -c Release `
           -p:Platform=x64 `
-          -p:Version=${{ steps.get_version.outputs.VERSION }} `
-          -p:OutputPath=bin\
-          -p:BindPath=..\publish
+          -p:ProductVersion=${{ steps.get_version.outputs.VERSION }}
       
     - name: Get MSI file info
       id: msi_info
-      working-directory: quickLink.Installer
       shell: pwsh
       run: |
-        $msiPath = "bin\QuickLink-${{ steps.get_version.outputs.VERSION }}.msi"
-        $fileInfo = Get-Item $msiPath
-        $sizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
-        echo "SIZE=$sizeMB MB" >> $env:GITHUB_OUTPUT
-        echo "MSI Size: $sizeMB MB"
+        $msiPath = "quickLink.Installer\bin\Release\x64\QuickLink.msi"
+        if (Test-Path $msiPath) {
+          $fileInfo = Get-Item $msiPath
+          $sizeMB = [math]::Round($fileInfo.Length / 1MB, 2)
+          echo "SIZE=$sizeMB MB" >> $env:GITHUB_OUTPUT
+          echo "MSI Size: $sizeMB MB"
+        } else {
+          Write-Error "MSI file not found at $msiPath"
+        }
         
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        files: quickLink.Installer/bin/QuickLink-${{ steps.get_version.outputs.VERSION }}.msi
+        files: quickLink.Installer/bin/Release/x64/QuickLink.msi
         body: |
           ## QuickLink Installer v${{ steps.get_version.outputs.VERSION }}
           
-          **Download**: QuickLink-${{ steps.get_version.outputs.VERSION }}.msi (${{ steps.msi_info.outputs.SIZE }})
+          **Download**: QuickLink.msi (${{ steps.msi_info.outputs.SIZE }})
           
           ### Installation
           1. Download the MSI file

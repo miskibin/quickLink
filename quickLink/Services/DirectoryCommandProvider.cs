@@ -28,14 +28,14 @@ namespace quickLink.Services
                 {
                     var items = new List<UserCommandResultItem>();
                     var matcher = new Matcher(StringComparison.OrdinalIgnoreCase);
-                    
+
                     // Add the glob pattern - if recursive, ensure pattern matches subdirectories
                     string pattern = config.Recursive && !config.Glob.Contains("/") && !config.Glob.Contains("**")
                         ? $"**/{config.Glob}"
                         : config.Glob;
-                    
+
                     matcher.AddInclude(pattern);
-                    
+
                     // Enumerate files with permission error handling
                     var allFiles = Directory.EnumerateFiles(config.Path, "*", new EnumerationOptions
                     {
@@ -43,19 +43,19 @@ namespace quickLink.Services
                         IgnoreInaccessible = true,
                         AttributesToSkip = FileAttributes.System
                     });
-                    
+
                     foreach (var file in allFiles)
                     {
                         if (items.Count >= maxResults)
                             break;
-                        
+
                         // Get relative path for matching
                         var relativePath = Path.GetRelativePath(config.Path, file);
-                        
+
                         // Check if file matches glob pattern
                         if (!matcher.Match(relativePath).HasMatches)
                             continue;
-                        
+
                         var fileInfo = new FileInfo(file);
                         items.Add(new UserCommandResultItem(
                             name: Path.GetFileNameWithoutExtension(file),
@@ -67,7 +67,7 @@ namespace quickLink.Services
                             openInTerminal: openInTerminal
                         ));
                     }
-                    
+
                     return items.OrderBy(i => i.FileDisplayName).ToList();
                 }
                 catch
@@ -83,14 +83,14 @@ namespace quickLink.Services
         public async Task<List<UserCommandResultItem>> SearchItemsAsync(SourceConfig config, string executeTemplate, bool openInTerminal, string searchText, int maxResults = 50)
         {
             var allItems = await GetItemsAsync(config, executeTemplate, openInTerminal, maxResults * 2);
-            
+
             if (string.IsNullOrWhiteSpace(searchText))
                 return allItems.Take(maxResults).ToList();
-            
+
             var searchLower = searchText.ToLowerInvariant();
-            
+
             return allItems
-                .Where(item => 
+                .Where(item =>
                     item.FileDisplayName.Contains(searchLower, StringComparison.OrdinalIgnoreCase) ||
                     item.Name.Contains(searchLower, StringComparison.OrdinalIgnoreCase))
                 .Take(maxResults)

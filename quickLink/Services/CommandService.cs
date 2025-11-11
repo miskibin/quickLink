@@ -4,11 +4,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using quickLink.Models;
 using quickLink.Constants;
+using quickLink.Models;
 using quickLink.Services.Helpers;
 
 namespace quickLink.Services
@@ -64,9 +63,9 @@ namespace quickLink.Services
                 }
 
                 var json = await File.ReadAllTextAsync(_commandsFilePath);
-                var commands = JsonSerializer.Deserialize<List<CommandDto>>(json, _jsonOptions) 
+                var commands = JsonSerializer.Deserialize<List<CommandDto>>(json, _jsonOptions)
                     ?? new List<CommandDto>();
-                
+
                 _cachedCommands = commands.Select(MapDtoToCommand).ToList();
                 return new List<UserCommand>(_cachedCommands);
             }
@@ -92,7 +91,7 @@ namespace quickLink.Services
                 var dtos = commands.Select(MapCommandToDto).ToList();
                 var json = JsonSerializer.Serialize(dtos, _jsonOptions);
                 await File.WriteAllTextAsync(_commandsFilePath, json);
-                
+
                 _cachedCommands = new List<UserCommand>(commands);
             }
             finally

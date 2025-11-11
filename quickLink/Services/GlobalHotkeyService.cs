@@ -62,16 +62,16 @@ namespace quickLink.Services
             _windowHandle = windowHandle;
             _currentModifiers = modifiers;
             _currentKey = key;
-            
+
             _isRegistered = RegisterHotKey(windowHandle, HOTKEY_ID, modifiers, key);
-            
+
             if (!_isRegistered)
             {
                 // Get last Win32 error for debugging
                 var errorCode = Marshal.GetLastWin32Error();
                 System.Diagnostics.Debug.WriteLine($"Failed to register hotkey. Error code: {errorCode}");
             }
-            
+
             return _isRegistered;
         }
 

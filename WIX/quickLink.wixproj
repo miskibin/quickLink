@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+ <ProductVersion>3.11</ProductVersion>
+    <ProjectGuid>12345678-1234-1234-1234-123456789012</ProjectGuid>
+    <SchemaVersion>2.0</SchemaVersion>
+    <OutputName>quickLink</OutputName>
+  <OutputType>Bundle</OutputType>
+    <WixVersion>4.0</WixVersion>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+    <OutputPath>bin\Debug\</OutputPath>
+    <IntermediateOutputPath>obj\Debug\</IntermediateOutputPath>
+    <DefineConstants>Debug</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+    <OutputPath>bin\Release\</OutputPath>
+    <IntermediateOutputPath>obj\Release\</IntermediateOutputPath>
+    <DefineConstants></DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Product.wxs" />
+</ItemGroup>
+
+  <!-- Harvest build output files -->
+  <ItemGroup>
+    <HarvestDirectory Include="..\quickLink\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64">
+<OutputGroup>Binaries</OutputGroup>
+      <PreprocessorVariable>var.BuildOutputPath</PreprocessorVariable>
+    </HarvestDirectory>
+  </ItemGroup>
+
+  <Import Project="$(WixToolsPath)\Wix.Common.targets" />
+</Project>

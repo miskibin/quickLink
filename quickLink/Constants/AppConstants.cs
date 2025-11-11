@@ -25,7 +25,7 @@ namespace quickLink.Constants
             public const string CommandPrefix = ">";
             public const string SearchPrefix = "search:";
             public const string UserCommandPrefix = "/";
-            
+
             // Internal commands
             public const string AddCommand = "internal:add";
             public const string AddCommandAdvanced = "internal:addcommand";

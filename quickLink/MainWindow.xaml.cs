@@ -3,24 +3,17 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.UI;
-using Microsoft.UI.Composition;
-using Microsoft.UI.Composition.SystemBackdrops;
-using Microsoft.Graphics.Canvas.Effects;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Hosting;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
+using quickLink.Constants;
 using quickLink.Models;
 using quickLink.Models.ListItems;
 using quickLink.Services;
-using quickLink.Constants;
-using Windows.UI;
 using WinRT.Interop;
 
 namespace quickLink
@@ -30,20 +23,20 @@ namespace quickLink
         #region Constants
         private const int WM_HOTKEY = 0x0312;
         private const int GWLP_WNDPROC = -4;
-        
+
         // Win32 modifier flags
         private const uint MOD_ALT = 0x0001;
         private const uint MOD_CONTROL = 0x0002;
         private const uint MOD_SHIFT = 0x0004;
-        
+
         // Window dimensions - 1.2x bigger
         private const int WINDOW_WIDTH = 720;  // 600 * 1.2
         private const int WINDOW_HEIGHT = 360; // 300 * 1.2
-        
+
         // Default hotkey
-        private static readonly Windows.System.VirtualKeyModifiers DefaultHotkeyModifiers = 
+        private static readonly Windows.System.VirtualKeyModifiers DefaultHotkeyModifiers =
             Windows.System.VirtualKeyModifiers.Control;
-        private static readonly Windows.System.VirtualKey DefaultHotkeyKey = 
+        private static readonly Windows.System.VirtualKey DefaultHotkeyKey =
             Windows.System.VirtualKey.Space;
         #endregion
 
@@ -59,7 +52,7 @@ namespace quickLink
         private readonly List<InternalCommandItem> _internalCommands;
         private readonly SearchSuggestionItem _searchSuggestionItem;
         private List<UserCommand> _userCommands;
-        
+
         private GlobalHotkeyService? _hotkeyService;
         private IntPtr _windowHandle;
         private IListItem? _editingItem;
@@ -69,14 +62,14 @@ namespace quickLink
         private string _searchUrl = AppConstants.DefaultSettings.DefaultSearchUrl;
         private Windows.System.VirtualKeyModifiers _newHotkeyModifiers = DefaultHotkeyModifiers;
         private Windows.System.VirtualKey _newHotkeyKey = DefaultHotkeyKey;
-        
+
         // Performance optimization: cache the last search to avoid redundant filtering
         private string _lastSearchText = string.Empty;
-        
+
         // Window subclassing
         private WinProc? _newWndProc;
         private IntPtr _oldWndProc;
-        
+
         public List<UserCommand> UserCommands
         {
             get => _userCommands;
@@ -121,7 +114,7 @@ namespace quickLink
                 InitializeInternalCommands();
                 InitializeWindow();
                 InitializeHotkey();
-                
+
                 _ = LoadDataAsync();
                 _ = InitializeMediaServiceAsync();
             }
@@ -150,7 +143,7 @@ namespace quickLink
             _internalCommands.Add(new InternalCommandItem("Next Track", AppConstants.MediaCommands.Next));
             _internalCommands.Add(new InternalCommandItem("Previous Track", AppConstants.MediaCommands.Previous));
             _internalCommands.Add(new InternalCommandItem("Play/Pause", AppConstants.MediaCommands.PlayPause));
-            
+
             // App commands
             _internalCommands.Add(new InternalCommandItem("Add new item", AppConstants.CommandPrefixes.AddCommand));
             _internalCommands.Add(new InternalCommandItem("Add new command (advanced)", AppConstants.CommandPrefixes.AddCommandAdvanced));
@@ -162,7 +155,7 @@ namespace quickLink
         {
             _windowHandle = WindowNative.GetWindowHandle(this);
             ItemsList.ItemsSource = _filteredItems;
-            
+
             ConfigureWindowStyle();
             AppWindow.Resize(new Windows.Graphics.SizeInt32(WINDOW_WIDTH, WINDOW_HEIGHT));
             CenterWindow();
@@ -228,10 +221,10 @@ namespace quickLink
         private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
         {
             if (AppWindow.Presenter is not OverlappedPresenter presenter) return;
-            
+
             // Stay on top only when focused
             presenter.IsAlwaysOnTop = args.WindowActivationState != WindowActivationState.Deactivated;
-            
+
             if (args.WindowActivationState != WindowActivationState.Deactivated)
             {
                 SearchBox.Focus(FocusState.Programmatic);
@@ -243,7 +236,7 @@ namespace quickLink
         private void SubclassWindow()
         {
             _newWndProc = NewWindowProc;
-            _oldWndProc = SetWindowLongPtr(_windowHandle, GWLP_WNDPROC, 
+            _oldWndProc = SetWindowLongPtr(_windowHandle, GWLP_WNDPROC,
                 Marshal.GetFunctionPointerForDelegate(_newWndProc));
         }
 
@@ -265,10 +258,10 @@ namespace quickLink
                 AppWindow.Show();
                 Activate();
                 SetForegroundWindow(_windowHandle);
-                
+
                 // Trigger entrance animation - no delays, app opens instantly!
                 WindowEnterAnimation.Begin();
-                
+
                 // Set focus and clear search box
                 SearchBox.Text = string.Empty;
                 SearchBox.Focus(FocusState.Programmatic);
@@ -281,30 +274,30 @@ namespace quickLink
         private async Task LoadDataAsync()
         {
             LoadingOverlay.Visibility = Visibility.Visible;
-            
+
             try
             {
                 await _commandService.EnsureCommandsFileExistsAsync();
-                
+
                 // Load usage stats first
                 await _usageTrackingService.LoadAsync();
-                
+
                 var items = await _dataService.LoadItemsAsync();
                 _allItems.Clear();
                 foreach (var item in items)
                 {
                     _allItems.Add(item);
                 }
-                
+
                 // Load user commands
                 _userCommands = await _commandService.LoadCommandsAsync();
-                
+
                 // Load footer setting
                 var settings = await _dataService.LoadSettingsAsync();
                 _hideFooter = settings.HideFooter;
                 _searchUrl = settings.SearchUrl;
                 UpdateFooterVisibility();
-                
+
                 FilterItems();
             }
             catch (Exception ex)
@@ -324,7 +317,7 @@ namespace quickLink
                 var settings = await _dataService.LoadSettingsAsync();
                 (_newHotkeyModifiers, _newHotkeyKey) = ConvertFromWin32Modifiers(
                     settings.HotkeyModifiers, settings.HotkeyKey);
-                
+
                 _hotkeyService?.RegisterHotkey(_windowHandle, settings.HotkeyModifiers, settings.HotkeyKey);
             }
             catch
@@ -340,7 +333,7 @@ namespace quickLink
         {
             var searchText = SearchBox.Text?.ToLowerInvariant() ?? string.Empty;
             var isEmpty = string.IsNullOrWhiteSpace(searchText);
-            
+
             // Check if it's a user command
             if (!isEmpty && searchText.StartsWith(AppConstants.CommandPrefixes.UserCommandPrefix))
             {
@@ -350,36 +343,36 @@ namespace quickLink
                     ShowCommandSuggestions(searchText);
                     return;
                 }
-                
+
                 await HandleUserCommandAsync(searchText);
                 return;
             }
-            
+
             // Pre-calculate whether to include internal commands
             var includeInternalCommands = _hideFooter || !isEmpty;
-            
+
             // Optimize: avoid multiple enumerations
             List<IListItem> newItems;
-            
+
             if (isEmpty)
             {
                 // No search - take first 6 items sorted by usage, plus internal commands if needed
                 _filteredItems.Clear();
-                
+
                 newItems = new List<IListItem>(7); // Pre-allocate capacity
-                
+
                 // Sort all items by usage score (descending)
                 var sortedItems = _allItems
                     .Select(item => new { Item = item, Score = _usageTrackingService.GetUsageScore(item) })
                     .OrderByDescending(x => x.Score)
                     .Take(6)
                     .Select(x => x.Item);
-                
+
                 foreach (var item in sortedItems)
                 {
                     _filteredItems.Add(item);
                 }
-                
+
                 if (includeInternalCommands)
                 {
                     foreach (var cmd in _internalCommands)
@@ -388,7 +381,7 @@ namespace quickLink
                         _filteredItems.Add(cmd);
                     }
                 }
-                
+
                 // Auto-select first item
                 if (_filteredItems.Count > 0)
                 {
@@ -401,7 +394,7 @@ namespace quickLink
                 // With search - filter, calculate combined score (text match + usage), and sort
                 var capacity = Math.Min(_allItems.Count + (includeInternalCommands ? _internalCommands.Count : 0), 7);
                 var scoredItems = new List<(IListItem Item, double Score)>(capacity);
-                
+
                 // Search user items with scoring
                 foreach (var item in _allItems)
                 {
@@ -409,15 +402,15 @@ namespace quickLink
                     {
                         // Calculate text match score (1.0 for exact match, 0.5 for partial)
                         var textScore = item.DisplayValue?.ToLowerInvariant().StartsWith(searchText) == true ? 1.0 : 0.5;
-                        
+
                         // Add usage score boost
                         var usageScore = _usageTrackingService.GetUsageScore(item);
                         var combinedScore = textScore + usageScore;
-                        
+
                         scoredItems.Add((item, combinedScore));
                     }
                 }
-                
+
                 // Search internal commands if needed
                 if (includeInternalCommands)
                 {
@@ -431,14 +424,14 @@ namespace quickLink
                         }
                     }
                 }
-                
+
                 // Sort by score descending and take top 6
                 newItems = scoredItems
                     .OrderByDescending(x => x.Score)
                     .Take(6)
                     .Select(x => x.Item)
                     .ToList();
-                
+
                 // If no results and not a command, show search suggestion
                 if (newItems.Count == 0)
                 {
@@ -471,19 +464,19 @@ namespace quickLink
         private void ShowCommandSuggestions(string searchText)
         {
             var query = searchText.TrimStart('/').ToLowerInvariant();
-            
+
             _filteredItems.Clear();
-            
+
             // Filter commands by prefix
             var matchingCommands = _userCommands
                 .Where(c => string.IsNullOrEmpty(query) || c.Prefix.ToLowerInvariant().Contains(query))
                 .Take(6);
-            
+
             foreach (var cmd in matchingCommands)
             {
                 _filteredItems.Add(new CommandSuggestionItem(cmd));
             }
-            
+
             if (_filteredItems.Count > 0)
             {
                 ItemsList.SelectedIndex = 0;
@@ -496,20 +489,20 @@ namespace quickLink
             var parts = searchText.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             var commandPrefix = parts.Length > 0 ? parts[0] : searchText;
             var query = parts.Length > 1 ? parts[1] : string.Empty;
-            
+
             // Find matching command
-            var command = _userCommands.FirstOrDefault(c => 
+            var command = _userCommands.FirstOrDefault(c =>
                 c.Prefix.Equals(commandPrefix, StringComparison.OrdinalIgnoreCase));
-            
+
             if (command == null)
             {
                 _filteredItems.Clear();
                 return;
             }
-            
+
             // Get items from provider based on source type
             List<UserCommandResultItem> resultItems;
-            
+
             switch (command.Source)
             {
                 case CommandSourceType.Directory:
@@ -517,10 +510,10 @@ namespace quickLink
                         ? await _directoryProvider.GetItemsAsync(command.SourceConfig, command.ExecuteTemplate, command.OpenInTerminal, 6)
                         : await _directoryProvider.SearchItemsAsync(command.SourceConfig, command.ExecuteTemplate, command.OpenInTerminal, query, 6);
                     break;
-                
+
                 case CommandSourceType.Static:
                     resultItems = command.SourceConfig.Items
-                        .Where(item => string.IsNullOrWhiteSpace(query) || 
+                        .Where(item => string.IsNullOrWhiteSpace(query) ||
                                      item.Contains(query, StringComparison.OrdinalIgnoreCase))
                         .Take(6)
                         .Select(item => new UserCommandResultItem(
@@ -534,20 +527,20 @@ namespace quickLink
                         ))
                         .ToList();
                     break;
-                
+
                 default:
                     resultItems = new List<UserCommandResultItem>();
                     break;
             }
-            
+
             UpdateFilteredItems(resultItems.Cast<IListItem>().ToList());
-            
+
             if (_filteredItems.Count > 0)
             {
                 ItemsList.SelectedIndex = 0;
             }
         }
-        
+
         private void UpdateFilteredItems(List<IListItem> newItems)
         {
             // Remove items from the end that are no longer needed
@@ -555,7 +548,7 @@ namespace quickLink
             {
                 _filteredItems.RemoveAt(_filteredItems.Count - 1);
             }
-            
+
             // Update existing items or add new ones
             for (int i = 0; i < newItems.Count; i++)
             {
@@ -639,7 +632,7 @@ namespace quickLink
         {
             // Execute command in a visible terminal window
             System.Diagnostics.Debug.WriteLine($"ExecuteCommandInTerminalAsync: Opening terminal with command: {command}");
-            
+
             await Task.Run(() =>
             {
                 try
@@ -652,7 +645,7 @@ namespace quickLink
                         CreateNoWindow = false,
                         WindowStyle = ProcessWindowStyle.Normal
                     };
-                    
+
                     var process = Process.Start(psi);
                     System.Diagnostics.Debug.WriteLine($"ExecuteCommandInTerminalAsync: Process started: {process != null}");
                 }
@@ -712,7 +705,7 @@ namespace quickLink
                 HideEditPanel();
             else
                 AppWindow.Hide();
-                
+
             args.Handled = true;
         }
 
@@ -752,7 +745,7 @@ namespace quickLink
             {
                 _ = HandleNoMatchAsync(SearchBox.Text.Trim());
             }
-            
+
             args.Handled = true;
         }
 
@@ -766,10 +759,10 @@ namespace quickLink
                 SearchBox.Focus(FocusState.Programmatic);
                 return;
             }
-            
+
             // Record usage for ranking (before execution)
             await _usageTrackingService.RecordUsageAsync(item);
-            
+
             // Delegate to the item's execute method
             await item.ExecuteAsync(this);
         }
@@ -847,20 +840,20 @@ namespace quickLink
                 case "media next":
                     await _mediaControlService.SkipToNextAsync();
                     return true;
-                    
+
                 case "prev":
                 case "previous":
                 case "media prev":
                     await _mediaControlService.SkipToPreviousAsync();
                     return true;
-                    
+
                 case "playpause":
                 case "play":
                 case "pause":
                 case "media playpause":
                     await _mediaControlService.PlayPauseAsync();
                     return true;
-                    
+
                 default:
                     return false;
             }
@@ -880,7 +873,7 @@ namespace quickLink
                     ShowCommandPanelInternal(cmdSuggestion.RelatedCommand);
                     return;
                 }
-                
+
                 // If it's an editable item, show edit panel
                 if (item is IEditableItem editableItem)
                 {
@@ -893,7 +886,7 @@ namespace quickLink
         {
             _isEditing = true;
             _editingItem = item as IListItem;
-            
+
             if (item != null)
             {
                 EditTitle.Text = item.Title;
@@ -906,7 +899,7 @@ namespace quickLink
                 EditValue.Text = string.Empty;
                 EditEncrypt.IsChecked = false;
             }
-            
+
             SearchBox.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Collapsed;
             FooterPanel.Visibility = Visibility.Collapsed;
@@ -923,7 +916,8 @@ namespace quickLink
             ItemsList.Visibility = Visibility.Visible;
             UpdateFooterVisibility();
             SearchBox.Focus(FocusState.Programmatic);
-        }        private void OnCancelEdit(object sender, RoutedEventArgs e) => HideEditPanel();
+        }
+        private void OnCancelEdit(object sender, RoutedEventArgs e) => HideEditPanel();
 
         private void OnCancelEditKey(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
@@ -996,7 +990,7 @@ namespace quickLink
                 // If it's a command suggestion, delete the actual command
                 if (item is CommandSuggestionItem suggestionItem && suggestionItem.CommandPrefix.StartsWith(AppConstants.CommandPrefixes.UserCommandPrefix))
                 {
-                    var command = _userCommands.FirstOrDefault(c => 
+                    var command = _userCommands.FirstOrDefault(c =>
                         c.Prefix.Equals(suggestionItem.CommandPrefix, StringComparison.OrdinalIgnoreCase));
                     if (command != null)
                     {
@@ -1015,14 +1009,14 @@ namespace quickLink
                         {
                             await _commandService.DeleteCommandAsync(command, _userCommands);
                             _userCommands = await _commandService.LoadCommandsAsync();
-                            
+
                             // Refresh the command suggestions
                             ShowCommandSuggestions(SearchBox.Text);
                         }
                         return;
                     }
                 }
-                
+
                 _allItems.Remove(item);
                 await _dataService.DeleteItemAsync(item, _allItems.ToList());
                 FilterItems();
@@ -1036,7 +1030,7 @@ namespace quickLink
         private void ShowCommandPanelInternal(UserCommand? command = null)
         {
             _editingCommand = command;
-            
+
             if (command != null)
             {
                 // Edit mode
@@ -1048,7 +1042,7 @@ namespace quickLink
                 CommandExecuteTemplate.Text = command.ExecuteTemplate;
                 CommandIconCombo.SelectedIndex = (int)command.Icon;
                 CommandOpenInTerminal.IsChecked = command.OpenInTerminal;
-                
+
                 // Populate static items list
                 StaticItemsList.Items.Clear();
                 foreach (var item in command.SourceConfig.Items)
@@ -1069,16 +1063,16 @@ namespace quickLink
                 CommandOpenInTerminal.IsChecked = false;
                 StaticItemsList.Items.Clear();
             }
-            
+
             // Wire up text changed events for live preview
             CommandExecuteTemplate.TextChanged -= OnCommandTemplateChanged;
             CommandExecuteTemplate.TextChanged += OnCommandTemplateChanged;
             CommandPath.TextChanged -= OnCommandPathChanged;
             CommandPath.TextChanged += OnCommandPathChanged;
-            
+
             // Update preview
             UpdateCommandPreview();
-            
+
             SearchBox.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Collapsed;
             FooterPanel.Visibility = Visibility.Collapsed;
@@ -1091,11 +1085,11 @@ namespace quickLink
         private void HideCommandPanel()
         {
             _editingCommand = null;
-            
+
             // Unsubscribe from text changed events
             CommandExecuteTemplate.TextChanged -= OnCommandTemplateChanged;
             CommandPath.TextChanged -= OnCommandPathChanged;
-            
+
             SearchBox.Visibility = Visibility.Visible;
             CommandPanel.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Visible;
@@ -1117,17 +1111,17 @@ namespace quickLink
         {
             var template = CommandExecuteTemplate.Text ?? string.Empty;
             var path = CommandPath.Text ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            
+
             // Create a sample file path for preview
             var sampleFileName = "example.md";
             var samplePath = System.IO.Path.Combine(path, sampleFileName);
-            
+
             // Replace placeholders
             var preview = template
                 .Replace("{item.path}", samplePath)
                 .Replace("{item.name}", sampleFileName)
                 .Replace("{item.extension}", ".md");
-            
+
             // Show placeholder if empty
             if (string.IsNullOrWhiteSpace(preview))
             {
@@ -1138,7 +1132,7 @@ namespace quickLink
             {
                 CommandPreviewText.Opacity = 0.8;
             }
-            
+
             CommandPreviewText.Text = preview;
         }
 
@@ -1155,7 +1149,7 @@ namespace quickLink
             // Null check - this can be called during XAML initialization before elements are ready
             if (DirectoryConfigPanel == null || StaticItemsConfigPanel == null)
                 return;
-                
+
             if (CommandSourceCombo.SelectedIndex == 0)
             {
                 // Directory
@@ -1200,14 +1194,14 @@ namespace quickLink
 
         private async void OnSaveCommandEdit(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(CommandPrefix.Text) || 
+            if (string.IsNullOrWhiteSpace(CommandPrefix.Text) ||
                 string.IsNullOrWhiteSpace(CommandExecuteTemplate.Text))
             {
                 return;
             }
 
-            var sourceType = CommandSourceCombo.SelectedIndex == 0 
-                ? Models.CommandSourceType.Directory 
+            var sourceType = CommandSourceCombo.SelectedIndex == 0
+                ? Models.CommandSourceType.Directory
                 : Models.CommandSourceType.Static;
 
             var iconType = CommandIconCombo.SelectedIndex switch
@@ -1268,13 +1262,13 @@ namespace quickLink
             _isInSettings = true;
             LoadSettings();
             ApplyHotkeyButton.IsEnabled = false;
-            
+
             SearchBox.Visibility = Visibility.Collapsed;
             ItemsList.Visibility = Visibility.Collapsed;
             FooterPanel.Visibility = Visibility.Collapsed;
             EditPanel.Visibility = Visibility.Collapsed;
             SettingsPanel.Visibility = Visibility.Visible;
-            
+
             // Set focus to the first interactive element
             StartWithSystemCheckBox.Focus(FocusState.Programmatic);
         }
@@ -1319,7 +1313,7 @@ namespace quickLink
                 return;
 
             _searchUrl = newUrl;
-            
+
             // Save setting
             var settings = await _dataService.LoadSettingsAsync();
             settings.SearchUrl = _searchUrl;
@@ -1347,7 +1341,7 @@ namespace quickLink
             try
             {
                 var startupTask = await Windows.ApplicationModel.StartupTask.GetAsync("QuickLinkStartup");
-                StartWithSystemCheckBox.IsChecked = 
+                StartWithSystemCheckBox.IsChecked =
                     startupTask.State == Windows.ApplicationModel.StartupTaskState.Enabled;
             }
             catch
@@ -1362,7 +1356,7 @@ namespace quickLink
             try
             {
                 var startupTask = await Windows.ApplicationModel.StartupTask.GetAsync("QuickLinkStartup");
-                
+
                 if (StartWithSystemCheckBox.IsChecked == true)
                 {
                     var state = await startupTask.RequestEnableAsync();
@@ -1386,12 +1380,12 @@ namespace quickLink
         {
             _hideFooter = HideFooterCheckBox.IsChecked ?? false;
             UpdateFooterVisibility();
-            
+
             // Save setting
             var settings = await _dataService.LoadSettingsAsync();
             settings.HideFooter = _hideFooter;
             await _dataService.SaveSettingsAsync(settings);
-            
+
             // Refresh filtered items to include/exclude internal commands
             FilterItems();
         }
@@ -1425,10 +1419,10 @@ namespace quickLink
                 e.Handled = false;
                 return;
             }
-            
+
             e.Handled = true;
             var key = e.Key;
-            
+
             if (IsModifierKey(key))
             {
                 UpdateHotkeyDisplay();
@@ -1436,19 +1430,19 @@ namespace quickLink
                 ApplyHotkeyButton.IsEnabled = false;
                 return;
             }
-            
+
             var modifiers = GetCurrentModifiers();
-            
+
             if (modifiers == Windows.System.VirtualKeyModifiers.None)
             {
                 HotkeyStatusText.Text = "⚠ Must include at least one modifier (Ctrl, Shift, or Alt)";
                 ApplyHotkeyButton.IsEnabled = false;
                 return;
             }
-            
+
             _newHotkeyModifiers = modifiers;
             _newHotkeyKey = key;
-            
+
             UpdateHotkeyDisplay();
             HotkeyStatusText.Text = "✓ Ready to apply — click the Apply button";
             ApplyHotkeyButton.IsEnabled = true;
@@ -1481,15 +1475,15 @@ namespace quickLink
         private static Windows.System.VirtualKeyModifiers GetCurrentModifiers()
         {
             var modifiers = Windows.System.VirtualKeyModifiers.None;
-            
+
             try
             {
                 if (IsKeyDown(Windows.System.VirtualKey.Control))
                     modifiers |= Windows.System.VirtualKeyModifiers.Control;
-                    
+
                 if (IsKeyDown(Windows.System.VirtualKey.Shift))
                     modifiers |= Windows.System.VirtualKeyModifiers.Shift;
-                    
+
                 if (IsKeyDown(Windows.System.VirtualKey.Menu))
                     modifiers |= Windows.System.VirtualKeyModifiers.Menu;
             }
@@ -1497,33 +1491,33 @@ namespace quickLink
             {
                 // If we can't get key states, return None
             }
-            
+
             return modifiers;
         }
 
         private static bool IsKeyDown(Windows.System.VirtualKey key)
         {
             var state = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(key);
-            return (state & Windows.UI.Core.CoreVirtualKeyStates.Down) == 
+            return (state & Windows.UI.Core.CoreVirtualKeyStates.Down) ==
                    Windows.UI.Core.CoreVirtualKeyStates.Down;
         }
 
         private void UpdateHotkeyDisplay()
         {
             var parts = new List<string>();
-            
+
             if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control))
                 parts.Add("Ctrl");
             if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Shift))
                 parts.Add("Shift");
             if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Menu))
                 parts.Add("Alt");
-            
+
             if (_newHotkeyKey != Windows.System.VirtualKey.None)
                 parts.Add(_newHotkeyKey.ToString());
-            
-            HotkeyTextBox.Text = parts.Count > 0 
-                ? string.Join(" + ", parts) 
+
+            HotkeyTextBox.Text = parts.Count > 0
+                ? string.Join(" + ", parts)
                 : "Ctrl + Space (default)";
         }
 
@@ -1548,16 +1542,16 @@ namespace quickLink
             try
             {
                 var (modifiers, vKey) = ConvertToWin32Modifiers(_newHotkeyModifiers, _newHotkeyKey);
-                
+
                 _hotkeyService?.RegisterHotkey(_windowHandle, modifiers, vKey);
-                
+
                 var settings = new AppSettings
                 {
                     HotkeyModifiers = modifiers,
                     HotkeyKey = vKey
                 };
                 await _dataService.SaveSettingsAsync(settings);
-                
+
                 HotkeyStatusText.Text = "Hotkey updated and saved!";
             }
             catch (Exception ex)
@@ -1569,40 +1563,40 @@ namespace quickLink
 
         #region Hotkey Conversion Helpers
         private static (uint modifiers, uint key) ConvertToWin32Modifiers(
-            Windows.System.VirtualKeyModifiers modifiers, 
+            Windows.System.VirtualKeyModifiers modifiers,
             Windows.System.VirtualKey key)
         {
             uint win32Modifiers = 0;
-            
+
             if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control))
                 win32Modifiers |= MOD_CONTROL;
             if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Shift))
                 win32Modifiers |= MOD_SHIFT;
             if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Menu))
                 win32Modifiers |= MOD_ALT;
-            
+
             return (win32Modifiers, (uint)key);
         }
 
-        private static (Windows.System.VirtualKeyModifiers modifiers, Windows.System.VirtualKey key) 
+        private static (Windows.System.VirtualKeyModifiers modifiers, Windows.System.VirtualKey key)
             ConvertFromWin32Modifiers(uint win32Modifiers, uint vKey)
         {
             var modifiers = Windows.System.VirtualKeyModifiers.None;
-            
+
             if ((win32Modifiers & MOD_CONTROL) != 0)
                 modifiers |= Windows.System.VirtualKeyModifiers.Control;
             if ((win32Modifiers & MOD_SHIFT) != 0)
                 modifiers |= Windows.System.VirtualKeyModifiers.Shift;
             if ((win32Modifiers & MOD_ALT) != 0)
                 modifiers |= Windows.System.VirtualKeyModifiers.Menu;
-            
+
             return (modifiers, (Windows.System.VirtualKey)vKey);
         }
         #endregion
 
         #region Public Methods
         public bool HasNoCommands(int count) => count == 0;
-        
+
         public int GetCommandCount() => _userCommands?.Count ?? 0;
         #endregion
 

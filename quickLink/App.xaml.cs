@@ -23,14 +23,14 @@ namespace quickLink
         public App()
         {
             InitializeComponent();
-            
+
             // Add unhandled exception handler
             this.UnhandledException += (sender, e) =>
             {
                 System.Diagnostics.Debug.WriteLine($"UNHANDLED EXCEPTION: {e.Message}");
                 System.Diagnostics.Debug.WriteLine($"Exception type: {e.Exception?.GetType().Name}");
                 System.Diagnostics.Debug.WriteLine($"Stack trace: {e.Exception?.StackTrace}");
-                
+
                 // Write to a log file
                 try
                 {
@@ -46,7 +46,7 @@ namespace quickLink
                     }
                 }
                 catch { }
-                
+
                 e.Handled = true;
             };
         }

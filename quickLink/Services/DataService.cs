@@ -3,12 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using quickLink.Constants;
 using quickLink.Models;
 using quickLink.Models.ListItems;
-using quickLink.Constants;
 using quickLink.Services.Helpers;
 
 namespace quickLink.Services
@@ -20,7 +19,7 @@ namespace quickLink.Services
         private readonly EncryptionService _encryptionService;
         private readonly SemaphoreSlim _fileLock;
         private readonly JsonSerializerOptions _jsonOptions;
-        
+
         private List<IListItem>? _cachedItems;
 
         public DataService()
@@ -50,9 +49,9 @@ namespace quickLink.Services
                 }
 
                 var json = await File.ReadAllTextAsync(_dataFilePath);
-                var items = JsonSerializer.Deserialize<List<ItemDto>>(json, _jsonOptions) 
+                var items = JsonSerializer.Deserialize<List<ItemDto>>(json, _jsonOptions)
                     ?? new List<ItemDto>();
-                
+
                 _cachedItems = items.Select(MapDtoToItem).ToList();
                 return new List<IListItem>(_cachedItems);
             }
@@ -78,7 +77,7 @@ namespace quickLink.Services
                     .ToList();
                 var json = JsonSerializer.Serialize(dtos, _jsonOptions);
                 await File.WriteAllTextAsync(_dataFilePath, json);
-                
+
                 _cachedItems = new List<IListItem>(items.Where(item => item is IEditableItem));
             }
             finally
@@ -147,12 +146,12 @@ namespace quickLink.Services
 
         private IListItem MapDtoToItem(ItemDto dto)
         {
-            var value = dto.IsEncrypted 
-                ? _encryptionService.Decrypt(dto.Value ?? string.Empty) 
+            var value = dto.IsEncrypted
+                ? _encryptionService.Decrypt(dto.Value ?? string.Empty)
                 : dto.Value ?? string.Empty;
 
             // Detect type based on value patterns
-            var isLink = !string.IsNullOrWhiteSpace(value) && 
+            var isLink = !string.IsNullOrWhiteSpace(value) &&
                 (value.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                  value.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
 
@@ -179,8 +178,8 @@ namespace quickLink.Services
                 throw new InvalidOperationException("Can only save editable items");
             }
 
-            var value = editableItem.IsEncrypted 
-                ? _encryptionService.Encrypt(editableItem.Value) 
+            var value = editableItem.IsEncrypted
+                ? _encryptionService.Encrypt(editableItem.Value)
                 : editableItem.Value;
 
             return new ItemDto

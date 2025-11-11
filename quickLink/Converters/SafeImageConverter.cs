@@ -28,14 +28,14 @@ namespace quickLink.Converters
 
                     // Create new bitmap with optimized settings
                     var bitmapImage = new BitmapImage();
-                    
+
                     // Decode image at smaller size to save memory (favicons are small anyway)
                     bitmapImage.DecodePixelWidth = 32;
                     bitmapImage.DecodePixelHeight = 32;
-                    
+
                     // Enable async loading to prevent UI blocking
                     bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
-                    
+
                     bitmapImage.UriSource = new Uri(url, UriKind.Absolute);
 
                     // Cache the image for reuse
@@ -46,7 +46,7 @@ namespace quickLink.Converters
                         {
                             _imageCache.Clear(); // Simple eviction strategy
                         }
-                        
+
                         if (!_imageCache.ContainsKey(url))
                         {
                             _imageCache[url] = bitmapImage;

@@ -21,12 +21,12 @@ namespace quickLink.Services.Helpers
         {
             var appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var appFolder = Path.Combine(appDataFolder, AppConstants.Folders.DataFolder);
-            
+
             if (!Directory.Exists(appFolder))
             {
                 Directory.CreateDirectory(appFolder);
             }
-            
+
             return appFolder;
         }
 

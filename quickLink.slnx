@@ -1,9 +1,14 @@
 <Solution>
   <Configurations>
     <Platform Name="x64" />
+    <Platform Name="x86" />
   </Configurations>
   <Project Path="quickLink/quickLink.csproj">
-    <Platform Solution="*|x64" Project="x64" />
+    <Platform Project="x64" />
     <Deploy />
+  </Project>
+  <Project Path="WIX/quicklinkWixInstaller.wixproj" Id="5f089556-ef27-4a49-9803-3597340425b6">
+    <Platform Project="x86" />
+    <Build />
   </Project>
 </Solution>

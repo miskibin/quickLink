@@ -1,6 +1,6 @@
 # 🚀 QuickLink
 
-<img width="728" height="386" alt="image" src="https://github.com/user-attachments/assets/f3cc58c0-b12f-4453-bd9f-f72e67a50352" />
+<img width="824" height="402" alt="image" src="https://github.com/user-attachments/assets/0587960a-d529-4f94-8b78-31ba42b5669c" />
 
 
 > A fast, elegant link, clipboard, and commands manager for Windows with global hotkey support.

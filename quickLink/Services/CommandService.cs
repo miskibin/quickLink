@@ -137,7 +137,8 @@ namespace quickLink.Services
                     Items = dto.SourceConfig?.Items ?? new List<string>()
                 },
                 ExecuteTemplate = dto.ExecuteTemplate ?? string.Empty,
-                Icon = dto.Icon
+                Icon = dto.Icon,
+                OpenInTerminal = dto.OpenInTerminal
             };
         }
 
@@ -155,7 +156,8 @@ namespace quickLink.Services
                     Items = command.SourceConfig.Items
                 },
                 ExecuteTemplate = command.ExecuteTemplate,
-                Icon = command.Icon
+                Icon = command.Icon,
+                OpenInTerminal = command.OpenInTerminal
             };
         }
 
@@ -166,6 +168,7 @@ namespace quickLink.Services
             public SourceConfigDto? SourceConfig { get; set; }
             public string? ExecuteTemplate { get; set; }
             public CommandIcon Icon { get; set; }
+            public bool OpenInTerminal { get; set; }
         }
 
         private sealed class SourceConfigDto

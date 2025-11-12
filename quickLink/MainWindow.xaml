@@ -656,14 +656,37 @@
                                 
                                 <!-- Hint examples (compact, inline) -->
                                 <TextBlock FontSize="10" Opacity="0.5" TextWrapping="Wrap">
+                                    <Run Text="Placeholders: {item.path}, {item.name}, {item.extension}, {query}"/>
+                                    <LineBreak/>
                                     <Run Text="Examples:"/>
                                     <LineBreak/>
                                     <Run Text='notepad "{item.path}"'/>
                                     <Run Text=" • "/>
                                     <Run Text='code "{item.path}"'/>
                                     <Run Text=" • "/>
-                                    <Run Text='explorer /select,"{item.path}"'/>
+                                    <Run Text='start https://google.com/search?q={query}'/>
                                 </TextBlock>
+
+                                <!-- Info about {query} placeholder -->
+                                <Border Background="#15FFFFFF"
+                                       BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                       BorderThickness="1"
+                                       CornerRadius="4"
+                                       Padding="8,6"
+                                       Margin="0,4,0,0">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock FontSize="11" Opacity="0.8" FontWeight="SemiBold">
+                                            <Run Text="💡 Tip: Use"/>
+                                            <Run Text=" {query} " FontFamily="Consolas"/>
+                                            <Run Text="for direct input"/>
+                                        </TextBlock>
+                                        <TextBlock FontSize="10" Opacity="0.6" TextWrapping="Wrap">
+                                            <Run Text="When no items match your search, the command will execute with your typed text."/>
+                                            <LineBreak/>
+                                            <Run Text="Perfect for: web searches, direct paths, or any text input."/>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
 
                                 <!-- Live Preview -->
                                 <Border x:Name="CommandPreviewBorder"

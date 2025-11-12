@@ -533,6 +533,21 @@ namespace quickLink
                     break;
             }
 
+            // If no results found but a query was provided, create a fallback item
+            // that executes the template with the query text directly
+            if (resultItems.Count == 0 && !string.IsNullOrWhiteSpace(query))
+            {
+                resultItems.Add(new UserCommandResultItem(
+                    name: query,
+                    path: query,
+                    extension: string.Empty,
+                    displayName: $"{command.Prefix} {query}",
+                    icon: command.IconDisplay,
+                    executeTemplate: command.ExecuteTemplate,
+                    openInTerminal: command.OpenInTerminal
+                ));
+            }
+
             UpdateFilteredItems(resultItems.Cast<IListItem>().ToList());
 
             if (_filteredItems.Count > 0)
@@ -1120,7 +1135,8 @@ namespace quickLink
             var preview = template
                 .Replace("{item.path}", samplePath)
                 .Replace("{item.name}", sampleFileName)
-                .Replace("{item.extension}", ".md");
+                .Replace("{item.extension}", ".md")
+                .Replace("{query}", "your search query");
 
             // Show placeholder if empty
             if (string.IsNullOrWhiteSpace(preview))

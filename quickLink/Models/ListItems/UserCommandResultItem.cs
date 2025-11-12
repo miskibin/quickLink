@@ -48,10 +48,14 @@ namespace quickLink.Models.ListItems
 
         public async Task ExecuteAsync(IExecutionContext context)
         {
+            // URL-encode the query for web URLs
+            var encodedQuery = System.Uri.EscapeDataString(Name);
+            
             var command = ExecuteTemplate
                 .Replace("{item.path}", Path)
                 .Replace("{item.name}", Name)
-                .Replace("{item.extension}", Extension);
+                .Replace("{item.extension}", Extension)
+                .Replace("{query}", encodedQuery); // Support {query} placeholder for query-only commands
 
             System.Diagnostics.Debug.WriteLine($"UserCommandResultItem.ExecuteAsync: OpenInTerminal={OpenInTerminal}, Command={command}");
 

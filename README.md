@@ -5,7 +5,6 @@
 
 > A fast, elegant link, clipboard, and commands manager for Windows with global hotkey support.
 
-
 <div align="center">
 
 **[⬇️ Download Latest Release](https://github.com/miskibin/quickLink/releases)** • **[🐛 Report Bug](https://github.com/miskibin/quickLink/issues)** • **[💡 Request Feature](https://github.com/miskibin/quickLink/issues)**
@@ -16,54 +15,44 @@
 
 ## 💡 Why QuickLink?
 
-Tired of typing URLs in your browser and waiting for autocomplete? QuickLink lets you access links, snippets, and commands with a single hotkey press, making repetitive tasks faster than ever.
+Stop context-switching for repetitive tasks. Press **Ctrl+Space** anywhere to instantly access URLs, snippets, commands, and files—making your workflow uninterrupted and efficient.
 
 ## 🎯 Use Cases
 
-### 📱 Open URLs Instantly
-Type <kbd>Ctrl+Space</kbd>, search by name, press <kbd>Enter</kbd>—your URL opens in a new tab.
-
-**Examples:**
-- `https://github.com/miskibin/quickLink/`
-- `https://jiradc.ext.net.your-domain.com/secure/RapidBoard.jspa?rapidView=21728&quickFilter=135957`
-
-### 📝 Store Text Snippets
-Quick access to frequently used text. One hotkey press to copy to clipboard.
-
-**Examples:**
-- Configuration variables: `export HTTP_PROXY=http://proxy.company.com:8080 && export HTTPS_PROXY=http://proxy.company.com:8080`
-- Email signatures, code templates, etc.
-
-### ⚡ Execute Commands
-Run shell commands or media controls instantly without switching windows.
-
-**Examples:**
-- File operations: `>notepad C:\Documents\notes.txt`
-- Media control: `>next`, `>prev`, `>playpause`
-
-### 🔐 Secure Password Manager
-Store passwords with encryption and copy them to clipboard instantly. *(Encryption improvements in progress)*
+- **📱 URLs:** Open frequently visited links instantly (Jira boards, dashboards, documentation)
+- **📝 Snippets:** Copy text to clipboard with one keystroke (config variables, email signatures, templates)
+- **⚡ Commands:** Execute shell commands or media controls without switching windows
+- **🎯 Dynamic Commands:** List files/folders and execute custom actions (open projects, run scripts, browse docs)
+- **🔐 Passwords:** Store encrypted passwords for quick clipboard access
 
 ## 🚀 Getting Started
 
 ### Installation
 
-**Windows Installer (Recommended)**
+<details>
+<summary><b>Windows Installer (Recommended)</b></summary>
+
 1. Download the latest MSI installer from [releases page](https://github.com/miskibin/quickLink/releases)
 2. Run `QuickLink-{version}.msi`
 3. Follow the installation wizard
 4. QuickLink will start automatically and appear in the system tray
 
-**Portable Version**
+</details>
+
+<details>
+<summary><b>Portable Version</b></summary>
+
 1. Download the portable ZIP from [releases page](https://github.com/miskibin/quickLink/releases)
 2. Extract and run `QuickLink.exe`
 
+</details>
+
 ### Quick Start
 
-1. **Launch** QuickLink (it will appear in the system tray)
-2. Press <kbd>Ctrl+Space</kbd> (default hotkey) to open the search window
+1. **Launch** QuickLink (appears in system tray)
+2. Press <kbd>Ctrl+Space</kbd> to open the search window
 3. Type to find your link, snippet, or command
-4. Press <kbd>Enter</kbd> or click to execute
+4. Press <kbd>Enter</kbd> to execute
 5. Press <kbd>Escape</kbd> to close
 
 ### Keyboard Shortcuts
@@ -80,75 +69,151 @@ Store passwords with encryption and copy them to clipboard instantly. *(Encrypti
 
 ## 📖 Item Types
 
-### 📄 Text Snippets
-- Store frequently used text
-- Click or press <kbd>Enter</kbd> to copy to clipboard
-- **Use case:** Email signatures, config variables, code templates
+### � URLs & Links
+Add any URL starting with `http://` or `https://`. Opens in your default browser.
+- **Example:** `https://jiradc.ext.net.your-domain.com/secure/RapidBoard.jspa?rapidView=21728`
 
-### 🔗 URLs & Links
-- Add any URL starting with `http://` or `https://`
-- Automatically recognized and opened in your default browser
-- **Use case:** Work portals, documentation, tools you use daily
+### �📄 Text Snippets
+Store frequently used text. Click or press <kbd>Enter</kbd> to copy to clipboard.
+- **Example:** `export HTTP_PROXY=http://proxy.company.com:8080 && export HTTPS_PROXY=http://proxy.company.com:8080`
 
-### ⚡ Commands
-- Prefix with `>` to create an executable command (e.g., `>next`, `>playlist`)
-- Examples:
-  - `>next` - Next media track
-  - `>prev` - Previous media track
-  - `>playpause` - Play/pause toggle
-  - `>notepad C:\path\to\file.txt` - Open files instantly
-- **Use case:** Media control, file management, workflow automation
+### ⚡ Shell Commands
+Prefix with `>` to create executable commands.
+- **Examples:**
+  - `>notepad C:\path\to\file.txt` - Open file instantly
+  - `>next` / `>prev` / `>playpause` - Media controls
 
-### 🎯 User-Defined Commands (Advanced)
-**NEW!** Create dynamic commands that list items and execute custom actions.
+### 🎯 User-Defined Commands
 
+**Create dynamic commands that list items and execute custom actions.**
+
+#### Configuration
 - **Trigger:** Prefix with `/` (e.g., `/docs`, `/scripts`)
-- **Dynamic Sources:** List files from directories, static items, or HTTP endpoints
-- **Template Execution:** Execute custom commands with placeholders like `{item.path}`, `{item.name}`, `{item.extension}`
-- **Custom Icons:** Choose from 📁 Folder, 🌐 Web, ⚙️ Script, 📄 Document
+- **Source Type:** Directory, Static items, or HTTP endpoints
+- **Execute Template:** Command with placeholders:
+  - `{item.path}` - Full file path
+  - `{item.name}` - File name without extension
+  - `{item.extension}` - File extension (e.g., `.md`)
+  - `{query}` - The search query text (URL-encoded for web URLs)
+- **Terminal Option:** Run command in visible terminal or silently
 
-**Example Use Cases:**
-- `/docs` → List markdown files from your Documents folder → Opens selected file in VS Code
-- `/scripts` → List PowerShell scripts → Executes selected script
-- `/projects` → List project folders → Opens folder in File Explorer
+#### Real-World Examples
+
+<details>
+<summary><b>📁 Browse Documentation Files</b></summary>
+
+**Prefix:** `/docs`  
+**Source:** Directory  
+**Path:** `C:\Users\YourName\Documents\Documentation`  
+**Glob Pattern:** `*.md`  
+**Recursive:** Yes  
+**Execute Template:** `code "{item.path}"`  
+**Terminal:** No
+
+Opens markdown files in VS Code.
+
+</details>
+
+<details>
+<summary><b>⚙️ Run PowerShell Scripts</b></summary>
+
+**Prefix:** `/scripts`  
+**Source:** Directory  
+**Path:** `C:\Scripts`  
+**Glob Pattern:** `*.ps1`  
+**Recursive:** Yes  
+**Execute Template:** `powershell -ExecutionPolicy Bypass -File "{item.path}"`  
+**Terminal:** Yes
+
+Executes PowerShell scripts in a visible terminal.
+
+</details>
+
+<details>
+<summary><b>📂 Open Project Folders</b></summary>
+
+**Prefix:** `/projects`  
+**Source:** Directory  
+**Path:** `C:\Dev\Projects`  
+**Glob Pattern:** `*.*`  
+**Recursive:** No (only top-level folders)  
+**Execute Template:** `explorer "{item.path}"`  
+**Terminal:** No
+
+Opens project folders in File Explorer.
+
+</details>
+
+<details>
+<summary><b>🌐 Search GitHub Repos</b></summary>
+
+**Prefix:** `/gh`  
+**Source:** Directory (or Static with predefined repo names)  
+**Execute Template:** `https://github.com/search?q={query}&type=repositories`  
+**Terminal:** No
+
+Searches GitHub for repositories matching your query. The `{query}` placeholder gets replaced with what you type after `/gh `.
+
+</details>
+
+<details>
+<summary><b>🎨 Open Design Files in Figma</b></summary>
+
+**Prefix:** `/design`  
+**Source:** Static  
+**Items:** `Landing Page`, `Dashboard UI`, `Mobile App`  
+**Execute Template:** `https://figma.com/file/your-file-id?search={query}`  
+**Terminal:** No
+
+Opens Figma designs based on name search.
+
+</details>
+
+<details>
+<summary><b>🐍 Run Python Scripts with Arguments</b></summary>
+
+**Prefix:** `/py`  
+**Source:** Directory  
+**Path:** `C:\Scripts\Python`  
+**Glob Pattern:** `*.py`  
+**Execute Template:** `python "{item.path}"`  
+**Terminal:** Yes
+
+Executes Python scripts in a terminal window.
+
+</details>
 
 **How to Add:**
-1. Open Settings (click ⚙️ or search for "Settings")
-2. Click "Add Command" in the User Commands section
-3. Configure:
-   - **Prefix:** The trigger text (e.g., `/docs`)
-   - **Source Type:** Directory, Static, or HTTP
-   - **Directory Config:** Path, file pattern (glob), recursive search
-   - **Execute Template:** Command to run (e.g., `code "{item.path}"`)
-   - **Icon:** Visual indicator for your command
-4. Save and start using your command!
+1. Open Settings (click ⚙️ or search "Settings")
+2. Click "Add Command" in User Commands section
+3. Configure prefix, source, execute template, and icon
+4. Save and start using!
 
-**Performance Note:** Commands are lazily loaded - results only appear when you type the prefix, keeping QuickLink fast.
+**Performance Note:** Commands are lazily loaded—results only appear when you type the prefix.
 
 ### 🔍 Search Engine Queries
-- No matching items? Press <kbd>Enter</kbd> to search using your configured search engine
-- **Customizable:** Modify the search URL in Settings
-- **Use `{query}` as a placeholder** for the search term
-- **Examples:**
-  - `https://google.com/search?q={query}` (Google)
-  - `https://chat.openai.com/?q={query}` (ChatGPT - default)
-  - `https://claude.ai/new?q={query}` (Claude)
-  - `https://bing.com/search?q={query}` (Bing)
+
+No matching items? Press <kbd>Enter</kbd> to search using your configured search engine.
+
+**Customizable in Settings:**
+- `https://google.com/search?q={query}` (Google)
+- `https://chat.openai.com/?q={query}` (ChatGPT - default)
+- `https://claude.ai/new?q={query}` (Claude)
+- `https://bing.com/search?q={query}` (Bing)
 
 ---
 
-## 💎 Useful Commands to Add
+<details>
+<summary><h2>💎 Useful Commands to Add</h2></summary>
 
-Enhance your workflow with these ready-to-use commands. Simply add them as new items with the `>` prefix:
+Enhance your workflow with these ready-to-use commands. Add them as new items with the `>` prefix:
 
 ### 🌐 Network & Utilities
-- **Get Your Public IP:** `>powershell -NoProfile -Command "Invoke-RestMethod 'https://api.ipify.org' | Set-Clipboard"` → Copies your public IP to clipboard
+- **Get Your Public IP:** `>powershell -NoProfile -Command "Invoke-RestMethod 'https://api.ipify.org' | Set-Clipboard"`
 - **Open Device Manager:** `>devmgmt.msc`
 
 ### 📁 File & Folder Operations
 - **Open Downloads Folder:** `>explorer %USERPROFILE%\Downloads`
-- **Open Documents Folder:** `
-- **Create New Folder Shortcut:** `>powershell -NoProfile -Command "$path = Read-Host 'Folder path'; New-Item -ItemType Directory -Path $path -Force"`
 - **Clear Temp Files:** `>powershell -NoProfile -Command "Remove-Item -Path $env:TEMP\* -Force -Recurse -ErrorAction SilentlyContinue"`
 
 ### 🎯 Productivity
@@ -167,19 +232,26 @@ Enhance your workflow with these ready-to-use commands. Simply add them as new i
 - **Open Event Viewer:** `>eventvwr.msc`
 - **Check Disk Space:** `>powershell -NoProfile -Command "Get-Volume | Format-Table -AutoSize"`
 
-**Tip:** You can modify these commands to suit your needs. Use `Set-Clipboard` to automatically copy results to your clipboard!
+</details>
 
+---
 
-## Why not command palette from PowerToys?
+## Why QuickLink vs PowerToys Run?
 
-It might seem like simmilar product, but it does not share any functionalities.
+PowerToys Run excels at app launching and file search, but QuickLink specializes in developer workflow:
 
-- QuickLink focuses on managing links, text snippets, and commands with a global hotkey.
-- PowerToys command palette is more general-purpose and does not specialize in link/snippet management.
-- QuickLink offers features like encrypted password storage and media controls, which are not available in PowerToys.
+| Feature | QuickLink | PowerToys Run |
+|---------|-----------|---------------|
+| **URL Management** | ✅ Named shortcuts for long URLs | ❌ |
+| **Text Snippets** | ✅ Instant clipboard access | ❌ |
+| **Dynamic Commands** | ✅ List files & execute templates | ❌ |
+| **Media Controls** | ✅ Built-in | ❌ |
+| **Password Storage** | ✅ Encrypted | ❌ |
+| **App Launching** | ❌ | ✅ |
+| **System-wide File Search** | ❌ | ✅ |
 
+QuickLink focuses on repetitive tasks developers do constantly: accessing links, pasting snippets, and running custom file-based commands without breaking flow.
 
-
-
+---
 
 ![Demo Screenshot](https://github.com/user-attachments/assets/cc0d0edc-f90a-407b-b23c-133546bc0099)

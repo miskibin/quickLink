@@ -30,16 +30,6 @@ Stop context-switching for repetitive tasks. Press **Ctrl+Space** anywhere to in
 ### Installation
 
 <details>
-<summary><b>Windows Installer (Recommended)</b></summary>
-
-1. Download the latest MSI installer from [releases page](https://github.com/miskibin/quickLink/releases)
-2. Run `QuickLink-{version}.msi`
-3. Follow the installation wizard
-4. QuickLink will start automatically and appear in the system tray
-
-</details>
-
-<details>
 <summary><b>Portable Version</b></summary>
 
 1. Download the portable ZIP from [releases page](https://github.com/miskibin/quickLink/releases)
@@ -184,10 +174,7 @@ Executes Python scripts in a terminal window.
 </details>
 
 **How to Add:**
-1. Open Settings (click ⚙️ or search "Settings")
-2. Click "Add Command" in User Commands section
-3. Configure prefix, source, execute template, and icon
-4. Save and start using!
+2. Type "Add Command" in UI
 
 **Performance Note:** Commands are lazily loaded—results only appear when you type the prefix.
 
@@ -226,11 +213,6 @@ Enhance your workflow with these ready-to-use commands. Add them as new items wi
 - **Generate UUID:** `>powershell -NoProfile -Command "[guid]::NewGuid().ToString() | Set-Clipboard"`
 - **Get Current Timestamp:** `>powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd HH:mm:ss' | Set-Clipboard"`
 - **Encode Text to Base64:** `>powershell -NoProfile -Command "$text = Read-Host 'Text to encode'; [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($text)) | Set-Clipboard"`
-
-### 🔧 System Information
-- **Show System Info:** `>msinfo32`
-- **Open Event Viewer:** `>eventvwr.msc`
-- **Check Disk Space:** `>powershell -NoProfile -Command "Get-Volume | Format-Table -AutoSize"`
 
 </details>
 

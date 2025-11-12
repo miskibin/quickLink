@@ -87,6 +87,9 @@ Prefix with `>` to create executable commands.
   - `{query}` - The search query text (URL-encoded for web URLs)
 - **Terminal Option:** Run command in visible terminal or silently
 
+<img width="811" height="409" alt="image" src="https://github.com/user-attachments/assets/e450b686-75ce-4cd3-91e1-6d661b57c561" />
+
+
 #### Real-World Examples
 
 <details>

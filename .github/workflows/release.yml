@@ -2,8 +2,14 @@ name: Release
 
 on:
   push:
-    # tags:
-    #   - 'v*'
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number for testing (e.g., 1.0.0-test)'
+        required: true
+        default: '0.0.0-test'
 
 permissions:
   contents: write
@@ -35,8 +41,13 @@ jobs:
     - name: Get version from tag
       id: get_version
       run: |
-        $tag = "${{ github.ref_name }}"
-        $version = $tag -replace '^v', ''
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          $version = "${{ github.event.inputs.version }}"
+          $tag = "v$version"
+        } else {
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+        }
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
         echo "TAG=$tag" >> $env:GITHUB_OUTPUT
       shell: pwsh
@@ -44,17 +55,23 @@ jobs:
     - name: Generate release notes from commits
       id: release_notes
       run: |
-        $currentTag = "${{ github.ref_name }}"
-        # Try to find previous tag; if not found, use repository root as start
-        $previousTag = git describe --tags --abbrev=0 "$currentTag^" 2>$null
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          # For manual workflow dispatch, use HEAD instead of a tag
+          $currentRef = "HEAD"
+          $previousTag = git describe --tags --abbrev=0 2>$null
+        } else {
+          $currentRef = "${{ github.ref_name }}"
+          $previousTag = git describe --tags --abbrev=0 "$currentRef^" 2>$null
+        }
+        
         if ($previousTag) {
           echo "PREVIOUS_TAG=$previousTag" >> $env:GITHUB_OUTPUT
-          $range = "$previousTag..$currentTag"
+          $range = "$previousTag..$currentRef"
         }
         else {
           echo "PREVIOUS_TAG=" >> $env:GITHUB_OUTPUT
           $initial = git rev-list --max-parents=0 HEAD
-          $range = "$initial..$currentTag"
+          $range = "$initial..$currentRef"
         }
 
         # Collect commit messages (one per line)

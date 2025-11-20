@@ -76,17 +76,31 @@ jobs:
       run: |
         dotnet publish $env:Project_Path -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=true --self-contained
         
-    - name: Create ZIP archive
+    - name: Build x86
+      run: |
+        dotnet publish $env:Project_Path -c Release -r win-x86 -p:Platform=x86 -p:PublishSingleFile=true --self-contained
+        
+    - name: Build ARM64
+      run: |
+        dotnet publish $env:Project_Path -c Release -r win-arm64 -p:Platform=ARM64 -p:PublishSingleFile=true --self-contained
+        
+    - name: Create ZIP archives
       run: |
         $version = "${{ steps.get_version.outputs.VERSION }}"
         Compress-Archive -Path "quickLink/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/*" -DestinationPath "quickLink-$version-win-x64.zip"
+        Compress-Archive -Path "quickLink/bin/x86/Release/net8.0-windows10.0.19041.0/win-x86/publish/*" -DestinationPath "quickLink-$version-win-x86.zip"
+        Compress-Archive -Path "quickLink/bin/ARM64/Release/net8.0-windows10.0.19041.0/win-arm64/publish/*" -DestinationPath "quickLink-$version-win-arm64.zip"
       shell: pwsh
       
     - name: Generate checksums
       run: |
         $version = "${{ steps.get_version.outputs.VERSION }}"
-        $hash = (Get-FileHash -Path "quickLink-$version-win-x64.zip" -Algorithm SHA256).Hash
-        "$hash  quickLink-$version-win-x64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
+        $hash_x64 = (Get-FileHash -Path "quickLink-$version-win-x64.zip" -Algorithm SHA256).Hash
+        $hash_x86 = (Get-FileHash -Path "quickLink-$version-win-x86.zip" -Algorithm SHA256).Hash
+        $hash_arm64 = (Get-FileHash -Path "quickLink-$version-win-arm64.zip" -Algorithm SHA256).Hash
+        "$hash_x64  quickLink-$version-win-x64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
+        "$hash_x86  quickLink-$version-win-x86.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8 -Append
+        "$hash_arm64  quickLink-$version-win-arm64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8 -Append
       shell: pwsh
       
     - name: Create Release
@@ -99,7 +113,10 @@ jobs:
           ${{ steps.release_notes.outputs.NOTES }}
           
           ### 📦 Installation
-          1. Download the appropriate ZIP file for your system
+          1. Download the appropriate ZIP file for your system:
+             - `win-x64.zip` for 64-bit Intel/AMD processors (most common)
+             - `win-x86.zip` for 32-bit Intel/AMD processors
+             - `win-arm64.zip` for ARM64 processors (e.g., Windows on ARM devices)
           2. Extract the archive
           3. Run `quickLink.exe`
           4. Configure your hotkey in Settings (default: Ctrl+Space)
@@ -112,6 +129,8 @@ jobs:
           See `SHA256SUMS.txt` for file verification.
         files: |
           quickLink-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
+          quickLink-${{ steps.get_version.outputs.VERSION }}-win-x86.zip
+          quickLink-${{ steps.get_version.outputs.VERSION }}-win-arm64.zip
           SHA256SUMS.txt
         draft: false
         prerelease: false

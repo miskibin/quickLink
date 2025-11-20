@@ -2,14 +2,7 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version number for testing (e.g., 1.0.0-test)'
-        required: true
-        default: '0.0.0-test'
+
 
 permissions:
   contents: write

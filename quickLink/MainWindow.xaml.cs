@@ -259,6 +259,9 @@ namespace quickLink
                 Activate();
                 SetForegroundWindow(_windowHandle);
 
+                // Reset state for animation
+                RootGrid.Opacity = 0;
+
                 // Trigger entrance animation - no delays, app opens instantly!
                 WindowEnterAnimation.Begin();
 
@@ -334,7 +337,7 @@ namespace quickLink
             var searchText = SearchBox.Text?.ToLowerInvariant() ?? string.Empty;
             var isEmpty = string.IsNullOrWhiteSpace(searchText);
 
-            // Check if it's a user command
+            // Check if it's a user command (keep on UI thread as it handles async IO)
             if (!isEmpty && searchText.StartsWith(AppConstants.CommandPrefixes.UserCommandPrefix))
             {
                 // Show command suggestions if just "/" typed or partial command
@@ -351,103 +354,104 @@ namespace quickLink
             // Pre-calculate whether to include internal commands
             var includeInternalCommands = _hideFooter || !isEmpty;
 
-            // Optimize: avoid multiple enumerations
-            List<IListItem> newItems;
+            // Snapshot data for background processing to avoid thread safety issues
+            var itemsSnapshot = _allItems.ToList();
+            var internalCommandsSnapshot = _internalCommands.ToList();
 
-            if (isEmpty)
+            // Snapshot scores to avoid accessing service from background thread
+            var scores = new Dictionary<IListItem, double>();
+            foreach (var item in itemsSnapshot)
             {
-                // No search - take first 6 items sorted by usage, plus internal commands if needed
-                _filteredItems.Clear();
-
-                newItems = new List<IListItem>(7); // Pre-allocate capacity
-
-                // Sort all items by usage score (descending)
-                var sortedItems = _allItems
-                    .Select(item => new { Item = item, Score = _usageTrackingService.GetUsageScore(item) })
-                    .OrderByDescending(x => x.Score)
-                    .Take(6)
-                    .Select(x => x.Item);
-
-                foreach (var item in sortedItems)
-                {
-                    _filteredItems.Add(item);
-                }
-
-                if (includeInternalCommands)
-                {
-                    foreach (var cmd in _internalCommands)
-                    {
-                        if (_filteredItems.Count >= 6) break;
-                        _filteredItems.Add(cmd);
-                    }
-                }
-
-                // Auto-select first item
-                if (_filteredItems.Count > 0)
-                {
-                    ItemsList.SelectedIndex = 0;
-                }
-                return; // Early exit for empty search
+                scores[item] = _usageTrackingService.GetUsageScore(item);
             }
-            else
+
+            // Run heavy filtering/sorting on background thread
+            var newItems = await Task.Run(() =>
             {
-                // With search - filter, calculate combined score (text match + usage), and sort
-                var capacity = Math.Min(_allItems.Count + (includeInternalCommands ? _internalCommands.Count : 0), 7);
-                var scoredItems = new List<(IListItem Item, double Score)>(capacity);
+                var resultList = new List<IListItem>();
 
-                // Search user items with scoring
-                foreach (var item in _allItems)
+                if (isEmpty)
                 {
-                    if (item.MatchesSearch(searchText))
+                    // No search - take first 6 items sorted by usage
+                    var sortedItems = itemsSnapshot
+                        .Select(item => new { Item = item, Score = scores.TryGetValue(item, out var s) ? s : 0 })
+                        .OrderByDescending(x => x.Score)
+                        .Take(6)
+                        .Select(x => x.Item);
+
+                    resultList.AddRange(sortedItems);
+
+                    if (includeInternalCommands)
                     {
-                        // Calculate text match score (1.0 for exact match, 0.5 for partial)
-                        var textScore = item.DisplayValue?.ToLowerInvariant().StartsWith(searchText) == true ? 1.0 : 0.5;
-
-                        // Add usage score boost
-                        var usageScore = _usageTrackingService.GetUsageScore(item);
-                        var combinedScore = textScore + usageScore;
-
-                        scoredItems.Add((item, combinedScore));
-                    }
-                }
-
-                // Search internal commands if needed
-                if (includeInternalCommands)
-                {
-                    foreach (var cmd in _internalCommands)
-                    {
-                        if (cmd.MatchesSearch(searchText))
+                        foreach (var cmd in internalCommandsSnapshot)
                         {
-                            // Internal commands get text match score only (no usage tracking)
-                            var textScore = cmd.DisplayValue?.ToLowerInvariant().StartsWith(searchText) == true ? 1.0 : 0.5;
-                            scoredItems.Add((cmd, textScore));
+                            if (resultList.Count >= 6) break;
+                            resultList.Add(cmd);
                         }
                     }
                 }
-
-                // Sort by score descending and take top 6
-                newItems = scoredItems
-                    .OrderByDescending(x => x.Score)
-                    .Take(6)
-                    .Select(x => x.Item)
-                    .ToList();
-
-                // If no results and not a command, show search suggestion
-                if (newItems.Count == 0)
+                else
                 {
-                    if (searchText.StartsWith(AppConstants.CommandPrefixes.CommandPrefix))
+                    // With search - filter, calculate combined score (text match + usage), and sort
+                    var capacity = Math.Min(itemsSnapshot.Count + (includeInternalCommands ? internalCommandsSnapshot.Count : 0), 7);
+                    var scoredItems = new List<(IListItem Item, double Score)>(capacity);
+
+                    // Search user items with scoring
+                    foreach (var item in itemsSnapshot)
                     {
-                        // Show execute command suggestion - create a simple command item
-                        var executeCmd = new CommandItem("Execute command", searchText);
-                        newItems.Add(executeCmd);
+                        if (item.MatchesSearch(searchText))
+                        {
+                            // Calculate text match score (1.0 for exact match, 0.5 for partial)
+                            var textScore = item.DisplayValue?.ToLowerInvariant().StartsWith(searchText) == true ? 1.0 : 0.5;
+
+                            // Add usage score boost
+                            var usageScore = scores.TryGetValue(item, out var s) ? s : 0;
+                            var combinedScore = textScore + usageScore;
+
+                            scoredItems.Add((item, combinedScore));
+                        }
                     }
-                    else
+
+                    // Search internal commands if needed
+                    if (includeInternalCommands)
                     {
-                        // Show search suggestion
-                        _searchSuggestionItem.SearchQuery = searchText;
-                        _searchSuggestionItem.SearchUrl = _searchUrl;
-                        newItems.Add(_searchSuggestionItem);
+                        foreach (var cmd in internalCommandsSnapshot)
+                        {
+                            if (cmd.MatchesSearch(searchText))
+                            {
+                                // Internal commands get text match score only (no usage tracking)
+                                var textScore = cmd.DisplayValue?.ToLowerInvariant().StartsWith(searchText) == true ? 1.0 : 0.5;
+                                scoredItems.Add((cmd, textScore));
+                            }
+                        }
                     }
+
+                    // Sort by score descending and take top 6
+                    resultList = scoredItems
+                        .OrderByDescending(x => x.Score)
+                        .Take(6)
+                        .Select(x => x.Item)
+                        .ToList();
+                }
+
+                return resultList;
+            });
+
+            // If no results and not a command, show search suggestion (UI thread logic)
+            if (newItems.Count == 0 && !isEmpty)
+            {
+                if (searchText.StartsWith(AppConstants.CommandPrefixes.CommandPrefix))
+                {
+                    // Show execute command suggestion - create a simple command item
+                    var executeCmd = new CommandItem("Execute command", searchText);
+                    newItems.Add(executeCmd);
+                }
+                else
+                {
+                    // Show search suggestion
+                    _searchSuggestionItem.SearchQuery = searchText;
+                    _searchSuggestionItem.SearchUrl = _searchUrl;
+                    newItems.Add(_searchSuggestionItem);
                 }
             }
 
@@ -1617,17 +1621,17 @@ namespace quickLink
         #endregion
 
         #region Command Management
-        private async Task ShowAddCommandDialogAsync()
+        private void ShowAddCommandDialog()
         {
             ShowCommandPanelInternal(null);
         }
 
-        private async void OnAddCommandClicked(object sender, RoutedEventArgs e)
+        private void OnAddCommandClicked(object sender, RoutedEventArgs e)
         {
-            await ShowAddCommandDialogAsync();
+            ShowAddCommandDialog();
         }
 
-        private async void OnEditCommandClicked(object sender, RoutedEventArgs e)
+        private void OnEditCommandClicked(object sender, RoutedEventArgs e)
         {
             if (sender is Button { Tag: UserCommand command })
             {

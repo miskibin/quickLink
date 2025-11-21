@@ -17,7 +17,7 @@
     <Grid x:Name="RootGrid"
             Background="Transparent"
             KeyDown="OnRootKeyDown"
-            Opacity="0">
+            Opacity="1">
         <Grid.Resources>
             <!-- Converters -->
             <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>

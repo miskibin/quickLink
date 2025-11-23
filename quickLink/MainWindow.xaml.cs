@@ -225,10 +225,13 @@ namespace quickLink
             // Stay on top only when focused
             presenter.IsAlwaysOnTop = args.WindowActivationState != WindowActivationState.Deactivated;
 
-            if (args.WindowActivationState != WindowActivationState.Deactivated)
+            if (args.WindowActivationState == WindowActivationState.Deactivated)
             {
-                SearchBox.Focus(FocusState.Programmatic);
+                AppWindow.Hide();
+                return;
             }
+
+            SearchBox.Focus(FocusState.Programmatic);
         }
         #endregion
 

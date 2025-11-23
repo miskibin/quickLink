@@ -1,15 +1,23 @@
-# Generate all required icon sizes from logo.png
-# This script requires the logo.png file in the Assets folder
+# Generate all required icon sizes from quicklink.png (falls back to logo.png)
+# This script prefers the quicklink.png file in the Assets folder; logo.png is used as a fallback for older setups
 
-$assetsPath = "Assets"
-$sourceLogo = Join-Path $assetsPath "logo.png"
+$assetsPath = Join-Path $PSScriptRoot "Assets"
+$preferredLogo = "quicklink.png"
+$fallbackLogo = "logo.png"
 
-if (-not (Test-Path $sourceLogo)) {
-    Write-Error "logo.png not found in Assets folder!"
+# Prefer quicklink.png, but fall back to logo.png for compatibility
+$sourceCandidates = @((Join-Path $assetsPath $preferredLogo), (Join-Path $assetsPath $fallbackLogo))
+$sourceLogo = $null
+foreach ($candidate in $sourceCandidates) {
+    if (Test-Path $candidate) { $sourceLogo = Resolve-Path $candidate; break }
+}
+
+if (-not $sourceLogo) {
+    Write-Error "Neither '$preferredLogo' nor '$fallbackLogo' found in the Assets folder. Please add '$preferredLogo' to $assetsPath and re-run the script."
     exit 1
 }
 
-Write-Host "Generating icons from logo.png..." -ForegroundColor Green
+Write-Host "Generating icons from '$preferredLogo' (or '$fallbackLogo' fallback) ..." -ForegroundColor Green
 
 # Load System.Drawing assembly for image processing
 Add-Type -AssemblyName System.Drawing

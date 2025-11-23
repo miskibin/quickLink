@@ -96,14 +96,106 @@ $sourceImage.Dispose()
 
 Write-Host "`nNow converting app.ico.png to app.ico..." -ForegroundColor Yellow
 
-# Create ICO file with multiple sizes
-$icoSizes = @(16, 32, 48, 256)
+# Create ICO file with multiple sizes automatically
 $icoPath = Join-Path $assetsPath "app.ico"
 
-# For ICO creation, we'll use a simple approach - create individual PNGs and mention manual conversion
-Write-Host "`nGenerated PNG files. To create app.ico with multiple sizes:" -ForegroundColor Yellow
-Write-Host "You can use an online tool or ImageMagick with this command:" -ForegroundColor Cyan
-Write-Host "magick convert Assets\Square44x44Logo.targetsize-16_altform-unplated.png Assets\Square44x44Logo.targetsize-32_altform-unplated.png Assets\Square44x44Logo.targetsize-48_altform-unplated.png Assets\Square44x44Logo.targetsize-256_altform-unplated.png Assets\app.ico" -ForegroundColor Gray
+function Convert-PngsToIco {
+    param(
+        [string[]]$PngFiles,
+        [string]$OutputIco
+    )
+
+    # Ensure we have at least one PNG
+    $existing = $PngFiles | Where-Object { Test-Path $_ }
+    if (-not $existing) { return $false }
+
+    Add-Type -AssemblyName System.IO
+
+    $images = @()
+    foreach ($f in $existing) {
+        try {
+            $img = [System.Drawing.Image]::FromFile($f)
+            $imgInfo = [PSCustomObject]@{
+                Path = $f
+                Width = $img.Width
+                Height = $img.Height
+                Bytes = [System.IO.File]::ReadAllBytes($f)
+            }
+            $images += $imgInfo
+            $img.Dispose()
+        }
+        catch {
+            Write-Host "Skipping invalid image: $f" -ForegroundColor Yellow
+        }
+    }
+
+    if (-not $images) { return $false }
+
+    # Build ICO file. ICO header: 6 bytes + 16 bytes per image entry
+    $ms = New-Object System.IO.MemoryStream
+    $bw = New-Object System.IO.BinaryWriter($ms)
+
+    # ICONDIR: reserved(2) type(2) count(2)
+    $bw.Write([uint16]0)
+    $bw.Write([uint16]1) # 1 for icons
+    $bw.Write([uint16]$images.Count)
+
+    $currentOffset = 6 + 16 * $images.Count
+
+    foreach ($img in $images) {
+        $w = $img.Width
+        $h = $img.Height
+
+        # Width/Height bytes: 0 means 256
+        # For width/height values, 0 means 256 in ICO format
+        $byteWidth = if ($w -ge 256) { 0 } else { [byte]$w }
+        $byteHeight = if ($h -ge 256) { 0 } else { [byte]$h }
+        $bw.Write([byte]$byteWidth)
+        $bw.Write([byte]$byteHeight)
+
+        # Color count & reserved
+        $bw.Write([byte]0)
+        $bw.Write([byte]0)
+
+        # For PNG icons, planes and bit count are typically 0
+        $bw.Write([uint16]0)
+        $bw.Write([uint16]32)
+
+        # size of image data
+        $data = $img.Bytes
+        $bw.Write([uint32]$data.Length)
+
+        # offset to image data
+        $bw.Write([uint32]$currentOffset)
+
+        $currentOffset += $data.Length
+    }
+
+    # write image data
+    foreach ($img in $images) {
+        $bw.Write($img.Bytes)
+    }
+
+    $bw.Flush()
+    [System.IO.File]::WriteAllBytes($OutputIco, $ms.ToArray())
+    $bw.Dispose(); $ms.Dispose()
+
+    return $true
+}
+
+# Candidate PNGs used for the icon resource (prefer exact targetsize images when present)
+$icoPngs = @(
+    (Join-Path $assetsPath "Square44x44Logo.targetsize-16_altform-unplated.png"),
+    (Join-Path $assetsPath "Square44x44Logo.targetsize-32_altform-unplated.png"),
+    (Join-Path $assetsPath "Square44x44Logo.targetsize-48_altform-unplated.png"),
+    (Join-Path $assetsPath "Square44x44Logo.targetsize-256_altform-unplated.png")
+)
+
+if (Convert-PngsToIco -PngFiles $icoPngs -OutputIco $icoPath) {
+    Write-Host "Created ICO: $icoPath" -ForegroundColor Green
+} else {
+    Write-Host "Could not create ICO automatically; you can create it manually with ImageMagick." -ForegroundColor Yellow
+}
 
 Write-Host "`n✓ Icon generation complete!" -ForegroundColor Green
 Write-Host "All required PNG assets have been created in the Assets folder." -ForegroundColor Green

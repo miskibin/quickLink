@@ -6,6 +6,7 @@
     xmlns:local="using:quickLink"
     xmlns:models="using:quickLink.Models"
     xmlns:converters="using:quickLink.Converters"
+    xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -756,6 +757,107 @@
                     </StackPanel>
                 </ScrollViewer>
 
+                <!-- Markdown Streaming Panel -->
+                <Grid x:Name="MarkdownPanel"
+                      Grid.Row="1"
+                      Grid.RowSpan="2"
+                      Visibility="Collapsed">
+                    <Grid.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Escape"
+                                Invoked="OnEscapePressed"/>
+                    </Grid.KeyboardAccelerators>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Markdown Content -->
+                    <ScrollViewer x:Name="MarkdownScrollViewer"
+                                  Grid.Row="0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  Margin="0,0,0,12">
+                        <controls:MarkdownTextBlock x:Name="MarkdownTextBlock"
+                                                    Text=""
+                                                    TextWrapping="Wrap"
+                                                    Background="Transparent"/>
+                    </ScrollViewer>
+
+                    <!-- Follow-up Input -->
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Copy Markdown Button -->
+                        <Button Grid.Column="0"
+                                Click="OnCopyMarkdown"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                CornerRadius="6"
+                                Margin="0,0,4,0"
+                                ToolTipService.ToolTip="Copy as Markdown">
+                            <FontIcon FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE8C8;"
+                                      FontSize="16"/>
+                        </Button>
+                        
+                        <!-- Copy Plain Text Button -->
+                        <Button Grid.Column="1"
+                                Click="OnCopyPlainText"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                CornerRadius="6"
+                                Margin="0,0,8,0"
+                                ToolTipService.ToolTip="Copy as Plain Text">
+                            <FontIcon FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE8C8;"
+                                      FontSize="16"/>
+                        </Button>
+                        
+                        <TextBox x:Name="MarkdownInput"
+                                 Grid.Column="2"
+                                 PlaceholderText="Type your follow-up question..."
+                                 FontSize="13"
+                                 CornerRadius="6"
+                                 Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                 BorderThickness="0"
+                                 Padding="10,8"
+                                 Margin="0,0,4,0"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="False">
+                            <TextBox.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="Enter"
+                                        Invoked="OnSendMarkdownInputKey"/>
+                            </TextBox.KeyboardAccelerators>
+                        </TextBox>
+                        
+                        <!-- Send Icon Button -->
+                        <Button Grid.Column="3"
+                                Click="OnSendMarkdownInput"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                CornerRadius="6"
+                                ToolTipService.ToolTip="Send">
+                            <FontIcon FontFamily="Segoe Fluent Icons"
+                                      Glyph="&#xE724;"
+                                      FontSize="16"
+                                      Foreground="{ThemeResource AccentFillColorDefaultBrush}"/>
+                        </Button>
+                    </Grid>
+                </Grid>
+
                 <!-- Settings View -->
                 <ScrollViewer x:Name="SettingsPanel"
                               Grid.Row="1"
@@ -803,6 +905,24 @@
                                      TabIndex="12"/>
                         </StackPanel>
 
+                        <!-- LLM API Key -->
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="LLM API Key"
+                                       FontSize="12"
+                                       Opacity="0.7"/>
+
+                            <TextBox x:Name="ApiKeyTextBox"
+                                     PlaceholderText="Enter your API key..."
+                                     FontSize="13"
+                                     CornerRadius="6"
+                                     Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                     BorderThickness="1"
+                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                     Padding="10,8"
+                                     TextChanged="OnApiKeyChanged"
+                                     TabIndex="13"/>
+                        </StackPanel>
+
                         <!-- Hotkey -->
                         <StackPanel Spacing="6">
                             <TextBlock Text="Click and press a key combination"
@@ -829,7 +949,7 @@
                                          PreviewKeyDown="OnHotkeyKeyDown"
                                          LostFocus="OnHotkeyTextBoxLostFocus"
                                          Margin="0,0,8,0"
-                                         TabIndex="13"/>
+                                         TabIndex="14"/>
 
                                 <Button x:Name="ApplyHotkeyButton"
                                         Grid.Column="1"
@@ -840,7 +960,7 @@
                                         FontSize="12"
                                         IsEnabled="False"
                                         Margin="0,0,8,0"
-                                        TabIndex="14"
+                                        TabIndex="15"
                                         Style="{ThemeResource AccentButtonStyle}"/>
 
                                 <Button Grid.Column="2"
@@ -849,7 +969,7 @@
                                         CornerRadius="6"
                                         Padding="16,8"
                                         FontSize="12"
-                                        TabIndex="15"/>
+                                        TabIndex="16"/>
                             </Grid>
 
                             <TextBlock x:Name="HotkeyStatusText"
@@ -866,8 +986,8 @@
                                 Padding="20,10"
                                 FontSize="13"
                                 HorizontalAlignment="Right"
-                                TabIndex="16"
-                                Style="{ThemeResource AccentButtonStyle}"/>
+                                TabIndex="17"
+                                Style="{StaticResource AccentButtonStyle}"/>
                     </StackPanel>
                 </ScrollViewer>
 

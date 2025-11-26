@@ -66,6 +66,11 @@ namespace quickLink
         // Performance optimization: cache the last search to avoid redundant filtering
         private string _lastSearchText = string.Empty;
 
+        // Markdown streaming state
+        private string _markdownContent = string.Empty;
+        private string _apiKey = string.Empty;
+        private string _lastAssistantMessage = string.Empty;
+
         // Window subclassing
         private WinProc? _newWndProc;
         private IntPtr _oldWndProc;
@@ -148,6 +153,7 @@ namespace quickLink
             _internalCommands.Add(new InternalCommandItem("Add new item", AppConstants.CommandPrefixes.AddCommand));
             _internalCommands.Add(new InternalCommandItem("Add new command (advanced)", AppConstants.CommandPrefixes.AddCommandAdvanced));
             _internalCommands.Add(new InternalCommandItem("Settings", AppConstants.CommandPrefixes.SettingsCommand));
+            _internalCommands.Add(new InternalCommandItem("Test Markdown Streaming", AppConstants.CommandPrefixes.MarkdownCommand));
             _internalCommands.Add(new InternalCommandItem("Exit app", AppConstants.CommandPrefixes.ExitCommand));
         }
 
@@ -227,6 +233,11 @@ namespace quickLink
 
             if (args.WindowActivationState == WindowActivationState.Deactivated)
             {
+                // Reset markdown state when window loses focus
+                if (MarkdownPanel.Visibility == Visibility.Visible)
+                {
+                    HideMarkdownPanel();
+                }
                 AppWindow.Hide();
                 return;
             }
@@ -686,6 +697,12 @@ namespace quickLink
 
         public void HideWindow()
         {
+            // Reset markdown state when hiding
+            if (MarkdownPanel.Visibility == Visibility.Visible)
+            {
+                HideMarkdownPanel();
+            }
+            
             // Clear search box when hiding so it's fresh when app opens next time
             SearchBox.Text = string.Empty;
             AppWindow.Hide();
@@ -709,6 +726,11 @@ namespace quickLink
         void IExecutionContext.ShowSettingsPanel()
         {
             ShowSettingsPanelInternal();
+        }
+
+        void IExecutionContext.ShowMarkdownPanel()
+        {
+            ShowMarkdownPanelInternal();
         }
 
         public void ExitApplication()
@@ -1311,6 +1333,7 @@ namespace quickLink
             await LoadStartupSettingAsync();
             await LoadFooterSettingAsync();
             await LoadSearchUrlSettingAsync();
+            await LoadApiKeySettingAsync();
             UpdateHotkeyDisplay();
         }
 
@@ -1327,6 +1350,31 @@ namespace quickLink
                 _searchUrl = "https://chatgpt.com/?q={query}";
                 SearchUrlTextBox.Text = _searchUrl;
             }
+        }
+
+        private async Task LoadApiKeySettingAsync()
+        {
+            try
+            {
+                var settings = await _dataService.LoadSettingsAsync();
+                _apiKey = settings.ApiKey ?? string.Empty;
+                ApiKeyTextBox.Text = _apiKey;
+            }
+            catch
+            {
+                _apiKey = string.Empty;
+                ApiKeyTextBox.Text = string.Empty;
+            }
+        }
+
+        private async void OnApiKeyChanged(object sender, TextChangedEventArgs e)
+        {
+            var newKey = ApiKeyTextBox.Text?.Trim() ?? string.Empty;
+            _apiKey = newKey;
+
+            var settings = await _dataService.LoadSettingsAsync();
+            settings.ApiKey = _apiKey;
+            await _dataService.SaveSettingsAsync(settings);
         }
 
         private async void OnSearchUrlChanged(object sender, TextChangedEventArgs e)
@@ -1614,6 +1662,104 @@ namespace quickLink
                 modifiers |= Windows.System.VirtualKeyModifiers.Menu;
 
             return (modifiers, (Windows.System.VirtualKey)vKey);
+        }
+        #endregion
+
+        #region Markdown Panel
+        private void ShowMarkdownPanelInternal()
+        {
+            _markdownContent = string.Empty;
+            HideAllPanels();
+            MarkdownPanel.Visibility = Visibility.Visible;
+            _ = StreamMarkdownAsync();
+        }
+
+        private void HideAllPanels()
+        {
+            SearchBox.Visibility = Visibility.Collapsed;
+            ItemsList.Visibility = Visibility.Collapsed;
+            FooterPanel.Visibility = Visibility.Collapsed;
+            EditPanel.Visibility = Visibility.Collapsed;
+            CommandPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            MarkdownPanel.Visibility = Visibility.Collapsed;
+        }
+
+        private void HideMarkdownPanel()
+        {
+            MarkdownPanel.Visibility = Visibility.Collapsed;
+            SearchBox.Visibility = Visibility.Visible;
+            ItemsList.Visibility = Visibility.Visible;
+            UpdateFooterVisibility();
+            SearchBox.Focus(FocusState.Programmatic);
+        }
+
+        private async void OnSendMarkdownInput(object sender, RoutedEventArgs e)
+        {
+            var input = MarkdownInput.Text?.Trim();
+            if (string.IsNullOrEmpty(input)) return;
+
+            _markdownContent += $"\n\n> {input}\n\n";
+            MarkdownTextBlock.Text = _markdownContent;
+            MarkdownInput.Text = string.Empty;
+            
+            await SimulateResponseAsync(input);
+        }
+
+        private void OnSendMarkdownInputKey(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            OnSendMarkdownInput(sender, new RoutedEventArgs());
+            args.Handled = true;
+        }
+
+        private async Task SimulateResponseAsync(string question)
+        {
+            _lastAssistantMessage = string.Empty;
+            var responses = new[] { "That's ", "a ", "great ", "question! ", "\n\nLet ", "me ", "explain ", "in ", "detail. ", "\n\n", "- ", "First ", "point\n", "- ", "Second ", "point\n", "- ", "Third ", "point\n\n", "Hope ", "this ", "helps! " };
+            
+            foreach (var chunk in responses)
+            {
+                _lastAssistantMessage += chunk;
+                _markdownContent += chunk;
+                MarkdownTextBlock.Text = _markdownContent;
+                MarkdownScrollViewer.ChangeView(null, MarkdownScrollViewer.ScrollableHeight, null, false);
+                await Task.Delay(50);
+            }
+            
+            MarkdownInput.Focus(FocusState.Programmatic);
+        }
+
+        private void OnCopyMarkdown(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(_lastAssistantMessage))
+            {
+                _clipboardService.CopyToClipboard(_lastAssistantMessage);
+            }
+        }
+
+        private void OnCopyPlainText(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(_lastAssistantMessage))
+            {
+                var plainText = System.Text.RegularExpressions.Regex.Replace(_lastAssistantMessage, @"[*_`#>\[\]()\\-]|```[\s\S]*?```", "");
+                plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\n\s*\n", "\n");
+                _clipboardService.CopyToClipboard(plainText.Trim());
+            }
+        }
+
+        private async Task StreamMarkdownAsync()
+        {
+            var samples = new[] { "# ", "Streaming ", "Markdown ", "Test\n\n", "This is a **demonstration** of ", "markdown streaming in ", "**WinUI3**.\n\n", "## Features\n\n", "- *Italic text*\n", "- **Bold text**\n", "- `Inline code`\n", "- [Links](https://github.com)\n\n", "## Code Block\n\n", "```csharp\n", "public async Task StreamMarkdown()\n", "{\n", "    await Task.Delay(50);\n", "    // Streaming content...\n", "}\n", "```\n\n", "## Lists\n\n", "1. First item\n", "2. Second item\n", "3. Third item\n\n", "### Nested Lists\n\n", "- Parent item\n", "  - Child item 1\n", "  - Child item 2\n\n", "## Blockquote\n\n", "> This is a blockquote.\n", "> It can span multiple lines.\n\n", "## Conclusion\n\n", "Markdown streaming works! ", "✨ Type below for follow-up." };
+            
+            foreach (var chunk in samples)
+            {
+                _markdownContent += chunk;
+                MarkdownTextBlock.Text = _markdownContent;
+                MarkdownScrollViewer.ChangeView(null, MarkdownScrollViewer.ScrollableHeight, null, false);
+                await Task.Delay(80);
+            }
+            
+            MarkdownInput.Focus(FocusState.Programmatic);
         }
         #endregion
 

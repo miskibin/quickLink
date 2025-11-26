@@ -72,6 +72,7 @@ namespace quickLink.Models.ListItems
         void ShowEditPanel(IEditableItem item);
         void ShowCommandPanel(UserCommand? command);
         void ShowSettingsPanel();
+        void ShowMarkdownPanel();
         void ExitApplication();
     }
 

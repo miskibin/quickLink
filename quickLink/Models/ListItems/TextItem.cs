@@ -4,8 +4,31 @@ namespace quickLink.Models.ListItems
 {
     public class TextItem : IListItem, IEditableItem
     {
-        public string Title { get; set; } = string.Empty;
-        public string Value { get; set; } = string.Empty;
+        private string _title = string.Empty;
+        private string _value = string.Empty;
+        private string? _titleLower;
+        private string? _valueLower;
+
+        public string Title
+        {
+            get => _title;
+            set
+            {
+                _title = value;
+                _titleLower = null; // Invalidate cache
+            }
+        }
+
+        public string Value
+        {
+            get => _value;
+            set
+            {
+                _value = value;
+                _valueLower = null; // Invalidate cache
+            }
+        }
+
         public bool IsEncrypted { get; set; }
 
         public string DisplayTitle => string.IsNullOrWhiteSpace(Title) ? "📄 Text" : Title;
@@ -28,8 +51,8 @@ namespace quickLink.Models.ListItems
 
         public TextItem(string title, string value, bool isEncrypted = false)
         {
-            Title = title;
-            Value = value;
+            _title = title;
+            _value = value;
             IsEncrypted = isEncrypted;
         }
 
@@ -45,9 +68,11 @@ namespace quickLink.Models.ListItems
             if (string.IsNullOrWhiteSpace(searchText))
                 return true;
 
-            var search = searchText.ToLowerInvariant();
-            return (!string.IsNullOrWhiteSpace(Title) && Title.ToLowerInvariant().Contains(search)) ||
-                   (!string.IsNullOrWhiteSpace(Value) && Value.ToLowerInvariant().Contains(search));
+            // Cache lowercase values for repeated searches
+            _titleLower ??= _title?.ToLowerInvariant() ?? string.Empty;
+            _valueLower ??= _value?.ToLowerInvariant() ?? string.Empty;
+
+            return _titleLower.Contains(searchText) || _valueLower.Contains(searchText);
         }
     }
 }

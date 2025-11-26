@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using quickLink.Models;
 using quickLink.Models.ListItems;
@@ -14,6 +15,9 @@ namespace quickLink.Services
     {
         private readonly string _usageFilePath;
         private ItemUsageStats _stats;
+        private bool _isDirty;
+        private CancellationTokenSource? _saveDebounceTokenSource;
+        private static readonly TimeSpan SaveDebounceDelay = TimeSpan.FromSeconds(2);
 
         public UsageTrackingService()
         {
@@ -41,12 +45,13 @@ namespace quickLink.Services
             }
         }
 
-        public async Task SaveAsync()
+        private async Task SaveAsync()
         {
             try
             {
                 var json = JsonSerializer.Serialize(_stats, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(_usageFilePath, json);
+                _isDirty = false;
             }
             catch
             {
@@ -55,9 +60,36 @@ namespace quickLink.Services
         }
 
         /// <summary>
+        /// Schedules a debounced save operation
+        /// </summary>
+        private void ScheduleSave()
+        {
+            _isDirty = true;
+            _saveDebounceTokenSource?.Cancel();
+            _saveDebounceTokenSource = new CancellationTokenSource();
+            var token = _saveDebounceTokenSource.Token;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(SaveDebounceDelay, token);
+                    if (!token.IsCancellationRequested && _isDirty)
+                    {
+                        await SaveAsync();
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                    // Expected when another save is scheduled
+                }
+            });
+        }
+
+        /// <summary>
         /// Record that an item was used (executed/copied)
         /// </summary>
-        public async Task RecordUsageAsync(IListItem item)
+        public void RecordUsage(IListItem item)
         {
             var key = GetItemKey(item);
             if (string.IsNullOrEmpty(key))
@@ -71,7 +103,29 @@ namespace quickLink.Services
             _stats.Items[key].UseCount++;
             _stats.Items[key].LastUsed = DateTime.UtcNow;
 
-            await SaveAsync();
+            // Schedule debounced save instead of immediate save
+            ScheduleSave();
+        }
+
+        /// <summary>
+        /// Record that an item was used (executed/copied) - async version for backward compatibility
+        /// </summary>
+        public Task RecordUsageAsync(IListItem item)
+        {
+            RecordUsage(item);
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Force an immediate save (e.g., on app shutdown)
+        /// </summary>
+        public async Task FlushAsync()
+        {
+            _saveDebounceTokenSource?.Cancel();
+            if (_isDirty)
+            {
+                await SaveAsync();
+            }
         }
 
         /// <summary>

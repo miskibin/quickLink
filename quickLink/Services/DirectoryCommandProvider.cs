@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,15 +12,32 @@ namespace quickLink.Services
 {
     public sealed class DirectoryCommandProvider
     {
+        // Cache for directory listings with TTL
+        private readonly ConcurrentDictionary<string, (List<UserCommandResultItem> Items, DateTime CachedAt)> _cache = new();
+        private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(30); // 30 second TTL
+
+        private static string GetCacheKey(SourceConfig config, string executeTemplate)
+        {
+            return $"{config.Path}|{config.Glob}|{config.Recursive}|{executeTemplate}";
+        }
+
         /// <summary>
         /// Lists files from a directory based on glob pattern and recursive option.
-        /// Optimized for performance with lazy evaluation and limited results.
+        /// Optimized for performance with lazy evaluation, caching, and limited results.
         /// </summary>
         public async Task<List<UserCommandResultItem>> GetItemsAsync(SourceConfig config, string executeTemplate, bool openInTerminal = false, int maxResults = 50)
         {
             if (string.IsNullOrWhiteSpace(config.Path) || !Directory.Exists(config.Path))
             {
                 return new List<UserCommandResultItem>();
+            }
+
+            var cacheKey = GetCacheKey(config, executeTemplate);
+
+            // Check cache first
+            if (_cache.TryGetValue(cacheKey, out var cached) && DateTime.UtcNow - cached.CachedAt < CacheTtl)
+            {
+                return cached.Items.Take(maxResults).ToList();
             }
 
             return await Task.Run(() =>
@@ -44,9 +62,11 @@ namespace quickLink.Services
                         AttributesToSkip = FileAttributes.System
                     });
 
+                    // Collect more items for caching (up to 200 for search capability)
+                    const int maxCacheItems = 200;
                     foreach (var file in allFiles)
                     {
-                        if (items.Count >= maxResults)
+                        if (items.Count >= maxCacheItems)
                             break;
 
                         // Get relative path for matching
@@ -68,7 +88,12 @@ namespace quickLink.Services
                         ));
                     }
 
-                    return items.OrderBy(i => i.FileDisplayName).ToList();
+                    var sortedItems = items.OrderBy(i => i.FileDisplayName).ToList();
+
+                    // Update cache
+                    _cache[cacheKey] = (sortedItems, DateTime.UtcNow);
+
+                    return sortedItems.Take(maxResults).ToList();
                 }
                 catch
                 {
@@ -79,10 +104,12 @@ namespace quickLink.Services
 
         /// <summary>
         /// Searches files by name in addition to glob pattern.
+        /// Uses cached items when available for faster search.
         /// </summary>
         public async Task<List<UserCommandResultItem>> SearchItemsAsync(SourceConfig config, string executeTemplate, bool openInTerminal, string searchText, int maxResults = 50)
         {
-            var allItems = await GetItemsAsync(config, executeTemplate, openInTerminal, maxResults * 2);
+            // Get items (will use cache if available)
+            var allItems = await GetItemsAsync(config, executeTemplate, openInTerminal, 200);
 
             if (string.IsNullOrWhiteSpace(searchText))
                 return allItems.Take(maxResults).ToList();
@@ -95,6 +122,25 @@ namespace quickLink.Services
                     item.Name.Contains(searchLower, StringComparison.OrdinalIgnoreCase))
                 .Take(maxResults)
                 .ToList();
+        }
+
+        /// <summary>
+        /// Clears the cache for a specific directory or all directories
+        /// </summary>
+        public void ClearCache(string? directoryPath = null)
+        {
+            if (directoryPath == null)
+            {
+                _cache.Clear();
+            }
+            else
+            {
+                var keysToRemove = _cache.Keys.Where(k => k.StartsWith(directoryPath)).ToList();
+                foreach (var key in keysToRemove)
+                {
+                    _cache.TryRemove(key, out _);
+                }
+            }
         }
 
         private static string GetFileIcon(string extension)

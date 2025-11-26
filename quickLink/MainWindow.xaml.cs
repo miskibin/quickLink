@@ -67,6 +67,10 @@ namespace quickLink
         // Performance optimization: cache the last search to avoid redundant filtering
         private string _lastSearchText = string.Empty;
 
+        // Search debouncing
+        private System.Threading.CancellationTokenSource? _searchDebounceTokenSource;
+        private const int SEARCH_DEBOUNCE_MS = 16; // ~1 frame at 60fps - minimal debounce
+
         // Markdown streaming state
         private string _markdownContent = string.Empty;
         private string _apiKey = string.Empty;
@@ -123,24 +127,12 @@ namespace quickLink
                 InitializeHotkey();
 
                 _ = LoadDataAsync();
-                _ = InitializeMediaServiceAsync();
+                // MediaControlService now uses lazy initialization - no need to init on startup
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"FATAL ERROR: {ex.Message}");
                 throw;
-            }
-        }
-
-        private async Task InitializeMediaServiceAsync()
-        {
-            try
-            {
-                await _mediaControlService.InitializeAsync();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Media service initialization failed: {ex.Message}");
             }
         }
 
@@ -578,6 +570,10 @@ namespace quickLink
 
         private void UpdateFilteredItems(List<IListItem> newItems)
         {
+            // Skip update if items haven't changed
+            if (ItemsAreEqual(newItems, _filteredItems))
+                return;
+
             // Remove items from the end that are no longer needed
             while (_filteredItems.Count > newItems.Count)
             {
@@ -622,10 +618,26 @@ namespace quickLink
             return item.MatchesSearch(searchText);
         }
 
-        private void OnSearchTextChanged(object sender, TextChangedEventArgs e)
+        private async void OnSearchTextChanged(object sender, TextChangedEventArgs e)
         {
-            // Instant filtering for maximum responsiveness
-            FilterItems();
+            // Cancel previous debounce
+            _searchDebounceTokenSource?.Cancel();
+            _searchDebounceTokenSource = new System.Threading.CancellationTokenSource();
+            var token = _searchDebounceTokenSource.Token;
+
+            try
+            {
+                // Small debounce to batch rapid keystrokes
+                await Task.Delay(SEARCH_DEBOUNCE_MS, token);
+                if (!token.IsCancellationRequested)
+                {
+                    FilterItems();
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Expected when typing quickly
+            }
         }
 
         private void OnRootKeyDown(object sender, KeyRoutedEventArgs e)

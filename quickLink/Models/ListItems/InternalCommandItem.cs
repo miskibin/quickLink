@@ -8,8 +8,30 @@ namespace quickLink.Models.ListItems
     /// </summary>
     public class InternalCommandItem : IListItem
     {
-        public string Title { get; set; } = string.Empty;
-        public string CommandValue { get; set; } = string.Empty;
+        private string _title = string.Empty;
+        private string _commandValue = string.Empty;
+        private string? _titleLower;
+        private string? _commandLower;
+
+        public string Title
+        {
+            get => _title;
+            set
+            {
+                _title = value;
+                _titleLower = null; // Invalidate cache
+            }
+        }
+
+        public string CommandValue
+        {
+            get => _commandValue;
+            set
+            {
+                _commandValue = value;
+                _commandLower = null; // Invalidate cache
+            }
+        }
 
         public string DisplayTitle => Title;
         public string DisplayValue
@@ -43,8 +65,8 @@ namespace quickLink.Models.ListItems
 
         public InternalCommandItem(string title, string commandValue)
         {
-            Title = title;
-            CommandValue = commandValue;
+            _title = title;
+            _commandValue = commandValue;
         }
 
         private static string GetIconForCommand(string commandValue)
@@ -109,9 +131,11 @@ namespace quickLink.Models.ListItems
             if (string.IsNullOrWhiteSpace(searchText))
                 return true;
 
-            var search = searchText.ToLowerInvariant();
-            return (!string.IsNullOrWhiteSpace(Title) && Title.ToLowerInvariant().Contains(search)) ||
-                   (!string.IsNullOrWhiteSpace(CommandValue) && CommandValue.ToLowerInvariant().Contains(search));
+            // Cache lowercase values for repeated searches
+            _titleLower ??= _title?.ToLowerInvariant() ?? string.Empty;
+            _commandLower ??= _commandValue?.ToLowerInvariant() ?? string.Empty;
+
+            return _titleLower.Contains(searchText) || _commandLower.Contains(searchText);
         }
     }
 }

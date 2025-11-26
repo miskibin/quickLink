@@ -5,8 +5,32 @@ namespace quickLink.Models.ListItems
 {
     public class LinkItem : IListItem, IEditableItem
     {
-        public string Title { get; set; } = string.Empty;
-        public string Value { get; set; } = string.Empty;
+        private string _title = string.Empty;
+        private string _value = string.Empty;
+        private string? _titleLower;
+        private string? _valueLower;
+
+        public string Title
+        {
+            get => _title;
+            set
+            {
+                _title = value;
+                _titleLower = null; // Invalidate cache
+            }
+        }
+
+        public string Value
+        {
+            get => _value;
+            set
+            {
+                _value = value;
+                _valueLower = null; // Invalidate cache
+                UpdateFavicon();
+            }
+        }
+
         public bool IsEncrypted { get; set; }
         public string? FaviconUrl { get; private set; }
 
@@ -32,19 +56,19 @@ namespace quickLink.Models.ListItems
 
         public LinkItem(string title, string url, bool isEncrypted = false)
         {
-            Title = title;
-            Value = url;
+            _title = title;
+            _value = url;
             IsEncrypted = isEncrypted;
             UpdateFavicon();
         }
 
         private void UpdateFavicon()
         {
-            if (!string.IsNullOrWhiteSpace(Value))
+            if (!string.IsNullOrWhiteSpace(_value))
             {
                 try
                 {
-                    var uri = new Uri(Value);
+                    var uri = new Uri(_value);
                     FaviconUrl = $"https://icons.duckduckgo.com/ip3/{uri.Host}.ico";
                 }
                 catch
@@ -65,9 +89,11 @@ namespace quickLink.Models.ListItems
             if (string.IsNullOrWhiteSpace(searchText))
                 return true;
 
-            var search = searchText.ToLowerInvariant();
-            return (!string.IsNullOrWhiteSpace(Title) && Title.ToLowerInvariant().Contains(search)) ||
-                   (!string.IsNullOrWhiteSpace(Value) && Value.ToLowerInvariant().Contains(search));
+            // Cache lowercase values for repeated searches
+            _titleLower ??= _title?.ToLowerInvariant() ?? string.Empty;
+            _valueLower ??= _value?.ToLowerInvariant() ?? string.Empty;
+
+            return _titleLower.Contains(searchText) || _valueLower.Contains(searchText);
         }
     }
 }

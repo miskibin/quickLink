@@ -786,29 +786,12 @@
                     <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         
-                        <!-- Copy Markdown Button -->
-                        <Button Grid.Column="0"
-                                Click="OnCopyMarkdown"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Width="32"
-                                Height="32"
-                                Padding="0"
-                                CornerRadius="6"
-                                Margin="0,0,4,0"
-                                ToolTipService.ToolTip="Copy as Markdown">
-                            <FontIcon FontFamily="Segoe Fluent Icons"
-                                      Glyph="&#xE8C8;"
-                                      FontSize="16"/>
-                        </Button>
-                        
                         <!-- Copy Plain Text Button -->
-                        <Button Grid.Column="1"
+                        <Button Grid.Column="0"
                                 Click="OnCopyPlainText"
                                 Background="Transparent"
                                 BorderThickness="0"
@@ -817,14 +800,14 @@
                                 Padding="0"
                                 CornerRadius="6"
                                 Margin="0,0,8,0"
-                                ToolTipService.ToolTip="Copy as Plain Text">
+                                ToolTipService.ToolTip="Copy as Text">
                             <FontIcon FontFamily="Segoe Fluent Icons"
                                       Glyph="&#xE8C8;"
                                       FontSize="16"/>
                         </Button>
                         
                         <TextBox x:Name="MarkdownInput"
-                                 Grid.Column="2"
+                                 Grid.Column="1"
                                  PlaceholderText="Type your follow-up question..."
                                  FontSize="13"
                                  CornerRadius="6"
@@ -841,7 +824,7 @@
                         </TextBox>
                         
                         <!-- Send Icon Button -->
-                        <Button Grid.Column="3"
+                        <Button Grid.Column="2"
                                 Click="OnSendMarkdownInput"
                                 Background="Transparent"
                                 BorderThickness="0"

@@ -73,6 +73,8 @@ namespace quickLink.Models.ListItems
         void ShowCommandPanel(UserCommand? command);
         void ShowSettingsPanel();
         void ShowMarkdownPanel();
+        void ShowMarkdownPanelWithQuery(string query);
+        bool HasApiKey();
         void ExitApplication();
     }
 

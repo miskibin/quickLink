@@ -123,7 +123,9 @@ namespace quickLink.Services
             try
             {
                 var json = await File.ReadAllTextAsync(_settingsFilePath);
-                return JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new AppSettings();
+                var settings = JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new AppSettings();
+                settings.ApiKey = _encryptionService.Decrypt(settings.ApiKey);
+                return settings;
             }
             catch
             {
@@ -135,7 +137,15 @@ namespace quickLink.Services
         {
             try
             {
-                var json = JsonSerializer.Serialize(settings, _jsonOptions);
+                var toSave = new AppSettings
+                {
+                    HotkeyModifiers = settings.HotkeyModifiers,
+                    HotkeyKey = settings.HotkeyKey,
+                    HideFooter = settings.HideFooter,
+                    SearchUrl = settings.SearchUrl,
+                    ApiKey = _encryptionService.Encrypt(settings.ApiKey)
+                };
+                var json = JsonSerializer.Serialize(toSave, _jsonOptions);
                 await File.WriteAllTextAsync(_settingsFilePath, json);
             }
             catch

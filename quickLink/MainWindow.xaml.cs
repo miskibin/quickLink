@@ -47,6 +47,7 @@ namespace quickLink
         private readonly CommandService _commandService;
         private readonly DirectoryCommandProvider _directoryProvider;
         private readonly UsageTrackingService _usageTrackingService;
+        private readonly GrokService _grokService;
         private readonly ObservableCollection<IListItem> _allItems;
         private readonly ObservableCollection<IListItem> _filteredItems;
         private readonly List<InternalCommandItem> _internalCommands;
@@ -109,6 +110,7 @@ namespace quickLink
                 _commandService = new CommandService();
                 _directoryProvider = new DirectoryCommandProvider();
                 _usageTrackingService = new UsageTrackingService();
+                _grokService = new GrokService();
                 _allItems = new ObservableCollection<IListItem>();
                 _filteredItems = new ObservableCollection<IListItem>();
                 _internalCommands = new List<InternalCommandItem>();
@@ -153,7 +155,6 @@ namespace quickLink
             _internalCommands.Add(new InternalCommandItem("Add new item", AppConstants.CommandPrefixes.AddCommand));
             _internalCommands.Add(new InternalCommandItem("Add new command (advanced)", AppConstants.CommandPrefixes.AddCommandAdvanced));
             _internalCommands.Add(new InternalCommandItem("Settings", AppConstants.CommandPrefixes.SettingsCommand));
-            _internalCommands.Add(new InternalCommandItem("Test Markdown Streaming", AppConstants.CommandPrefixes.MarkdownCommand));
             _internalCommands.Add(new InternalCommandItem("Exit app", AppConstants.CommandPrefixes.ExitCommand));
         }
 
@@ -313,6 +314,7 @@ namespace quickLink
                 var settings = await _dataService.LoadSettingsAsync();
                 _hideFooter = settings.HideFooter;
                 _searchUrl = settings.SearchUrl;
+                _apiKey = settings.ApiKey ?? string.Empty;
                 UpdateFooterVisibility();
 
                 FilterItems();
@@ -732,6 +734,14 @@ namespace quickLink
         {
             ShowMarkdownPanelInternal();
         }
+
+        void IExecutionContext.ShowMarkdownPanelWithQuery(string query)
+        {
+            ShowMarkdownPanelInternal();
+            _ = SendInitialQueryAsync(query);
+        }
+
+        public bool HasApiKey() => !string.IsNullOrEmpty(_apiKey);
 
         public void ExitApplication()
         {
@@ -1669,9 +1679,19 @@ namespace quickLink
         private void ShowMarkdownPanelInternal()
         {
             _markdownContent = string.Empty;
+            _lastAssistantMessage = string.Empty;
+            _grokService.ClearHistory();
             HideAllPanels();
             MarkdownPanel.Visibility = Visibility.Visible;
-            _ = StreamMarkdownAsync();
+            MarkdownTextBlock.Text = "Ask me anything...";
+            MarkdownInput.Focus(FocusState.Programmatic);
+        }
+
+        private async Task SendInitialQueryAsync(string query)
+        {
+            _markdownContent = $"> {query}\n\n";
+            MarkdownTextBlock.Text = _markdownContent;
+            await SimulateResponseAsync(query);
         }
 
         private void HideAllPanels()
@@ -1715,26 +1735,17 @@ namespace quickLink
         private async Task SimulateResponseAsync(string question)
         {
             _lastAssistantMessage = string.Empty;
-            var responses = new[] { "That's ", "a ", "great ", "question! ", "\n\nLet ", "me ", "explain ", "in ", "detail. ", "\n\n", "- ", "First ", "point\n", "- ", "Second ", "point\n", "- ", "Third ", "point\n\n", "Hope ", "this ", "helps! " };
             
-            foreach (var chunk in responses)
+            await _grokService.StreamResponseAsync(_apiKey, question, async chunk =>
             {
                 _lastAssistantMessage += chunk;
                 _markdownContent += chunk;
                 MarkdownTextBlock.Text = _markdownContent;
                 MarkdownScrollViewer.ChangeView(null, MarkdownScrollViewer.ScrollableHeight, null, false);
-                await Task.Delay(50);
-            }
+                await Task.Delay(10);
+            });
             
             MarkdownInput.Focus(FocusState.Programmatic);
-        }
-
-        private void OnCopyMarkdown(object sender, RoutedEventArgs e)
-        {
-            if (!string.IsNullOrEmpty(_lastAssistantMessage))
-            {
-                _clipboardService.CopyToClipboard(_lastAssistantMessage);
-            }
         }
 
         private void OnCopyPlainText(object sender, RoutedEventArgs e)
@@ -1745,21 +1756,6 @@ namespace quickLink
                 plainText = System.Text.RegularExpressions.Regex.Replace(plainText, @"\n\s*\n", "\n");
                 _clipboardService.CopyToClipboard(plainText.Trim());
             }
-        }
-
-        private async Task StreamMarkdownAsync()
-        {
-            var samples = new[] { "# ", "Streaming ", "Markdown ", "Test\n\n", "This is a **demonstration** of ", "markdown streaming in ", "**WinUI3**.\n\n", "## Features\n\n", "- *Italic text*\n", "- **Bold text**\n", "- `Inline code`\n", "- [Links](https://github.com)\n\n", "## Code Block\n\n", "```csharp\n", "public async Task StreamMarkdown()\n", "{\n", "    await Task.Delay(50);\n", "    // Streaming content...\n", "}\n", "```\n\n", "## Lists\n\n", "1. First item\n", "2. Second item\n", "3. Third item\n\n", "### Nested Lists\n\n", "- Parent item\n", "  - Child item 1\n", "  - Child item 2\n\n", "## Blockquote\n\n", "> This is a blockquote.\n", "> It can span multiple lines.\n\n", "## Conclusion\n\n", "Markdown streaming works! ", "✨ Type below for follow-up." };
-            
-            foreach (var chunk in samples)
-            {
-                _markdownContent += chunk;
-                MarkdownTextBlock.Text = _markdownContent;
-                MarkdownScrollViewer.ChangeView(null, MarkdownScrollViewer.ScrollableHeight, null, false);
-                await Task.Delay(80);
-            }
-            
-            MarkdownInput.Focus(FocusState.Programmatic);
         }
         #endregion
 

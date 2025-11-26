@@ -37,10 +37,17 @@ namespace quickLink.Models.ListItems
 
         public async Task ExecuteAsync(IExecutionContext context)
         {
-            var query = System.Uri.EscapeDataString(SearchQuery);
-            var url = SearchUrl.Replace(AppConstants.DefaultSettings.QueryPlaceholder, query);
-            await context.OpenUrlAsync(url);
-            context.HideWindow();
+            if (context.HasApiKey())
+            {
+                context.ShowMarkdownPanelWithQuery(SearchQuery);
+            }
+            else
+            {
+                var query = System.Uri.EscapeDataString(SearchQuery);
+                var url = SearchUrl.Replace(AppConstants.DefaultSettings.QueryPlaceholder, query);
+                await context.OpenUrlAsync(url);
+                context.HideWindow();
+            }
         }
 
         public bool MatchesSearch(string searchText)

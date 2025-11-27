@@ -239,6 +239,40 @@ QuickLink focuses on repetitive tasks developers do constantly: accessing links,
 
 ---
 
+## 🤖 AI Assistant
+
+QuickLink includes an integrated AI chat powered by **Grok 4.1 fast (xAI)** for quick answers without leaving your workflow.
+
+### Setup
+
+1. Open **Settings** (search for "Settings" or press <kbd>Ctrl+Space</kbd>)
+2. Get your API key from [xAI Console](https://console.x.ai/)
+3. Paste the key in the **API Key** field
+4. Save settings
+
+### Usage
+
+Just type your question in the QuickLink search bar and press <kbd>Enter</kbd> to get instant answers.
+
+- Use internal command: "Open last conversation" to restore your previous chat
+
+**Features:**
+- **Model:** Grok 2 Fast (optimized for speed and concise responses)
+- **Streaming responses:** See answers as they're generated
+- **Conversation history:** Continue multi-turn conversations
+- **Direct answers:** No filler phrases—just the information you need
+- **Short responses:** Limited to 500 tokens for quick, focused answers
+- **Persistent sessions:** Your last conversation is saved and can be restored
+
+**Example Queries:**
+- "What's the command to clear DNS cache on Windows?"
+- "How do I create a symbolic link in PowerShell?"
+- "Explain async/await in JavaScript"
+
+**Tip:** The AI is configured to answer directly without unnecessary greetings or filler text, perfect for quick lookups during coding.
+
+---
+
 AI interface: 
 
 <img width="880" height="402" alt="image" src="https://github.com/user-attachments/assets/e81c08bf-3910-4612-80ab-0b914b70161f" />

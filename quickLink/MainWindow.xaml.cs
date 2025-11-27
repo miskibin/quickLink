@@ -75,6 +75,8 @@ namespace quickLink
         private string _markdownContent = string.Empty;
         private string _apiKey = string.Empty;
         private string _lastAssistantMessage = string.Empty;
+        private string _savedMarkdownContent = string.Empty;
+        private List<(string role, string content)> _savedConversationHistory = new List<(string, string)>();
 
         // Window subclassing
         private WinProc? _newWndProc;
@@ -147,6 +149,7 @@ namespace quickLink
             _internalCommands.Add(new InternalCommandItem("Add new item", AppConstants.CommandPrefixes.AddCommand));
             _internalCommands.Add(new InternalCommandItem("Add new command (advanced)", AppConstants.CommandPrefixes.AddCommandAdvanced));
             _internalCommands.Add(new InternalCommandItem("Settings", AppConstants.CommandPrefixes.SettingsCommand));
+            _internalCommands.Add(new InternalCommandItem("Open last conversation", AppConstants.CommandPrefixes.OpenLastConversationCommand));
             _internalCommands.Add(new InternalCommandItem("Exit app", AppConstants.CommandPrefixes.ExitCommand));
         }
 
@@ -751,6 +754,11 @@ namespace quickLink
         {
             ShowMarkdownPanelInternal();
             _ = SendInitialQueryAsync(query);
+        }
+
+        void IExecutionContext.RestoreLastConversation()
+        {
+            RestoreLastConversationInternal();
         }
 
         public bool HasApiKey() => !string.IsNullOrEmpty(_apiKey);
@@ -1719,11 +1727,38 @@ namespace quickLink
 
         private void HideMarkdownPanel()
         {
+            // Save the current conversation before hiding
+            if (!string.IsNullOrEmpty(_markdownContent))
+            {
+                _savedMarkdownContent = _markdownContent;
+                _savedConversationHistory = _grokService.GetConversationHistory();
+            }
+            
             MarkdownPanel.Visibility = Visibility.Collapsed;
             SearchBox.Visibility = Visibility.Visible;
             ItemsList.Visibility = Visibility.Visible;
             UpdateFooterVisibility();
             SearchBox.Focus(FocusState.Programmatic);
+        }
+
+        private void RestoreLastConversationInternal()
+        {
+            if (string.IsNullOrEmpty(_savedMarkdownContent))
+            {
+                // If there's no saved conversation, just open a fresh markdown panel
+                ShowMarkdownPanelInternal();
+                return;
+            }
+
+            // Restore the saved conversation
+            _markdownContent = _savedMarkdownContent;
+            _grokService.RestoreHistory(_savedConversationHistory);
+            
+            HideAllPanels();
+            MarkdownPanel.Visibility = Visibility.Visible;
+            MarkdownTextBlock.Text = _markdownContent;
+            MarkdownScrollViewer.ChangeView(null, MarkdownScrollViewer.ScrollableHeight, null, false);
+            MarkdownInput.Focus(FocusState.Programmatic);
         }
 
         private async void OnSendMarkdownInput(object sender, RoutedEventArgs e)

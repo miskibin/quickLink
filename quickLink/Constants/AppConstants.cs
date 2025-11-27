@@ -32,6 +32,7 @@ namespace quickLink.Constants
             public const string SettingsCommand = "internal:settings";
             public const string ExitCommand = "internal:exit";
             public const string MarkdownCommand = "internal:markdown";
+            public const string OpenLastConversationCommand = "internal:openlastconversation";
         }
 
         public static class MediaCommands

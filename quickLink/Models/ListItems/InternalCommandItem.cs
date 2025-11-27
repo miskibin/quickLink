@@ -81,6 +81,7 @@ namespace quickLink.Models.ListItems
                 AppConstants.MediaCommands.Previous => "\uE892",          // Previous track
                 AppConstants.MediaCommands.PlayPause => "\uE768",         // Play/Pause
                 AppConstants.CommandPrefixes.MarkdownCommand => "\uE8A5", // Document icon
+                AppConstants.CommandPrefixes.OpenLastConversationCommand => "\uE8F4", // Chat bubbles icon
                 _ => "\uE8B7"                                             // Default bulleted list
             };
         }
@@ -122,6 +123,10 @@ namespace quickLink.Models.ListItems
 
                 case AppConstants.CommandPrefixes.MarkdownCommand:
                     context.ShowMarkdownPanel();
+                    break;
+
+                case AppConstants.CommandPrefixes.OpenLastConversationCommand:
+                    context.RestoreLastConversation();
                     break;
             }
         }

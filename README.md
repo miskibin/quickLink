@@ -239,6 +239,11 @@ QuickLink focuses on repetitive tasks developers do constantly: accessing links,
 
 ---
 
+AI interface: 
+
+<img width="880" height="402" alt="image" src="https://github.com/user-attachments/assets/e81c08bf-3910-4612-80ab-0b914b70161f" />
+
+
 <img width="746" height="396" alt="image" src="https://github.com/user-attachments/assets/b49ae5e4-9144-4a7f-9e0c-37ada8c3a5ab" />
 
 <img width="785" height="401" alt="image" src="https://github.com/user-attachments/assets/b14cb750-9aef-4ae0-8491-f364ae746b09" />

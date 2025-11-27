@@ -257,17 +257,11 @@ Just type your question in the QuickLink search bar and press <kbd>Enter</kbd> t
 - Use internal command: "Open last conversation" to restore your previous chat
 
 **Features:**
-- **Model:** Grok 2 Fast (optimized for speed and concise responses)
 - **Streaming responses:** See answers as they're generated
 - **Conversation history:** Continue multi-turn conversations
 - **Direct answers:** No filler phrases—just the information you need
 - **Short responses:** Limited to 500 tokens for quick, focused answers
 - **Persistent sessions:** Your last conversation is saved and can be restored
-
-**Example Queries:**
-- "What's the command to clear DNS cache on Windows?"
-- "How do I create a symbolic link in PowerShell?"
-- "Explain async/await in JavaScript"
 
 **Tip:** The AI is configured to answer directly without unnecessary greetings or filler text, perfect for quick lookups during coding.
 

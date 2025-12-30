@@ -55,6 +55,15 @@ nav_order: 1
 
 Press <kbd>Ctrl+Shift+A</kbd> → Type to search → Press <kbd>Enter</kbd> to execute
 
+### Add new Item 
+
+<img width="707" height="353" alt="image" src="https://github.com/user-attachments/assets/b02db4a1-6dd4-416a-9130-f32d0c67eccc" />
+
+<img width="704" height="350" alt="image" src="https://github.com/user-attachments/assets/064eeef5-d2b7-430c-a5bf-b95c6d5c49ae" />
+
+<img width="704" height="350" alt="image" src="https://github.com/user-attachments/assets/2169b164-bcf3-40dc-a573-7e9fc60a4e36" />
+
+
 ## Keyboard Shortcuts
 
 | Action | Shortcut |

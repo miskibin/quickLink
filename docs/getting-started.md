@@ -1,10 +1,17 @@
+---
+title: Getting Started
+nav_order: 2
+---
+
 # Getting Started
 
 ## Installation
 
 1. Download from [releases](https://github.com/miskibin/quickLink/releases)
 2. Extract and run `QuickLink.exe`
-3. Wait a couple of seconds for startup
+
+> QuickLink starts minimized to the system tray by default. If it doesn’t appear immediately, wait a couple of seconds for startup.
+{: .note }
 
 ## Basic Workflow
 

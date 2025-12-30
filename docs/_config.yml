@@ -9,3 +9,15 @@ plugins:
 # Just the Docs settings
 search_enabled: true
 color_scheme: dark
+
+# Callouts
+callouts:
+  note:
+    title: Note
+    color: purple
+  warning:
+    title: Warning
+    color: red
+  tip:
+    title: Tip
+    color: green

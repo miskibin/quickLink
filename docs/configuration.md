@@ -1,3 +1,8 @@
+---
+title: Configuration
+nav_order: 7
+---
+
 # Configuration
 
 QuickLink stores data in `%APPDATA%\QuickLink\`:
@@ -6,7 +11,10 @@ QuickLink stores data in `%APPDATA%\QuickLink\`:
 - `data.json` (your saved items)
 - `commands.json` (user-defined commands)
 
-Edit via the Settings UI (search for "Settings") or by editing the JSON files.
+Edit via the Settings UI (search for "Settings").
+
+> Don’t edit these files directly. They are app-managed and manual changes may be overwritten or corrupt your data.
+{: .warning }
 
 ## Settings Reference
 

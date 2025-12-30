@@ -1,3 +1,8 @@
+---
+title: Features & Item Types
+nav_order: 3
+---
+
 # Features & Item Types
 
 QuickLink stores items in `data.json` and infers type from the value.

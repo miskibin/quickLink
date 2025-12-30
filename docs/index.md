@@ -1,3 +1,8 @@
+---
+title: Home
+nav_order: 1
+---
+
 # QuickLink Documentation
 
 ## Quick Links

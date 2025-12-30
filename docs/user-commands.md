@@ -1,3 +1,8 @@
+---
+title: User-Defined Commands
+nav_order: 4
+---
+
 # User-Defined Commands
 
 Create interactive commands with dynamic item sources and custom execution templates.

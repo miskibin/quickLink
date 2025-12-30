@@ -1,3 +1,8 @@
+---
+title: AI Assistant (Grok)
+nav_order: 5
+---
+
 # AI Assistant (Grok)
 
 ## Setup

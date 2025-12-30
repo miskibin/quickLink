@@ -1,3 +1,8 @@
+---
+title: Keyboard Shortcuts
+nav_order: 6
+---
+
 # Keyboard Shortcuts
 
 ## Global Hotkey

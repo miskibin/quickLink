@@ -42,12 +42,11 @@ QuickLink eliminates context-switching by putting your most-used resources one k
 
 ## 📚 Learn More
 
-- [**Getting Started**](docs/getting-started.md) - Installation and first steps
-- [**Features & Item Types**](docs/features.md) - What you can do with QuickLink
-- [**User-Defined Commands**](docs/user-commands.md) - Create dynamic workflows
-- [**AI Assistant Setup**](docs/ai-assistant.md) - Configure Grok AI integration
-- [**Keyboard Shortcuts**](docs/shortcuts.md) - All available shortcuts
-- [**Configuration**](docs/configuration.md) - Customize settings
+- [**Features & Item Types**](https://miskibin.github.io/quickLink/features) - What you can do with QuickLink
+- [**User-Defined Commands**](https://miskibin.github.io/quickLink/user-commands) - Create dynamic workflows
+- [**AI Assistant Setup**](https://miskibin.github.io/quickLink/ai-assistant) - Configure Grok AI integration
+- [**Keyboard Shortcuts**](https://miskibin.github.io/quickLink/shortcuts) - All available shortcuts
+- [**Configuration**](https://miskibin.github.io/quickLink/configuration) - Customize settings
 
 ---
 

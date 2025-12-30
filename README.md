@@ -15,7 +15,7 @@
 
 ## 💡 Why QuickLink?
 
-Stop context-switching for repetitive tasks. Press **Ctrl+Space** anywhere to instantly access URLs, snippets, commands, and files—making your workflow uninterrupted and efficient.
+Stop context-switching for repetitive tasks. Press **Ctrl+Shift+A** anywhere to instantly access URLs, snippets, commands, and files—making your workflow uninterrupted and efficient.
 
 ## 🎯 Use Cases
 
@@ -40,7 +40,7 @@ Stop context-switching for repetitive tasks. Press **Ctrl+Space** anywhere to in
 ### Quick Start
 
 1. **Launch** QuickLink (appears in system tray)
-2. Press <kbd>Ctrl+Space</kbd> to open the search window
+2. Press <kbd>Ctrl+Shift+A</kbd> to open the search window
 3. Type to find your link, snippet, or command
 4. Press <kbd>Enter</kbd> to execute
 5. Press <kbd>Escape</kbd> to close
@@ -49,7 +49,7 @@ Stop context-switching for repetitive tasks. Press **Ctrl+Space** anywhere to in
 
 | Action | Shortcut |
 |--------|----------|
-| Show/Hide Window | <kbd>Ctrl+Space</kbd> |
+| Show/Hide Window | <kbd>Ctrl+Shift+A</kbd> |
 | Search Items | Just start typing |
 | Navigate Results | <kbd>↑</kbd> / <kbd>↓</kbd> Arrow Keys |
 | Execute Item | <kbd>Enter</kbd> |

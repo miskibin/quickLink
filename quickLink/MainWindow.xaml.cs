@@ -35,9 +35,9 @@ namespace quickLink
 
         // Default hotkey
         private static readonly Windows.System.VirtualKeyModifiers DefaultHotkeyModifiers =
-            Windows.System.VirtualKeyModifiers.Control;
+            Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift;
         private static readonly Windows.System.VirtualKey DefaultHotkeyKey =
-            Windows.System.VirtualKey.Space;
+            Windows.System.VirtualKey.A;
         #endregion
 
         #region Fields

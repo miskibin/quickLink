@@ -10,11 +10,10 @@ Create interactive commands with dynamic item sources and custom execution templ
 
 ### Basic Settings
 
-- **Trigger:** The prefix that activates the command (e.g., `/docs`, `/scripts`)
-- **Source Type:** Where items come from:
-  - **Directory** - List files/folders from a folder
-  - **Static** - Predefined list of items you manually enter
-  - **HTTP** - Fetch items from a web endpoint (JSON array)
+- **Prefix:** The prefix that activates the command (e.g., `/docs`, `/scripts`)
+- **Source:** Where items come from:
+  - **Directory** - List files from a folder (glob + recursive)
+  - **Static** - Predefined list of strings
 
 ### Directory Source Options
 
@@ -35,6 +34,28 @@ The command to run when you select an item. Use placeholders:
 
 - **Yes** - Run command in a visible terminal window
 - **No** - Run silently in background
+
+## Stored Format (commands.json)
+
+Commands are stored in `%APPDATA%\\QuickLink\\commands.json`:
+
+```json
+[
+  {
+    "Prefix": "/docs",
+    "Source": "Directory",
+    "SourceConfig": {
+      "Path": "C:\\Docs",
+      "Recursive": true,
+      "Glob": "*.md",
+      "Items": []
+    },
+    "ExecuteTemplate": "code \"{item.path}\"",
+    "Icon": "Document",
+    "OpenInTerminal": false
+  }
+]
+```
 
 ## Real-World Examples
 

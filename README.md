@@ -53,7 +53,17 @@ QuickLink eliminates context-switching by putting your most-used resources one k
 
 ## ⚙️ Configuration
 
-Your settings are stored at:
+QuickLink stores its files under:
+```
+%APPDATA%\QuickLink\
+```
+
+Key files:
+- `settings.json` (app settings)
+- `data.json` (your saved items)
+- `commands.json` (user-defined commands)
+
+Settings file:
 `
 %APPDATA%\QuickLink\settings.json
 `

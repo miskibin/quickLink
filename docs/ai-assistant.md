@@ -8,7 +8,11 @@
 
 ## Usage
 
-Just type your question—QuickLink automatically detects questions and routes to Grok.
+1. Open QuickLink (<kbd>Ctrl+Shift+A</kbd>)
+2. Search for **"Open last conversation"** and press <kbd>Enter</kbd>
+3. Type your question in the chat panel and send
+
+If you have no saved conversation, this opens a fresh chat.
 
 ## Features
 
@@ -76,7 +80,7 @@ Using the Grok API requires:
 
 ## Model Information
 
-- **Model:** Grok 4.1 fast
+- **Model:** `grok-4-1-fast-non-reasoning`
 - **Provider:** xAI
 - **Response Format:** Streaming
 - **Max Tokens:** 500 (configurable)

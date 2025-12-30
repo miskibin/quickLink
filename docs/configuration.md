@@ -1,8 +1,12 @@
 # Configuration
 
-Settings stored at: `%APPDATA%\QuickLink\settings.json`
+QuickLink stores data in `%APPDATA%\QuickLink\`:
 
-**Edit via:** Settings UI (search for "Settings") or directly in JSON file
+- `settings.json` (app settings)
+- `data.json` (your saved items)
+- `commands.json` (user-defined commands)
+
+Edit via the Settings UI (search for "Settings") or by editing the JSON files.
 
 ## Settings Reference
 
@@ -13,7 +17,7 @@ Settings stored at: `%APPDATA%\QuickLink\settings.json`
   "HotkeyModifiers": 6,
   "HotkeyKey": 65,
   "HideFooter": true,
-  "SearchUrl": "https://chat.openai.com/?q={query}",
+  "SearchUrl": "https://chatgpt.com/?q={query}",
   "ApiKey": ""
 }
 ```
@@ -68,12 +72,12 @@ The URL to open when you press Enter without selecting an item.
 
 **Popular Options:**
 - `https://google.com/search?q={query}` - Google
-- `https://chat.openai.com/?q={query}` - ChatGPT
+- `https://chatgpt.com/?q={query}` - ChatGPT
 - `https://claude.ai/new?q={query}` - Claude
 - `https://bing.com/search?q={query}` - Bing
 - `https://www.wikipedia.org/w/api.php?action=query&list=search&srsearch={query}` - Wikipedia
 
-**Default:** `https://chat.openai.com/?q={query}`
+**Default:** `https://chatgpt.com/?q={query}`
 
 #### ApiKey
 
@@ -84,64 +88,60 @@ Your xAI API key for the AI Assistant feature.
 
 **Default:** Empty
 
-### Items
+## Items (data.json)
 
-All your saved items (URLs, snippets, commands, passwords) are stored under an `Items` array:
+Items are stored in `data.json` as a list of objects:
 
 ```json
-{
-  "Items": [
-    {
-      "Type": 0,
-      "Name": "GitHub",
-      "Value": "https://github.com"
+[
+  {
+    "Title": "GitHub",
+    "Value": "https://github.com",
+    "IsEncrypted": false
+  },
+  {
+    "Title": "Build",
+    "Value": ">dotnet build",
+    "IsEncrypted": false
+  }
+]
+```
+
+Item type is inferred from `Value`:
+
+- `https://...` / `http://...` → link
+- `>...` → shell command
+- anything else → text/snippet (copied to clipboard)
+
+If `IsEncrypted` is `true`, the UI masks the value and it is stored encrypted.
+
+## User-Defined Commands (commands.json)
+
+User-defined commands are stored in `commands.json`:
+
+```json
+[
+  {
+    "Prefix": "/scripts",
+    "Source": "Directory",
+    "SourceConfig": {
+      "Path": "C:\\Scripts",
+      "Recursive": true,
+      "Glob": "*.ps1",
+      "Items": []
     },
-    {
-      "Type": 1,
-      "Name": "My Email",
-      "Value": "john@example.com"
-    }
-  ]
-}
+    "ExecuteTemplate": "powershell -ExecutionPolicy Bypass -File \"{item.path}\"",
+    "Icon": "Script",
+    "OpenInTerminal": true
+  }
+]
 ```
-
-#### Item Types
-
-- `0` - URL / Link
-- `1` - Text Snippet
-- `2` - Shell Command
-- `3` - Password (encrypted)
-- `4` - User-Defined Command
-
-### User-Defined Commands
-
-User-defined commands have a more complex structure:
-
-```json
-{
-  "Type": 4,
-  "Name": "Scripts",
-  "Trigger": "/scripts",
-  "SourceType": 0,
-  "Path": "C:\\Scripts",
-  "GlobPattern": "*.ps1",
-  "Recursive": true,
-  "ExecuteTemplate": "powershell -ExecutionPolicy Bypass -File \"{item.path}\"",
-  "Terminal": true
-}
-```
-
-#### Source Types
-
-- `0` - Directory
-- `1` - Static
-- `2` - HTTP
 
 ## Best Practices
 
-1. **Back up your settings** - Copy `settings.json` regularly
-2. **Use the UI** - The UI validates your input better than manual editing
-3. **Restart when editing directly** - QuickLink caches settings on startup
+1. **Back up** - Copy `%APPDATA%\QuickLink\` regularly
+2. **Use the UI** - Avoid JSON syntax mistakes
+3. **Restart after edits** - Changes are loaded on startup
 4. **Escape backslashes** - In JSON, use `\\` for Windows paths
 5. **Use quotes** - All string values must be quoted in JSON
 

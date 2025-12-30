@@ -1,5 +1,7 @@
 # Features & Item Types
 
+QuickLink stores items in `data.json` and infers type from the value.
+
 ## 📍 URLs & Links
 
 Store links and open them instantly.
@@ -26,7 +28,7 @@ john@example.com
 
 ## ⚡ Shell Commands
 
-Prefix with `>` to execute PowerShell commands. Runs in background unless Terminal option enabled.
+Prefix with `>` to execute a shell command. Commands run silently in the background.
 
 **Examples:**
 ```
@@ -41,11 +43,14 @@ Prefix with `>` to execute PowerShell commands. Runs in background unless Termin
 >shutdown /a
 ```
 
-## 🔐 Passwords
+## 🔐 Encrypted Items
 
-Prefix with `$` to store encrypted passwords. Copied to clipboard on <kbd>Enter</kbd>.
+Any item (link, text, or command) can be marked as encrypted in the UI.
 
-**Security:** Encrypted using Windows DPAPI. Only accessible from your user account on this machine.
+- Encrypted items are masked in the list (shown as `••••••••`).
+- Values are stored encrypted on disk.
+
+Note: the current implementation uses a built-in AES key (obfuscation, not strong security).
 
 ## 🎯 Dynamic Commands
 
@@ -55,10 +60,10 @@ See [User-Defined Commands](user-commands.md) for detailed guide with examples.
 
 ## 🔍 Web Search Fallback
 
-Press <kbd>Enter</kbd> without selecting an item to search the web (default: ChatGPT).
+If nothing matches, pressing <kbd>Enter</kbd> opens your configured search URL.
 
 **Configure in Settings:**
 - `https://google.com/search?q={query}` (Google)
-- `https://chat.openai.com/?q={query}` (ChatGPT)
+- `https://chatgpt.com/?q={query}` (ChatGPT)
 - `https://claude.ai/new?q={query}` (Claude)
 - `https://bing.com/search?q={query}` (Bing)

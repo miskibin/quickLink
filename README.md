@@ -2,8 +2,9 @@
 
 <img width="772" height="411" alt="image" src="https://github.com/user-attachments/assets/4cdc4f7d-812b-414b-87a6-807896c177c3" />
 
+> **A blazing-fast launcher for Windows that replaces context-switching.** Store and instantly access URLs, text snippets, shell commands, and execute dynamic workflows—all with a single global hotkey.
 
-> A fast, elegant link, clipboard, and commands manager for Windows with global hotkey support.
+**One keystroke. Infinite productivity.**
 
 <div align="center">
 
@@ -13,9 +14,15 @@
 
 ---
 
-## 💡 Why QuickLink?
+## What It Does
 
-Stop context-switching for repetitive tasks. Press **Ctrl+Shift+A** anywhere to instantly access URLs, snippets, commands, and files—making your workflow uninterrupted and efficient.
+QuickLink eliminates context-switching by putting your most-used resources one keystroke away:
+
+- **Press <kbd>Ctrl+Shift+A</kbd>** → Search window appears
+- **Type** → Find links, commands, or snippets  
+- **Enter** → Execute instantly
+
+No alt-tabbing. No mouse clicks. No interruptions.
 
 ## 🎯 Use Cases
 
@@ -27,33 +34,17 @@ Stop context-switching for repetitive tasks. Press **Ctrl+Shift+A** anywhere to 
 
 ## 🚀 Getting Started
 
-### Installation
-
-<details>
-<summary><b>Portable Version</b></summary>
-
-1. Download the portable ZIP from [releases page](https://github.com/miskibin/quickLink/releases)
-2. Extract and run `QuickLink.exe`
-
-</details>
-
-### Quick Start
-
-1. **Launch** QuickLink (it will be minimized by default and appear in the system tray—wait a couple of seconds for the app to fully start)
-2. Press <kbd>Ctrl+Shift+A</kbd> to open the search window
-3. Type to find your link, snippet, or command
-4. Press <kbd>Enter</kbd> to execute
-5. Press <kbd>Escape</kbd> to close
-
-### Keyboard Shortcuts
+1. Download from [releases](https://github.com/miskibin/quickLink/releases) and run `QuickLink.exe`
+2. It minimizes to system tray—wait a couple of seconds for startup
+3. Press <kbd>Ctrl+Shift+A</kbd> to open search
+4. Type to find items, press <kbd>Enter</kbd> to execute
 
 | Action | Shortcut |
 |--------|----------|
-| Show/Hide Window | <kbd>Ctrl+Shift+A</kbd> |
-| Search Items | Just start typing |
-| Navigate Results | <kbd>↑</kbd> / <kbd>↓</kbd> Arrow Keys |
-| Execute Item | <kbd>Enter</kbd> |
-| Close Window | <kbd>Escape</kbd> |
+| Show/Hide | <kbd>Ctrl+Shift+A</kbd> |
+| Navigate | <kbd>↑</kbd> / <kbd>↓</kbd> |
+| Execute | <kbd>Enter</kbd> |
+| Close | <kbd>Escape</kbd> |
 
 ---
 
@@ -279,3 +270,13 @@ AI interface:
 
 
 ![Demo Screenshot](https://github.com/user-attachments/assets/cc0d0edc-f90a-407b-b23c-133546bc0099)
+---
+
+## ⚙️ Configuration
+
+Your settings and items are stored as JSON at:
+```
+%APPDATA%\QuickLink\settings.json
+```
+
+Edit this file directly to customize items, or use the built-in Settings window (search for "Settings" or press <kbd>Ctrl+Shift+A</kbd> then type "Settings").

@@ -4,7 +4,7 @@ description: A blazing-fast launcher for Windows that replaces context-switching
 # Just the Docs (GitHub Pages compatible)
 remote_theme: just-the-docs/just-the-docs
 plugins:
-	- jekyll-remote-theme
+- jekyll-remote-theme
 
 # Just the Docs settings
 search_enabled: true

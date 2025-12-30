@@ -5,7 +5,6 @@ nav_order: 1
 
 # Getting Started
 
-## Download
 
 <a id="download-zip" class="btn btn-primary" href="https://github.com/miskibin/quickLink/releases/latest">Download Win x64 (.zip)</a>
 

@@ -8,7 +8,7 @@
 
 <div align="center">
 
-**[⬇️ Download](https://github.com/miskibin/quickLink/releases)** • **[📖 Documentation](docs/)** • **[🐛 Report Bug](https://github.com/miskibin/quickLink/issues)** • **[💡 Request Feature](https://github.com/miskibin/quickLink/issues)**
+**[⬇️ Download Latest Release](https://github.com/miskibin/quickLink/releases/latest)** • **[📖 Documentation](docs/)** • **[🐛 Report Bug](https://github.com/miskibin/quickLink/issues)** • **[💡 Request Feature](https://github.com/miskibin/quickLink/issues)**
 
 </div>
 
@@ -24,7 +24,7 @@ QuickLink eliminates context-switching by putting your most-used resources one k
 
 ## 🚀 Quick Start
 
-1. Download from [releases](https://github.com/miskibin/quickLink/releases) and run QuickLink.exe
+1. Download the [latest release](https://github.com/miskibin/quickLink/releases/latest) and run QuickLink.exe
 2. It minimizes to system tray—wait a couple of seconds for startup
 3. Press <kbd>Ctrl+Shift+A</kbd> to open search
 4. Type to find items, press <kbd>Enter</kbd> to execute

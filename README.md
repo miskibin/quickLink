@@ -8,7 +8,7 @@
 
 <div align="center">
 
-**[⬇️ Download Latest Release](https://github.com/miskibin/quickLink/releases/latest)** • **[📖 Documentation](docs/)** • **[🐛 Report Bug](https://github.com/miskibin/quickLink/issues)** • **[💡 Request Feature](https://github.com/miskibin/quickLink/issues)**
+**[⬇️ Download Latest Release](https://github.com/miskibin/quickLink/releases/latest)** • **[📖 Docs](https://miskibin.github.io/quickLink/)** • **[🐛 Report Bug](https://github.com/miskibin/quickLink/issues)** • **[💡 Request Feature](https://github.com/miskibin/quickLink/issues)**
 
 </div>
 

@@ -57,8 +57,8 @@
             </Storyboard>
         </Grid.Resources>
 
-        <!-- Modern semi-transparent background with darker tint for dark theme -->
-        <Border Background="#20000000"
+        <!-- Modern semi-transparent background that adapts to theme -->
+        <Border Background="{ThemeResource LayerOnAcrylicFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
                 Margin="0"
@@ -177,7 +177,7 @@
                                                     <VisualState x:Name="Selected">
                                                         <VisualState.Setters>
                                                             <Setter Target="Root.Background"
-                                                                    Value="#20FFFFFF"/>
+                                                                    Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
                                                             <Setter Target="SelectionIndicator.Opacity"
                                                                     Value="1"/>
                                                         </VisualState.Setters>
@@ -185,7 +185,7 @@
                                                     <VisualState x:Name="PointerOver">
                                                         <VisualState.Setters>
                                                             <Setter Target="Root.Background"
-                                                                    Value="#15FFFFFF"/>
+                                                                    Value="{ThemeResource SubtleFillColorTertiaryBrush}"/>
                                                             <Setter Target="SelectionIndicator.Opacity"
                                                                     Value="0"/>
                                                         </VisualState.Setters>
@@ -193,7 +193,7 @@
                                                     <VisualState x:Name="PointerOverSelected">
                                                         <VisualState.Setters>
                                                             <Setter Target="Root.Background"
-                                                                    Value="#25FFFFFF"/>
+                                                                    Value="{ThemeResource SubtleFillColorSecondaryBrush}"/>
                                                             <Setter Target="SelectionIndicator.Opacity"
                                                                     Value="1"/>
                                                         </VisualState.Setters>
@@ -245,7 +245,7 @@
                                     <Border Width="28"
                                             Height="28"
                                             CornerRadius="5"
-                                            Background="#E0FFFFFF"
+                                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                             Padding="1">
                                         <Border.Visibility>
                                             <Binding Path="HasFavicon" Mode="OneWay">
@@ -307,7 +307,7 @@
                                                FontSize="11"
                                                TextTrimming="CharacterEllipsis"
                                                MaxLines="1"
-                                               Opacity="0.7"/>
+                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </StackPanel>
 
                                 <StackPanel Grid.Column="2"
@@ -536,7 +536,7 @@
 
                             <!-- Source Type Picker (Compact) -->
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Source" FontSize="12" Opacity="0.8"/>
+                                <TextBlock Text="Source" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <ComboBox x:Name="CommandSourceCombo"
                                          FontSize="13"
                                          HorizontalAlignment="Stretch"
@@ -563,7 +563,7 @@
                                          HorizontalContentAlignment="Stretch"
                                          IsExpanded="False">
                                     <Expander.Header>
-                                        <TextBlock Text="Advanced settings" FontSize="11" Opacity="0.7"/>
+                                        <TextBlock Text="Advanced settings" FontSize="11" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                     </Expander.Header>
                                     <StackPanel Spacing="8" Padding="0,8,0,0">
                                         <!-- File Pattern -->
@@ -590,7 +590,7 @@
                                        Visibility="Collapsed">
                                 <!-- Items List -->
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="Items" FontSize="12" Opacity="0.8"/>
+                                    <TextBlock Text="Items" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                     <ListBox x:Name="StaticItemsList"
                                             MinHeight="80"
                                             MaxHeight="160"
@@ -638,13 +638,13 @@
                             <TextBlock Text="Action"
                                       FontWeight="SemiBold"
                                       FontSize="13"
-                                      Opacity="0.9"
+                                      Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                       Margin="0,0,0,4"/>
                             
                             <StackPanel Spacing="4">
                                 <TextBlock Text="When I select an item, run:" 
                                           FontSize="12"
-                                          Opacity="0.8"/>
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <TextBox x:Name="CommandExecuteTemplate"
                                         PlaceholderText='Example: code "{item.path}"'
                                         FontSize="13"
@@ -656,7 +656,7 @@
                                         MinHeight="56"/>
                                 
                                 <!-- Hint examples (compact, inline) -->
-                                <TextBlock FontSize="10" Opacity="0.5" TextWrapping="Wrap">
+                                <TextBlock FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap">
                                     <Run Text="Placeholders: {item.path}, {item.name}, {item.extension}, {query}"/>
                                     <LineBreak/>
                                     <Run Text="Examples:"/>
@@ -669,19 +669,19 @@
                                 </TextBlock>
 
                                 <!-- Info about {query} placeholder -->
-                                <Border Background="#15FFFFFF"
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
                                        BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
                                        BorderThickness="1"
                                        CornerRadius="4"
                                        Padding="8,6"
                                        Margin="0,4,0,0">
                                     <StackPanel Spacing="4">
-                                        <TextBlock FontSize="11" Opacity="0.8" FontWeight="SemiBold">
+                                        <TextBlock FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontWeight="SemiBold">
                                             <Run Text="💡 Tip: Use"/>
                                             <Run Text=" {query} " FontFamily="Consolas"/>
                                             <Run Text="for direct input"/>
                                         </TextBlock>
-                                        <TextBlock FontSize="10" Opacity="0.6" TextWrapping="Wrap">
+                                        <TextBlock FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap">
                                             <Run Text="When no items match your search, the command will execute with your typed text."/>
                                             <LineBreak/>
                                             <Run Text="Perfect for: web searches, direct paths, or any text input."/>
@@ -691,19 +691,19 @@
 
                                 <!-- Live Preview -->
                                 <Border x:Name="CommandPreviewBorder"
-                                       Background="#10FFFFFF"
+                                       Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                        BorderThickness="1"
                                        CornerRadius="4"
                                        Padding="8,6"
                                        Margin="0,4,0,0">
                                     <StackPanel Spacing="2">
-                                        <TextBlock Text="Preview:" FontSize="10" Opacity="0.6"/>
+                                        <TextBlock Text="Preview:" FontSize="10" Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
                                         <TextBlock x:Name="CommandPreviewText"
                                                   Text='notepad "C:\Users\Michal\Documents\example.md"'
                                                   FontSize="11"
                                                   FontFamily="Consolas"
-                                                  Opacity="0.8"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                   TextWrapping="Wrap"/>
                                     </StackPanel>
                                 </Border>
@@ -715,12 +715,12 @@
                             <TextBlock Text="Display"
                                       FontWeight="SemiBold"
                                       FontSize="13"
-                                      Opacity="0.9"
+                                      Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                       Margin="0,0,0,4"/>
                             
                             <!-- Icon Picker (Visual buttons) -->
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Icon" FontSize="12" Opacity="0.8"/>
+                                <TextBlock Text="Icon" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <ComboBox x:Name="CommandIconCombo"
                                          FontSize="13"
                                          HorizontalAlignment="Stretch">
@@ -874,7 +874,7 @@
                         <StackPanel Spacing="6">
                             <TextBlock Text="Search URL (use {query} as placeholder)"
                                        FontSize="12"
-                                       Opacity="0.7"/>
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                             <TextBox x:Name="SearchUrlTextBox"
                                      PlaceholderText="https://chatgpt.com/?q={query}"
@@ -892,7 +892,7 @@
                         <StackPanel Spacing="6">
                             <TextBlock Text="LLM API Key"
                                        FontSize="12"
-                                       Opacity="0.7"/>
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                             <TextBox x:Name="ApiKeyTextBox"
                                      PlaceholderText="Enter your API key..."
@@ -910,7 +910,7 @@
                         <StackPanel Spacing="6">
                             <TextBlock Text="Click and press a key combination"
                                        FontSize="12"
-                                       Opacity="0.7"/>
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
 
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -957,7 +957,7 @@
 
                             <TextBlock x:Name="HotkeyStatusText"
                                        FontSize="11"
-                                       Opacity="0.5"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
                                        TextWrapping="Wrap"
                                        Text="Must include modifier (Ctrl, Shift, or Alt) + key"/>
                         </StackPanel>

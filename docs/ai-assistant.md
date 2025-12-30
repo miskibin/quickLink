@@ -5,6 +5,9 @@ nav_order: 4
 
 # AI Assistant (Grok)
 
+<img width="694" height="333" alt="image" src="https://github.com/user-attachments/assets/a095f0df-6087-4cd6-9e89-f1f13233e562" />
+
+
 ## Setup
 
 1. Get API key from [xAI Console](https://console.x.ai/)

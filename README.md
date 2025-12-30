@@ -64,8 +64,8 @@ Key files:
 - `commands.json` (user-defined commands)
 
 Settings file:
-`
+```
 %APPDATA%\QuickLink\settings.json
-`
+```
 
 Edit directly or use the built-in Settings window (search for "Settings").

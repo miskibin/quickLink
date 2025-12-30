@@ -62,7 +62,7 @@ Commands are stored in `%APPDATA%\\QuickLink\\commands.json`:
 ### 📁 Browse Documentation Files
 
 **Settings:**
-- **Trigger:** `/docs`
+- **Prefix:** `/docs`
 - **Source:** Directory
 - **Path:** `C:\Users\YourName\Documents\Documentation`
 - **Glob Pattern:** `*.md`
@@ -80,7 +80,7 @@ Press Enter to open selected file in VS Code
 ### ⚙️ Run PowerShell Scripts
 
 **Settings:**
-- **Trigger:** `/scripts`
+- **Prefix:** `/scripts`
 - **Source:** Directory
 - **Path:** `C:\Scripts`
 - **Glob Pattern:** `*.ps1`
@@ -98,7 +98,7 @@ Press Enter to execute the selected script in a terminal
 ### 📂 Open Project Folders
 
 **Settings:**
-- **Trigger:** `/projects`
+- **Prefix:** `/projects`
 - **Source:** Directory
 - **Path:** `C:\Dev\Projects`
 - **Glob Pattern:** `*.*`
@@ -118,7 +118,7 @@ Press Enter to open in File Explorer
 **Purpose:** Search GitHub repositories from QuickLink
 
 **Settings:**
-- **Trigger:** `/gh`
+- **Prefix:** `/gh`
 - **Source:** Static
 - **Items:** (Predefined list)
 - **Execute:** `https://github.com/search?q={query}&type=repositories`
@@ -135,7 +135,7 @@ Opens: https://github.com/search?q=quicklink&type=repositories
 **Purpose:** Quick access to design files in Figma
 
 **Settings:**
-- **Trigger:** `/design`
+- **Prefix:** `/design`
 - **Source:** Static
 - **Items:**
   - `Landing Page`
@@ -154,7 +154,7 @@ Press Enter to open in Figma
 ### 🐍 Run Python Scripts
 
 **Settings:**
-- **Trigger:** `/py`
+- **Prefix:** `/py`
 - **Source:** Directory
 - **Path:** `C:\Scripts\Python`
 - **Glob Pattern:** `*.py`
@@ -174,7 +174,7 @@ Press Enter to run the selected script
 **Purpose:** Launch favorite tools or applications
 
 **Settings:**
-- **Trigger:** `/tools`
+- **Prefix:** `/tools`
 - **Source:** Static
 - **Items:**
   - `Visual Studio Code`

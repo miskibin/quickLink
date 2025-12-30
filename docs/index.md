@@ -1,11 +1,9 @@
 # QuickLink Documentation
 
-Welcome to QuickLink! This documentation covers everything you need to know about using and configuring QuickLink.
-
 ## Quick Links
 
 - [**Getting Started**](getting-started.md) - Installation and first steps
-- [**Features & Item Types**](features.md) - URLs, snippets, commands, and passwords
+- [**Features & Item Types**](features.md) - URLs, snippets, commands, and encryption
 - [**User-Defined Commands**](user-commands.md) - Create dynamic workflows
 - [**AI Assistant**](ai-assistant.md) - Setup and use Grok AI integration
 - [**Configuration**](configuration.md) - Settings and customization
@@ -24,7 +22,7 @@ Press **Ctrl+Shift+A** → Search → Execute. That's it.
 - **Commands** - Execute shell commands without switching windows
 - **Dynamic Commands** - List files/folders and run custom actions
 - **AI Assistant** - Get quick answers with Grok AI
-- **Encrypted Passwords** - Securely store and retrieve passwords
+- **Encrypted Items** - Mask sensitive values at rest
 
 ## Getting Help
 

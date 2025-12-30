@@ -21,7 +21,8 @@
 - **URLs:** <kbd>Enter</kbd> → Opens in browser
 - **Snippets:** <kbd>Enter</kbd> → Copies to clipboard
 - **Commands** (`>`): <kbd>Enter</kbd> → Executes
-- **Passwords** (`$`): <kbd>Enter</kbd> → Copies to clipboard
+
+Encrypted items are masked in the list, but behave the same when executed.
 
 ## Custom Global Hotkey
 

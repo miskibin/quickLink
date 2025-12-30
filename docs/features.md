@@ -1,6 +1,6 @@
 ---
 title: Features & Item Types
-nav_order: 3
+nav_order: 2
 ---
 
 # Features & Item Types

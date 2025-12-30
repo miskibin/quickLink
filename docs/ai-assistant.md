@@ -1,6 +1,6 @@
 ---
 title: AI Assistant (Grok)
-nav_order: 5
+nav_order: 4
 ---
 
 # AI Assistant (Grok)
@@ -13,24 +13,33 @@ nav_order: 5
 
 ## Usage
 
+### Start a New Chat
+
+1. Open QuickLink (<kbd>Ctrl+Shift+A</kbd>)
+2. Type your question in the main search box
+3. Select **"Start conversation"** and press <kbd>Enter</kbd>
+
+This opens the chat panel and sends your initial prompt.
+
+### Continue Your Last Chat
+
 1. Open QuickLink (<kbd>Ctrl+Shift+A</kbd>)
 2. Search for **"Open last conversation"** and press <kbd>Enter</kbd>
-3. Type your question in the chat panel and send
 
-If you have no saved conversation, this opens a fresh chat.
+This restores the last chat from the current app session.
 
 ## Features
 
 - **Streaming Responses** - See answers as they're generated
-- **Conversation History** - Continue multi-turn conversations within a session
+- **Conversation History** - Continue multi-turn conversations within the current app session
 - **Direct Answers** - Configured to answer without unnecessary filler
 - **Short & Focused** - Responses limited to 500 tokens for quick answers
-- **Persistent Sessions** - Your last conversation is saved
+- **Quick Restore** - The last conversation can be restored after you close/hide the chat panel
 - **Fast Model** - Uses Grok 4.1 fast for quick responses
 
 ## Restore Conversation
 
-Your last conversation is automatically saved. To continue it:
+Your last conversation is saved in memory while the app is running. To continue it:
 
 1. Open QuickLink (press <kbd>Ctrl+Shift+A</kbd>)
 2. Search for "Open last conversation"

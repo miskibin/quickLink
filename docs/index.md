@@ -1,36 +1,69 @@
 ---
-title: Home
+title: Getting Started
 nav_order: 1
 ---
 
-# QuickLink Documentation
+# Getting Started
 
-## Quick Links
+## Download
 
-- [**Getting Started**](getting-started.md) - Installation and first steps
-- [**Features & Item Types**](features.md) - URLs, snippets, commands, and encryption
-- [**User-Defined Commands**](user-commands.md) - Create dynamic workflows
-- [**AI Assistant**](ai-assistant.md) - Setup and use Grok AI integration
-- [**Configuration**](configuration.md) - Settings and customization
-- [**Keyboard Shortcuts**](shortcuts.md) - All available keyboard shortcuts
+<a id="download-zip" class="btn btn-primary" href="https://github.com/miskibin/quickLink/releases/latest">Download Win x64 (.zip)</a>
 
-## What is QuickLink?
+<script>
+(function () {
+	var owner = 'miskibin';
+	var repo = 'quickLink';
+	var link = document.getElementById('download-zip');
+	if (!link) return;
 
-QuickLink is a blazing-fast launcher for Windows that eliminates context-switching. Store and instantly access URLs, text snippets, shell commands, and execute dynamic workflows—all with a single global hotkey.
+	var fallback = 'https://github.com/' + owner + '/' + repo + '/releases/latest';
+	link.href = fallback;
 
-Press **Ctrl+Shift+A** → Search → Execute. That's it.
+	fetch('https://api.github.com/repos/' + owner + '/' + repo + '/releases/latest')
+		.then(function (r) { return r.ok ? r.json() : null; })
+		.then(function (release) {
+			if (!release || !release.tag_name) return;
+			var tag = String(release.tag_name);
+			var version = tag.replace(/^v/i, '');
+			var assetName = 'quickLink-' + version + '-win-x64.zip';
 
-## Features at a Glance
+			if (Array.isArray(release.assets)) {
+				var match = release.assets.find(function (a) { return a && a.name === assetName && a.browser_download_url; });
+				if (match) {
+					link.href = match.browser_download_url;
+					return;
+				}
+			}
 
-- **URLs** - Quick access to frequently visited links
-- **Snippets** - Reusable text copied to clipboard instantly
-- **Commands** - Execute shell commands without switching windows
-- **Dynamic Commands** - List files/folders and run custom actions
-- **AI Assistant** - Get quick answers with Grok AI
-- **Encrypted Items** - Mask sensitive values at rest
+			link.href = 'https://github.com/' + owner + '/' + repo + '/releases/download/' + tag + '/' + assetName;
+		})
+		.catch(function () {
+			link.href = fallback;
+		});
+})();
+</script>
 
-## Getting Help
+## Installation
 
-- Found a bug? [Report it on GitHub](https://github.com/miskibin/quickLink/issues)
-- Have a feature request? [Suggest it here](https://github.com/miskibin/quickLink/issues)
-- Want to contribute? Check out the repository
+1. Download the latest release
+2. Extract and run `QuickLink.exe`
+
+> QuickLink starts minimized to the system tray by default. If it doesn’t appear immediately, wait a couple of seconds for startup.
+{: .note }
+
+## Basic Workflow
+
+Press <kbd>Ctrl+Shift+A</kbd> → Type to search → Press <kbd>Enter</kbd> to execute
+
+## Keyboard Shortcuts
+
+| Action | Shortcut |
+|--------|----------|
+| Open/Close | <kbd>Ctrl+Shift+A</kbd> |
+| Navigate | <kbd>↑</kbd> / <kbd>↓</kbd> |
+| Execute | <kbd>Enter</kbd> |
+| Close | <kbd>Escape</kbd> |
+
+---
+
+Next: see [Features](features.md).

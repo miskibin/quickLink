@@ -39,7 +39,7 @@ Stop context-switching for repetitive tasks. Press **Ctrl+Shift+A** anywhere to 
 
 ### Quick Start
 
-1. **Launch** QuickLink (appears in system tray)
+1. **Launch** QuickLink (it will be minimized by default and appear in the system tray—wait a couple of seconds for the app to fully start)
 2. Press <kbd>Ctrl+Shift+A</kbd> to open the search window
 3. Type to find your link, snippet, or command
 4. Press <kbd>Enter</kbd> to execute

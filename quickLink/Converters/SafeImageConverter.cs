@@ -33,8 +33,8 @@ namespace quickLink.Converters
                     bitmapImage.DecodePixelWidth = 32;
                     bitmapImage.DecodePixelHeight = 32;
 
-                    // Enable async loading to prevent UI blocking
-                    bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+                    // Use default caching - our Dictionary cache + system image cache prevent refetches
+                    bitmapImage.CreateOptions = BitmapCreateOptions.None;
 
                     bitmapImage.UriSource = new Uri(url, UriKind.Absolute);
 

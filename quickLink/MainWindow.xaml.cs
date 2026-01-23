@@ -103,6 +103,9 @@ namespace quickLink
 
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetDpiForWindow(IntPtr hwnd);
         #endregion
 
         #region Constructor & Initialization
@@ -159,13 +162,32 @@ namespace quickLink
             ItemsList.ItemsSource = _filteredItems;
 
             ConfigureWindowStyle();
-            AppWindow.Resize(new Windows.Graphics.SizeInt32(WINDOW_WIDTH, WINDOW_HEIGHT));
+            
+            // Apply DPI scaling to window size for consistent visual size across displays
+            var dpiScale = GetDpiScaleForWindow();
+            var scaledWidth = (int)(WINDOW_WIDTH * dpiScale);
+            var scaledHeight = (int)(WINDOW_HEIGHT * dpiScale);
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(scaledWidth, scaledHeight));
+            
             CenterWindow();
             SubclassWindow();
             ApplyGlassEffect();
 
             Activated += OnWindowActivated;
             AppWindow.Hide();
+        }
+
+        private double GetDpiScaleForWindow()
+        {
+            try
+            {
+                var dpi = GetDpiForWindow(_windowHandle);
+                return dpi / 96.0; // 96 DPI is the baseline (100% scaling)
+            }
+            catch
+            {
+                return 1.0; // Fallback to no scaling
+            }
         }
 
         private void ApplyGlassEffect()

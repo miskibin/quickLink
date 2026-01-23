@@ -222,7 +222,15 @@ namespace quickLink
             if (AppWindow.Presenter is not OverlappedPresenter presenter) return;
 
             // Stay on top only when focused
-            presenter.IsAlwaysOnTop = args.WindowActivationState != WindowActivationState.Deactivated;
+            try
+            {
+                presenter.IsAlwaysOnTop = args.WindowActivationState != WindowActivationState.Deactivated;
+            }
+            catch (Exception ex)
+            {
+                // Ignore exceptions when setting IsAlwaysOnTop - this is not critical functionality
+                System.Diagnostics.Debug.WriteLine($"Warning: Failed to set IsAlwaysOnTop: {ex.Message}");
+            }
 
             if (args.WindowActivationState == WindowActivationState.Deactivated)
             {

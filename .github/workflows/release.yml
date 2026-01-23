@@ -61,15 +61,17 @@ jobs:
         $commits = git log $range --pretty=format:"- %s" --no-merges | Where-Object { $_ -ne "" }
 
         if (-not $commits -or $commits.Count -eq 0) {
-          $notes = "No commits found.`n`n"
+          $notes = "No commits found."
         }
         else {
-          $notes = ($commits -join "`n") + "`n`n"
+          $notes = $commits -join "`n"
         }
 
-        # Escape for GitHub Actions output and write
-        $notes = $notes -replace '%', '%25' -replace "`n", '%0A' -replace "`r", '%0D'
-        echo "NOTES=$notes" >> $env:GITHUB_OUTPUT
+        # Use multi-line GITHUB_OUTPUT format (heredoc style) to preserve newlines
+        $delimiter = "EOF_NOTES_$(Get-Random)"
+        echo "NOTES<<$delimiter" >> $env:GITHUB_OUTPUT
+        echo $notes >> $env:GITHUB_OUTPUT
+        echo $delimiter >> $env:GITHUB_OUTPUT
       shell: pwsh
       
     - name: Build x64
@@ -99,17 +101,11 @@ jobs:
           ${{ steps.release_notes.outputs.NOTES }}
           
           ### 📦 Installation
-          1. Download the appropriate ZIP file for your system
+          1. Download the ZIP file
           2. Extract the archive
           3. Run `quickLink.exe`
-          4. Configure your hotkey in Settings (default: Ctrl+Space)
-          
-          ### 💻 Requirements
-          - Windows 10 (19041 or later) or Windows 11
-          - No additional runtime installation required (self-contained)
-          
-          ### 🔐 Checksums
-          See `SHA256SUMS.txt` for file verification.
+          4. Open app with `ctrl + shift + a`
+
         files: |
           quickLink-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
           SHA256SUMS.txt

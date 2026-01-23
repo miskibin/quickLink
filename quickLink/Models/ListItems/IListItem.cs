@@ -74,6 +74,7 @@ namespace quickLink.Models.ListItems
         void ShowSettingsPanel();
         void ShowMarkdownPanel();
         void ShowMarkdownPanelWithQuery(string query);
+        void RestoreLastConversation();
         bool HasApiKey();
         void ExitApplication();
     }

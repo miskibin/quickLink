@@ -14,12 +14,27 @@ namespace quickLink.Services
     {
         private const string Endpoint = "https://api.x.ai/v1/chat/completions";
         private const string Model = "grok-4-1-fast-non-reasoning";
+        private const string SystemPrompt = "Answer directly and concisely. No greetings, no filler phrases like 'of course' or 'here's what you need'. Just provide the answer.";
         
         private readonly HttpClient _client = new();
         private readonly List<ChatMessage> _conversationHistory = new();
         private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
         public void ClearHistory() => _conversationHistory.Clear();
+
+        public List<(string role, string content)> GetConversationHistory()
+        {
+            return _conversationHistory.ConvertAll(m => (m.Role, m.Content));
+        }
+
+        public void RestoreHistory(List<(string role, string content)> history)
+        {
+            _conversationHistory.Clear();
+            foreach (var (role, content) in history)
+            {
+                _conversationHistory.Add(new ChatMessage { Role = role, Content = content });
+            }
+        }
 
         public async Task StreamResponseAsync(string apiKey, string userMessage, Func<string, Task> onChunk, CancellationToken ct = default)
         {
@@ -29,13 +44,21 @@ namespace quickLink.Services
                 return;
             }
 
+            // Add system prompt on first message
+            if (_conversationHistory.Count == 0)
+            {
+                _conversationHistory.Add(new ChatMessage { Role = "system", Content = SystemPrompt });
+            }
+
             _conversationHistory.Add(new ChatMessage { Role = "user", Content = userMessage });
 
             var payload = new
             {
                 model = Model,
                 messages = _conversationHistory,
-                stream = true
+                stream = true,
+                temperature = 0.7,
+                max_tokens = 500
             };
 
             var request = new HttpRequestMessage(HttpMethod.Post, Endpoint)

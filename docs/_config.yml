@@ -1,0 +1,23 @@
+title: QuickLink
+description: A blazing-fast launcher for Windows that replaces context-switching
+
+# Just the Docs (GitHub Pages compatible)
+remote_theme: just-the-docs/just-the-docs
+plugins:
+- jekyll-remote-theme
+
+# Just the Docs settings
+search_enabled: true
+color_scheme: dark
+
+# Callouts
+callouts:
+  note:
+    title: Note
+    color: purple
+  warning:
+    title: Warning
+    color: red
+  tip:
+    title: Tip
+    color: green

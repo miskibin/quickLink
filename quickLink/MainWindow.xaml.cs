@@ -106,6 +106,16 @@ namespace quickLink
 
         [DllImport("user32.dll")]
         private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct POINT
+        {
+            public int X;
+            public int Y;
+        }
         #endregion
 
         #region Constructor & Initialization
@@ -233,13 +243,59 @@ namespace quickLink
 
         private void CenterWindow()
         {
-            var displayArea = DisplayArea.GetFromWindowId(
-                AppWindow.Id, DisplayAreaFallback.Primary);
+            CenterWindowOnCurrentMonitor();
+        }
 
-            var centerX = (displayArea.WorkArea.Width - AppWindow.Size.Width) / 2;
-            var centerY = (displayArea.WorkArea.Height - AppWindow.Size.Height) / 2;
+        private void CenterWindowOnCurrentMonitor()
+        {
+            // Get cursor position to determine which monitor to use
+            GetCursorPos(out POINT cursorPos);
+
+            // Get display area from cursor position (uses the monitor containing the cursor)
+            var displayArea = DisplayArea.GetFromPoint(
+                new Windows.Graphics.PointInt32(cursorPos.X, cursorPos.Y),
+                DisplayAreaFallback.Nearest);
+
+            // Calculate window size for this monitor (auto-scales for smaller screens)
+            var (scaledWidth, scaledHeight) = CalculateWindowSize(displayArea);
+            AppWindow.Resize(new Windows.Graphics.SizeInt32(scaledWidth, scaledHeight));
+
+            // Center on the monitor's work area (accounts for taskbar)
+            var centerX = displayArea.WorkArea.X + (displayArea.WorkArea.Width - scaledWidth) / 2;
+            var centerY = displayArea.WorkArea.Y + (displayArea.WorkArea.Height - scaledHeight) / 2;
 
             AppWindow.Move(new Windows.Graphics.PointInt32(centerX, centerY));
+        }
+
+        private (int width, int height) CalculateWindowSize(DisplayArea displayArea)
+        {
+            var dpiScale = GetDpiScaleForWindow();
+            var workArea = displayArea.WorkArea;
+
+            // Calculate effective screen size (without DPI scaling)
+            var effectiveScreenWidth = workArea.Width / dpiScale;
+
+            int targetWidth, targetHeight;
+
+            if (effectiveScreenWidth < 1600) // Laptop or smaller screen
+            {
+                // Use 50% of screen width for smaller screens, maintaining 2:1 aspect ratio
+                targetWidth = (int)(effectiveScreenWidth * 0.50);
+                targetHeight = targetWidth / 2;
+
+                // Ensure minimum size
+                targetWidth = Math.Max(targetWidth, 400);
+                targetHeight = Math.Max(targetHeight, 200);
+            }
+            else
+            {
+                // Use base dimensions for larger screens
+                targetWidth = WINDOW_WIDTH;
+                targetHeight = WINDOW_HEIGHT;
+            }
+
+            // Apply DPI scaling for the final pixel size
+            return ((int)(targetWidth * dpiScale), (int)(targetHeight * dpiScale));
         }
 
         private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
@@ -295,6 +351,9 @@ namespace quickLink
         {
             DispatcherQueue.TryEnqueue(() =>
             {
+                // Reposition window on the monitor where the cursor is located
+                CenterWindowOnCurrentMonitor();
+
                 AppWindow.Show();
                 Activate();
                 SetForegroundWindow(_windowHandle);
@@ -320,23 +379,28 @@ namespace quickLink
 
             try
             {
+                // Ensure commands file exists first (required before loading commands)
                 await _commandService.EnsureCommandsFileExistsAsync();
 
-                // Load usage stats first
-                await _usageTrackingService.LoadAsync();
+                // Load independent data sources in parallel for faster startup
+                var usageTask = _usageTrackingService.LoadAsync();
+                var itemsTask = _dataService.LoadItemsAsync();
+                var commandsTask = _commandService.LoadCommandsAsync();
+                var settingsTask = _dataService.LoadSettingsAsync();
 
-                var items = await _dataService.LoadItemsAsync();
+                await Task.WhenAll(usageTask, itemsTask, commandsTask, settingsTask);
+
+                // Process results
+                var items = await itemsTask;
                 _allItems.Clear();
                 foreach (var item in items)
                 {
                     _allItems.Add(item);
                 }
 
-                // Load user commands
-                _userCommands = await _commandService.LoadCommandsAsync();
+                _userCommands = await commandsTask;
 
-                // Load footer setting
-                var settings = await _dataService.LoadSettingsAsync();
+                var settings = await settingsTask;
                 _hideFooter = settings.HideFooter;
                 _searchUrl = settings.SearchUrl;
                 _apiKey = settings.ApiKey ?? string.Empty;

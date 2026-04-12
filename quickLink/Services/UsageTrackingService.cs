@@ -14,6 +14,7 @@ namespace quickLink.Services
     public class UsageTrackingService
     {
         private readonly string _usageFilePath;
+        private readonly JsonSerializerOptions _jsonOptions;
         private ItemUsageStats _stats;
         private bool _isDirty;
         private CancellationTokenSource? _saveDebounceTokenSource;
@@ -27,6 +28,7 @@ namespace quickLink.Services
             Directory.CreateDirectory(appDataFolder);
             _usageFilePath = Path.Combine(appDataFolder, "usage.json");
             _stats = new ItemUsageStats();
+            _jsonOptions = new JsonSerializerOptions { WriteIndented = false };
         }
 
         public async Task LoadAsync()
@@ -49,7 +51,7 @@ namespace quickLink.Services
         {
             try
             {
-                var json = JsonSerializer.Serialize(_stats, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(_stats, _jsonOptions);
                 await File.WriteAllTextAsync(_usageFilePath, json);
                 _isDirty = false;
             }

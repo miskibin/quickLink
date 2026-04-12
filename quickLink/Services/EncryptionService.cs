@@ -7,16 +7,21 @@ namespace quickLink.Services
 {
     public sealed class EncryptionService
     {
-        #region Constants
-
         // Simple AES encryption with a fixed key (for demo purposes)
         // In production, use Windows Data Protection API or user-specific keys
         private static readonly byte[] Key = Encoding.UTF8.GetBytes("QuickLink2024Key"); // 16 bytes for AES-128
         private static readonly byte[] IV = Encoding.UTF8.GetBytes("QuickLink2024IV!"); // 16 bytes
 
-        #endregion
+        // Reuse Aes instance (thread-safe for creating transforms)
+        private static readonly Aes AesInstance = CreateAes();
 
-        #region Public Methods
+        private static Aes CreateAes()
+        {
+            var aes = Aes.Create();
+            aes.Key = Key;
+            aes.IV = IV;
+            return aes;
+        }
 
         public string Encrypt(string? plainText)
         {
@@ -25,11 +30,7 @@ namespace quickLink.Services
 
             try
             {
-                using var aes = Aes.Create();
-                aes.Key = Key;
-                aes.IV = IV;
-
-                using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+                using var encryptor = AesInstance.CreateEncryptor();
                 using var msEncrypt = new MemoryStream();
                 using (var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write))
                 using (var swEncrypt = new StreamWriter(csEncrypt))
@@ -41,7 +42,6 @@ namespace quickLink.Services
             }
             catch (CryptographicException)
             {
-                // Fallback to plain text if encryption fails
                 System.Diagnostics.Debug.WriteLine("Warning: Failed to encrypt data. Storing as plain text.");
                 return plainText;
             }
@@ -54,11 +54,7 @@ namespace quickLink.Services
 
             try
             {
-                using var aes = Aes.Create();
-                aes.Key = Key;
-                aes.IV = IV;
-
-                using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+                using var decryptor = AesInstance.CreateDecryptor();
                 using var msDecrypt = new MemoryStream(Convert.FromBase64String(cipherText));
                 using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
                 using var srDecrypt = new StreamReader(csDecrypt);
@@ -72,7 +68,6 @@ namespace quickLink.Services
             }
             catch (CryptographicException)
             {
-                // Failed to decrypt - data might be corrupted
                 System.Diagnostics.Debug.WriteLine("Warning: Failed to decrypt data. Returning cipher text.");
                 return cipherText;
             }
@@ -85,7 +80,6 @@ namespace quickLink.Services
 
             try
             {
-                // Try to decode as Base64
                 Convert.FromBase64String(text);
                 return true;
             }
@@ -94,7 +88,5 @@ namespace quickLink.Services
                 return false;
             }
         }
-
-        #endregion
     }
 }

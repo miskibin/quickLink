@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -67,6 +68,15 @@ namespace quickLink
         // Performance optimization: cache the last search to avoid redundant filtering
         private string _lastSearchText = string.Empty;
 
+        // Cached DPI scale (P/Invoke is expensive to call repeatedly)
+        private double _cachedDpiScale;
+
+        // Cached settings to avoid redundant file I/O
+        private AppSettings? _cachedSettings;
+
+        // Startup performance tracking
+        private static readonly Stopwatch _startupStopwatch = Stopwatch.StartNew();
+
         // Search debouncing
         private System.Threading.CancellationTokenSource? _searchDebounceTokenSource;
         private const int SEARCH_DEBOUNCE_MS = 16; // ~1 frame at 60fps - minimal debounce
@@ -123,6 +133,8 @@ namespace quickLink
         {
             try
             {
+                LogPerf("MainWindow ctor start");
+
                 _dataService = new DataService();
                 _clipboardService = new ClipboardService();
                 _mediaControlService = new MediaControlService();
@@ -135,10 +147,15 @@ namespace quickLink
                 _internalCommands = new List<InternalCommandItem>();
                 _userCommands = new List<UserCommand>();
                 _searchSuggestionItem = new SearchSuggestionItem();
+                LogPerf("Services created");
 
                 InitializeComponent();
+                LogPerf("XAML initialized");
+
                 InitializeInternalCommands();
                 InitializeWindow();
+                LogPerf("Window initialized");
+
                 InitializeHotkey();
 
                 _ = LoadDataAsync();
@@ -172,13 +189,13 @@ namespace quickLink
             ItemsList.ItemsSource = _filteredItems;
 
             ConfigureWindowStyle();
-            
-            // Apply DPI scaling to window size for consistent visual size across displays
-            var dpiScale = GetDpiScaleForWindow();
-            var scaledWidth = (int)(WINDOW_WIDTH * dpiScale);
-            var scaledHeight = (int)(WINDOW_HEIGHT * dpiScale);
+
+            // Cache DPI scale once (avoids repeated P/Invoke calls)
+            _cachedDpiScale = GetDpiScaleForWindow();
+            var scaledWidth = (int)(WINDOW_WIDTH * _cachedDpiScale);
+            var scaledHeight = (int)(WINDOW_HEIGHT * _cachedDpiScale);
             AppWindow.Resize(new Windows.Graphics.SizeInt32(scaledWidth, scaledHeight));
-            
+
             CenterWindow();
             SubclassWindow();
             ApplyGlassEffect();
@@ -269,7 +286,7 @@ namespace quickLink
 
         private (int width, int height) CalculateWindowSize(DisplayArea displayArea)
         {
-            var dpiScale = GetDpiScaleForWindow();
+            var dpiScale = _cachedDpiScale > 0 ? _cachedDpiScale : GetDpiScaleForWindow();
             var workArea = displayArea.WorkArea;
 
             // Calculate effective screen size (without DPI scaling)
@@ -375,6 +392,7 @@ namespace quickLink
         #region Data Loading
         private async Task LoadDataAsync()
         {
+            LogPerf("LoadDataAsync start");
             LoadingOverlay.Visibility = Visibility.Visible;
 
             try
@@ -389,6 +407,7 @@ namespace quickLink
                 var settingsTask = _dataService.LoadSettingsAsync();
 
                 await Task.WhenAll(usageTask, itemsTask, commandsTask, settingsTask);
+                LogPerf("All data loaded (parallel)");
 
                 // Process results
                 var items = await itemsTask;
@@ -400,13 +419,18 @@ namespace quickLink
 
                 _userCommands = await commandsTask;
 
+                // Cache settings to avoid redundant LoadSettingsAsync calls later
                 var settings = await settingsTask;
+                _cachedSettings = settings;
                 _hideFooter = settings.HideFooter;
                 _searchUrl = settings.SearchUrl;
                 _apiKey = settings.ApiKey ?? string.Empty;
+                _grokService.Provider = settings.AiProvider;
                 UpdateFooterVisibility();
 
                 FilterItems();
+                LogPerf("LoadDataAsync complete - app ready");
+                WriteStartupLog();
             }
             catch (Exception ex)
             {
@@ -422,7 +446,8 @@ namespace quickLink
         {
             try
             {
-                var settings = await _dataService.LoadSettingsAsync();
+                // Use cached settings if available (avoids redundant file I/O)
+                var settings = _cachedSettings ?? await _dataService.LoadSettingsAsync();
                 (_newHotkeyModifiers, _newHotkeyKey) = ConvertFromWin32Modifiers(
                     settings.HotkeyModifiers, settings.HotkeyKey);
 
@@ -507,7 +532,8 @@ namespace quickLink
                         if (item.MatchesSearch(searchText))
                         {
                             // Calculate text match score (1.0 for exact match, 0.5 for partial)
-                            var textScore = item.DisplayValue?.ToLowerInvariant().StartsWith(searchText) == true ? 1.0 : 0.5;
+                            // Use OrdinalIgnoreCase instead of allocating ToLowerInvariant() per item
+                            var textScore = item.DisplayValue?.StartsWith(searchText, StringComparison.OrdinalIgnoreCase) == true ? 1.0 : 0.5;
 
                             // Add usage score boost
                             var usageScore = scores.TryGetValue(item, out var s) ? s : 0;
@@ -524,8 +550,7 @@ namespace quickLink
                         {
                             if (cmd.MatchesSearch(searchText))
                             {
-                                // Internal commands get text match score only (no usage tracking)
-                                var textScore = cmd.DisplayValue?.ToLowerInvariant().StartsWith(searchText) == true ? 1.0 : 0.5;
+                                var textScore = cmd.DisplayValue?.StartsWith(searchText, StringComparison.OrdinalIgnoreCase) == true ? 1.0 : 0.5;
                                 scoredItems.Add((cmd, textScore));
                             }
                         }
@@ -754,6 +779,41 @@ namespace quickLink
                    (key >= Windows.System.VirtualKey.Number0 && key <= Windows.System.VirtualKey.Number9) ||
                    key == Windows.System.VirtualKey.Space;
         }
+
+        #region Performance Logging
+        private static readonly List<(long ElapsedMs, string Label)> _perfLog = new();
+
+        private static void LogPerf(string label)
+        {
+            var elapsed = _startupStopwatch.ElapsedMilliseconds;
+            _perfLog.Add((elapsed, label));
+            System.Diagnostics.Debug.WriteLine($"[PERF] {elapsed,6}ms  {label}");
+        }
+
+        private static void WriteStartupLog()
+        {
+            try
+            {
+                var logPath = Path.Combine(
+                    Services.Helpers.ServiceInitializer.AppDataFolderPath,
+                    "startup-perf.log");
+                var lines = new List<string>
+                {
+                    $"=== Startup {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==="
+                };
+                long prev = 0;
+                foreach (var (elapsed, label) in _perfLog)
+                {
+                    lines.Add($"  {elapsed,6}ms (+{elapsed - prev,4}ms)  {label}");
+                    prev = elapsed;
+                }
+                lines.Add($"  Total: {_perfLog[^1].ElapsedMs}ms");
+                lines.Add("");
+                File.AppendAllLines(logPath, lines);
+            }
+            catch { }
+        }
+        #endregion
         #endregion
 
         #region IExecutionContext Implementation
@@ -1454,41 +1514,70 @@ namespace quickLink
 
         private async void LoadSettings()
         {
+            // Load settings once instead of per-field
+            _cachedSettings ??= await _dataService.LoadSettingsAsync();
+            var settings = _cachedSettings;
+
+            _searchUrl = settings.SearchUrl;
+            SearchUrlTextBox.Text = settings.SearchUrl;
+
+            _apiKey = settings.ApiKey ?? string.Empty;
+            ApiKeyTextBox.Text = _apiKey;
+
+            _hideFooter = settings.HideFooter;
+            HideFooterCheckBox.IsChecked = settings.HideFooter;
+            UpdateFooterVisibility();
+
+            // Set AI provider dropdown
+            _grokService.Provider = settings.AiProvider;
+            SetProviderDropdown(settings.AiProvider);
+            UpdateApiKeyVisibility(settings.AiProvider);
+
             await LoadStartupSettingAsync();
-            await LoadFooterSettingAsync();
-            await LoadSearchUrlSettingAsync();
-            await LoadApiKeySettingAsync();
             UpdateHotkeyDisplay();
         }
 
-        private async Task LoadSearchUrlSettingAsync()
+        private void SetProviderDropdown(AiProvider provider)
         {
-            try
+            var tag = provider.ToString();
+            for (int i = 0; i < AiProviderComboBox.Items.Count; i++)
             {
-                var settings = await _dataService.LoadSettingsAsync();
-                _searchUrl = settings.SearchUrl;
-                SearchUrlTextBox.Text = settings.SearchUrl;
-            }
-            catch
-            {
-                _searchUrl = "https://chatgpt.com/?q={query}";
-                SearchUrlTextBox.Text = _searchUrl;
+                if (AiProviderComboBox.Items[i] is ComboBoxItem item && item.Tag as string == tag)
+                {
+                    AiProviderComboBox.SelectedIndex = i;
+                    return;
+                }
             }
         }
 
-        private async Task LoadApiKeySettingAsync()
+        private void UpdateApiKeyVisibility(AiProvider provider)
         {
-            try
+            // Ollama is local and doesn't need an API key
+            ApiKeyPanel.Visibility = provider == AiProvider.Ollama
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+
+            ApiKeyLabel.Text = provider switch
             {
-                var settings = await _dataService.LoadSettingsAsync();
-                _apiKey = settings.ApiKey ?? string.Empty;
-                ApiKeyTextBox.Text = _apiKey;
-            }
-            catch
-            {
-                _apiKey = string.Empty;
-                ApiKeyTextBox.Text = string.Empty;
-            }
+                AiProvider.XAI => "xAI API Key",
+                AiProvider.OpenAI => "OpenAI API Key",
+                AiProvider.Claude => "Anthropic API Key",
+                _ => "API Key"
+            };
+        }
+
+        private async void OnAiProviderChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (AiProviderComboBox.SelectedItem is not ComboBoxItem selected) return;
+            var tag = selected.Tag as string;
+            if (tag == null || !Enum.TryParse<AiProvider>(tag, out var provider)) return;
+
+            _grokService.Provider = provider;
+            UpdateApiKeyVisibility(provider);
+
+            _cachedSettings ??= await _dataService.LoadSettingsAsync();
+            _cachedSettings.AiProvider = provider;
+            await _dataService.SaveSettingsAsync(_cachedSettings);
         }
 
         private async void OnApiKeyChanged(object sender, TextChangedEventArgs e)
@@ -1496,9 +1585,9 @@ namespace quickLink
             var newKey = ApiKeyTextBox.Text?.Trim() ?? string.Empty;
             _apiKey = newKey;
 
-            var settings = await _dataService.LoadSettingsAsync();
-            settings.ApiKey = _apiKey;
-            await _dataService.SaveSettingsAsync(settings);
+            _cachedSettings ??= await _dataService.LoadSettingsAsync();
+            _cachedSettings.ApiKey = _apiKey;
+            await _dataService.SaveSettingsAsync(_cachedSettings);
         }
 
         private async void OnSearchUrlChanged(object sender, TextChangedEventArgs e)
@@ -1509,26 +1598,9 @@ namespace quickLink
 
             _searchUrl = newUrl;
 
-            // Save setting
-            var settings = await _dataService.LoadSettingsAsync();
-            settings.SearchUrl = _searchUrl;
-            await _dataService.SaveSettingsAsync(settings);
-        }
-
-        private async Task LoadFooterSettingAsync()
-        {
-            try
-            {
-                var settings = await _dataService.LoadSettingsAsync();
-                _hideFooter = settings.HideFooter;
-                HideFooterCheckBox.IsChecked = settings.HideFooter;
-                UpdateFooterVisibility();
-            }
-            catch
-            {
-                _hideFooter = true; // Default to hidden
-                HideFooterCheckBox.IsChecked = true;
-            }
+            _cachedSettings ??= await _dataService.LoadSettingsAsync();
+            _cachedSettings.SearchUrl = _searchUrl;
+            await _dataService.SaveSettingsAsync(_cachedSettings);
         }
 
         private async Task LoadStartupSettingAsync()
@@ -1536,25 +1608,42 @@ namespace quickLink
             try
             {
                 var startupTask = await Windows.ApplicationModel.StartupTask.GetAsync("QuickLinkStartup");
+                System.Diagnostics.Debug.WriteLine($"StartupTask state: {startupTask.State}");
                 StartWithSystemCheckBox.IsChecked =
                     startupTask.State == Windows.ApplicationModel.StartupTaskState.Enabled;
             }
-            catch
+            catch (Exception ex)
             {
-                StartWithSystemCheckBox.IsChecked = false;
-                StartWithSystemCheckBox.IsEnabled = false;
+                System.Diagnostics.Debug.WriteLine($"StartupTask load error: {ex.Message}");
+                // StartupTask API only works in packaged (MSIX) apps.
+                // For unpackaged mode, fall back to registry-based startup.
+                try
+                {
+                    using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false);
+                    StartWithSystemCheckBox.IsChecked = key?.GetValue("QuickLink") != null;
+                }
+                catch
+                {
+                    StartWithSystemCheckBox.IsChecked = false;
+                    StartWithSystemCheckBox.IsEnabled = false;
+                }
             }
         }
 
         private async void OnStartWithSystemChanged(object sender, RoutedEventArgs e)
         {
+            var enable = StartWithSystemCheckBox.IsChecked == true;
+
+            // Try MSIX StartupTask API first (works for packaged apps)
             try
             {
                 var startupTask = await Windows.ApplicationModel.StartupTask.GetAsync("QuickLinkStartup");
 
-                if (StartWithSystemCheckBox.IsChecked == true)
+                if (enable)
                 {
                     var state = await startupTask.RequestEnableAsync();
+                    System.Diagnostics.Debug.WriteLine($"StartupTask enable result: {state}");
                     if (state != Windows.ApplicationModel.StartupTaskState.Enabled)
                     {
                         StartWithSystemCheckBox.IsChecked = false;
@@ -1563,6 +1652,32 @@ namespace quickLink
                 else
                 {
                     startupTask.Disable();
+                }
+                return;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"StartupTask API failed, using registry: {ex.Message}");
+            }
+
+            // Fallback: registry-based startup for unpackaged mode
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                if (key == null) return;
+
+                if (enable)
+                {
+                    var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+                    if (!string.IsNullOrEmpty(exePath))
+                    {
+                        key.SetValue("QuickLink", $"\"{exePath}\"");
+                    }
+                }
+                else
+                {
+                    key.DeleteValue("QuickLink", false);
                 }
             }
             catch
@@ -1576,10 +1691,9 @@ namespace quickLink
             _hideFooter = HideFooterCheckBox.IsChecked ?? false;
             UpdateFooterVisibility();
 
-            // Save setting
-            var settings = await _dataService.LoadSettingsAsync();
-            settings.HideFooter = _hideFooter;
-            await _dataService.SaveSettingsAsync(settings);
+            _cachedSettings ??= await _dataService.LoadSettingsAsync();
+            _cachedSettings.HideFooter = _hideFooter;
+            await _dataService.SaveSettingsAsync(_cachedSettings);
 
             // Refresh filtered items to include/exclude internal commands
             FilterItems();
@@ -1740,12 +1854,10 @@ namespace quickLink
 
                 _hotkeyService?.RegisterHotkey(_windowHandle, modifiers, vKey);
 
-                var settings = new AppSettings
-                {
-                    HotkeyModifiers = modifiers,
-                    HotkeyKey = vKey
-                };
-                await _dataService.SaveSettingsAsync(settings);
+                _cachedSettings ??= await _dataService.LoadSettingsAsync();
+                _cachedSettings.HotkeyModifiers = modifiers;
+                _cachedSettings.HotkeyKey = vKey;
+                await _dataService.SaveSettingsAsync(_cachedSettings);
 
                 HotkeyStatusText.Text = "Hotkey updated and saved!";
             }

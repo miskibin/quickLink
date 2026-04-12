@@ -11,41 +11,58 @@ permissions:
 jobs:
   build-and-release:
     runs-on: windows-latest
-    
+
     env:
       Project_Path: quickLink/quickLink.csproj
-      
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        
+
     - name: Install .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
-        
+
     - name: Setup MSBuild.exe
       uses: microsoft/setup-msbuild@v2
-      
+
+    - name: Install winapp CLI
+      run: |
+        dotnet tool install --global Microsoft.WinAppCli
+      shell: pwsh
+
     - name: Restore the application
       run: dotnet restore $env:Project_Path
-      
+
     - name: Get version from tag
       id: get_version
       run: |
         $tag = "${{ github.ref_name }}"
         $version = $tag -replace '^v', ''
+        # Ensure 4-part version for MSIX
+        $parts = $version.Split('.')
+        while ($parts.Count -lt 4) { $parts += "0" }
+        $msixVersion = $parts[0..3] -join '.'
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+        echo "MSIX_VERSION=$msixVersion" >> $env:GITHUB_OUTPUT
         echo "TAG=$tag" >> $env:GITHUB_OUTPUT
       shell: pwsh
-      
+
+    - name: Update manifest version
+      run: |
+        $manifest = "quickLink\Package.appxmanifest"
+        $xml = [xml](Get-Content $manifest -Raw)
+        $xml.Package.Identity.Version = "${{ steps.get_version.outputs.MSIX_VERSION }}"
+        $xml.Save($manifest)
+      shell: pwsh
+
     - name: Generate release notes from commits
       id: release_notes
       run: |
         $currentTag = "${{ github.ref_name }}"
-        # Try to find previous tag; if not found, use repository root as start
         $previousTag = git describe --tags --abbrev=0 "$currentTag^" 2>$null
         if ($previousTag) {
           echo "PREVIOUS_TAG=$previousTag" >> $env:GITHUB_OUTPUT
@@ -56,58 +73,91 @@ jobs:
           $initial = git rev-list --max-parents=0 HEAD
           $range = "$initial..$currentTag"
         }
-
-        # Collect commit messages (one per line)
         $commits = git log $range --pretty=format:"- %s" --no-merges | Where-Object { $_ -ne "" }
-
         if (-not $commits -or $commits.Count -eq 0) {
           $notes = "No commits found."
         }
         else {
           $notes = $commits -join "`n"
         }
-
-        # Use multi-line GITHUB_OUTPUT format (heredoc style) to preserve newlines
         $delimiter = "EOF_NOTES_$(Get-Random)"
         echo "NOTES<<$delimiter" >> $env:GITHUB_OUTPUT
         echo $notes >> $env:GITHUB_OUTPUT
         echo $delimiter >> $env:GITHUB_OUTPUT
       shell: pwsh
-      
-    - name: Build x64
+
+    - name: Build portable ZIP (single-file exe)
       run: |
         dotnet publish $env:Project_Path -c Release -r win-x64 -p:Platform=x64 -p:PublishSingleFile=true --self-contained
-        
+
     - name: Create ZIP archive
       run: |
         $version = "${{ steps.get_version.outputs.VERSION }}"
         Compress-Archive -Path "quickLink/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/*" -DestinationPath "quickLink-$version-win-x64.zip"
       shell: pwsh
-      
+
+    - name: Build MSIX installer
+      run: |
+        dotnet build $env:Project_Path -c Release -r win-x64 `
+          -p:Platform=x64 `
+          -p:PublishSingleFile=false `
+          -p:WindowsPackageType=MSIX `
+          -p:GenerateAppxPackageOnBuild=true `
+          -p:AppxPackageDir="$PWD\AppPackages\" `
+          -p:AppxBundle=Never `
+          -p:AppxPackageSigningEnabled=false `
+          --self-contained
+      shell: pwsh
+
+    - name: Sign MSIX
+      run: |
+        $msix = Get-ChildItem "AppPackages\*\*.msix" | Select-Object -First 1
+        Push-Location quickLink
+        winapp cert generate --manifest Package.appxmanifest --output devcert.pfx --if-exists Skip
+        Pop-Location
+        winapp sign $msix.FullName "quickLink\devcert.pfx" --password password
+        $version = "${{ steps.get_version.outputs.VERSION }}"
+        Copy-Item $msix.FullName -Destination "QuickLink-$version-x64.msix"
+      shell: pwsh
+
     - name: Generate checksums
       run: |
         $version = "${{ steps.get_version.outputs.VERSION }}"
-        $hash = (Get-FileHash -Path "quickLink-$version-win-x64.zip" -Algorithm SHA256).Hash
-        "$hash  quickLink-$version-win-x64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
+        $zipHash = (Get-FileHash -Path "quickLink-$version-win-x64.zip" -Algorithm SHA256).Hash
+        $msixHash = (Get-FileHash -Path "QuickLink-$version-x64.msix" -Algorithm SHA256).Hash
+        "$zipHash  quickLink-$version-win-x64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
+        "$msixHash  QuickLink-$version-x64.msix" | Out-File -FilePath "SHA256SUMS.txt" -Append -Encoding utf8
       shell: pwsh
-      
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         name: QuickLink ${{ steps.get_version.outputs.TAG }}
         body: |
           ## QuickLink ${{ steps.get_version.outputs.VERSION }}
-          
+
           ${{ steps.release_notes.outputs.NOTES }}
-          
-          ### 📦 Installation
-          1. Download the ZIP file
-          2. Extract the archive
-          3. Run `quickLink.exe`
-          4. Open app with `ctrl + shift + a`
+
+          ### Installation
+
+          **Option 1: MSIX Installer (recommended)**
+          1. Download `QuickLink-${{ steps.get_version.outputs.VERSION }}-x64.msix`
+          2. Double-click to install
+          3. If prompted about untrusted certificate: right-click `.msix` > Properties > Digital Signatures > Details > View Certificate > Install Certificate > Local Machine > Trusted People
+          4. Launch from Start Menu, or press `Ctrl+Shift+A`
+
+          **Option 2: Portable ZIP**
+          1. Download `quickLink-${{ steps.get_version.outputs.VERSION }}-win-x64.zip`
+          2. Extract and run `quickLink.exe`
+          3. Open with `Ctrl+Shift+A`
+
+          ### Requirements
+          - Windows 10 1809+ or Windows 11
+          - x64 architecture
 
         files: |
           quickLink-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
+          QuickLink-${{ steps.get_version.outputs.VERSION }}-x64.msix
           SHA256SUMS.txt
         draft: false
         prerelease: false

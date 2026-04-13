@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap2="http://schemas.microsoft.com/appx/manifest/uap/windows10/2"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap2 uap3 uap5 uap10 desktop desktop6 rescap">
+
+  <Identity
+    Name="1b30b1de-2655-4a65-8dd4-f3ed5f0d8e19"
+    Publisher="CN=QuickLink, O=skibi"
+    Version="1.0.0.0" />
+
+  <Properties>
+    <DisplayName>QuickLink</DisplayName>
+    <PublisherDisplayName>QuickLink</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.scale-200.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.18362.0" MaxVersionTested="10.0.26200.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="quickLink.exe"
+      EntryPoint="quickLink.App">
+      <uap:VisualElements
+        DisplayName="QuickLink"
+        Description="Fast clipboard manager with global hotkey support"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.scale-200.png"
+        Square44x44Logo="Assets\Square44x44Logo.scale-200.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.scale-200.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.scale-200.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap5:Extension Category="windows.startupTask">
+          <uap5:StartupTask
+            TaskId="QuickLinkStartup"
+            Enabled="false"
+            DisplayName="QuickLink" />
+        </uap5:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

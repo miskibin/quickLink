@@ -16,5 +16,6 @@ namespace quickLink.Models
         public string SearchUrl { get; set; } = "https://chatgpt.com/?q={query}";
         public string ApiKey { get; set; } = string.Empty;
         public AiProvider AiProvider { get; set; } = AiProvider.XAI;
+        public string AiModel { get; set; } = string.Empty;
     }
 }

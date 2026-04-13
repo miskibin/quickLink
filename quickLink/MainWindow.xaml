@@ -966,6 +966,24 @@
                                      TabIndex="14"/>
                         </StackPanel>
 
+                        <!-- Model Name -->
+                        <StackPanel Spacing="6">
+                            <TextBlock x:Name="AiModelLabel"
+                                       Text="Model"
+                                       FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                            <TextBox x:Name="AiModelTextBox"
+                                     FontSize="13"
+                                     CornerRadius="6"
+                                     Background="{ThemeResource LayerFillColorDefaultBrush}"
+                                     BorderThickness="1"
+                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                     Padding="10,8"
+                                     TextChanged="OnAiModelChanged"
+                                     TabIndex="15"/>
+                        </StackPanel>
+
                         <!-- Hotkey -->
                         <StackPanel Spacing="6">
                             <TextBlock Text="Click and press a key combination"

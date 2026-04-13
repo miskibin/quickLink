@@ -426,6 +426,7 @@ namespace quickLink
                 _searchUrl = settings.SearchUrl;
                 _apiKey = settings.ApiKey ?? string.Empty;
                 _grokService.Provider = settings.AiProvider;
+                _grokService.ModelOverride = settings.AiModel;
                 UpdateFooterVisibility();
 
                 FilterItems();
@@ -1528,10 +1529,12 @@ namespace quickLink
             HideFooterCheckBox.IsChecked = settings.HideFooter;
             UpdateFooterVisibility();
 
-            // Set AI provider dropdown
+            // Set AI provider dropdown + model
             _grokService.Provider = settings.AiProvider;
+            _grokService.ModelOverride = settings.AiModel;
             SetProviderDropdown(settings.AiProvider);
             UpdateApiKeyVisibility(settings.AiProvider);
+            UpdateModelField(settings.AiProvider, settings.AiModel);
 
             await LoadStartupSettingAsync();
             UpdateHotkeyDisplay();
@@ -1566,6 +1569,13 @@ namespace quickLink
             };
         }
 
+        private void UpdateModelField(AiProvider provider, string savedModel)
+        {
+            var defaultModel = GrokService.GetDefaultModel(provider);
+            AiModelTextBox.PlaceholderText = defaultModel;
+            AiModelTextBox.Text = string.IsNullOrWhiteSpace(savedModel) ? string.Empty : savedModel;
+        }
+
         private async void OnAiProviderChanged(object sender, SelectionChangedEventArgs e)
         {
             if (AiProviderComboBox.SelectedItem is not ComboBoxItem selected) return;
@@ -1575,8 +1585,23 @@ namespace quickLink
             _grokService.Provider = provider;
             UpdateApiKeyVisibility(provider);
 
+            // Reset model to default when switching providers
+            _grokService.ModelOverride = string.Empty;
+            UpdateModelField(provider, string.Empty);
+
             _cachedSettings ??= await _dataService.LoadSettingsAsync();
             _cachedSettings.AiProvider = provider;
+            _cachedSettings.AiModel = string.Empty;
+            await _dataService.SaveSettingsAsync(_cachedSettings);
+        }
+
+        private async void OnAiModelChanged(object sender, TextChangedEventArgs e)
+        {
+            var model = AiModelTextBox.Text?.Trim() ?? string.Empty;
+            _grokService.ModelOverride = model;
+
+            _cachedSettings ??= await _dataService.LoadSettingsAsync();
+            _cachedSettings.AiModel = model;
             await _dataService.SaveSettingsAsync(_cachedSettings);
         }
 

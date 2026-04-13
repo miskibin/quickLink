@@ -27,12 +27,28 @@ namespace quickLink.Services
         private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
         private AiProvider _provider = AiProvider.XAI;
+        private string _modelOverride = string.Empty;
 
         public AiProvider Provider
         {
             get => _provider;
             set => _provider = value;
         }
+
+        public string ModelOverride
+        {
+            get => _modelOverride;
+            set => _modelOverride = value ?? string.Empty;
+        }
+
+        public string GetEffectiveModel()
+        {
+            if (!string.IsNullOrWhiteSpace(_modelOverride))
+                return _modelOverride;
+            return Providers[_provider].Model;
+        }
+
+        public static string GetDefaultModel(AiProvider provider) => Providers[provider].Model;
 
         public void ClearHistory() => _conversationHistory.Clear();
 
@@ -81,7 +97,7 @@ namespace quickLink.Services
 
             var payload = new
             {
-                model = config.Model,
+                model = GetEffectiveModel(),
                 messages = _conversationHistory,
                 stream = true,
                 temperature = 0.7,
@@ -169,7 +185,7 @@ namespace quickLink.Services
 
             var payload = new
             {
-                model = config.Model,
+                model = GetEffectiveModel(),
                 system = SystemPrompt,
                 messages,
                 stream = true,

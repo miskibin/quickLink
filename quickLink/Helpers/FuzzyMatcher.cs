@@ -11,7 +11,9 @@ namespace quickLink.Helpers
     {
         private const int PrefixBonus = 15;
         private const int WordBoundaryBonus = 10;
-        private const int ConsecutiveBonus = 5;
+        // Bigger than WordBoundaryBonus so a contiguous run beats a same-length run
+        // landing on every separator (e.g. "abc" in "abcdef" outscores "a_b_c_d").
+        private const int ConsecutiveBonus = 15;
         private const int CaseMatchBonus = 1;
         private const int GapPenalty = -1;
 

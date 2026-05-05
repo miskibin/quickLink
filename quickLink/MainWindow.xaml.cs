@@ -5,13 +5,18 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.UI;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using quickLink.Constants;
+using quickLink.Helpers;
 using quickLink.Models;
 using quickLink.Models.ListItems;
 using quickLink.Services;
@@ -77,9 +82,12 @@ namespace quickLink
         // Startup performance tracking
         private static readonly Stopwatch _startupStopwatch = Stopwatch.StartNew();
 
-        // Search debouncing
-        private System.Threading.CancellationTokenSource? _searchDebounceTokenSource;
+        // Search debouncing + in-flight filter cancellation (single CTS covers both)
+        private CancellationTokenSource? _searchDebounceTokenSource;
         private const int SEARCH_DEBOUNCE_MS = 16; // ~1 frame at 60fps - minimal debounce
+
+        // Tracks whether an exit animation is already running so we don't re-trigger it.
+        private bool _isHidingAnimating;
 
         // Markdown streaming state
         private string _markdownContent = string.Empty;
@@ -198,7 +206,7 @@ namespace quickLink
 
             CenterWindow();
             SubclassWindow();
-            ApplyGlassEffect();
+            ApplyBackdrop();
 
             Activated += OnWindowActivated;
             AppWindow.Hide();
@@ -217,12 +225,31 @@ namespace quickLink
             }
         }
 
-        private void ApplyGlassEffect()
+        private void ApplyBackdrop()
         {
-            // The DesktopAcrylicBackdrop provides a nice glass effect
-            // For additional customization, you could use Win2D effects, but
-            // the backdrop combined with our semi-transparent overlays works well
-            // for a dark theme glass appearance
+            // Prefer Mica (matches Windows 11 system surfaces, less drift than Acrylic when the window moves).
+            // Fall back to Desktop Acrylic on systems where Mica isn't supported (e.g., older Win10 builds).
+            try
+            {
+                if (MicaController.IsSupported())
+                {
+                    SystemBackdrop = new MicaBackdrop { Kind = MicaKind.Base };
+                    return;
+                }
+            }
+            catch
+            {
+                // Fall through to Acrylic.
+            }
+
+            try
+            {
+                SystemBackdrop = new DesktopAcrylicBackdrop();
+            }
+            catch
+            {
+                // Last resort: leave default.
+            }
         }
 
         private void InitializeHotkey()
@@ -368,23 +395,32 @@ namespace quickLink
         {
             DispatcherQueue.TryEnqueue(() =>
             {
-                // Reposition window on the monitor where the cursor is located
+                // Reposition window on the monitor where the cursor is located.
                 CenterWindowOnCurrentMonitor();
+
+                // DWM-cloak the window before Show() so the user never sees the white
+                // pre-XAML frame. We uncloak after the first low-priority dispatcher tick,
+                // by which point WinUI has rendered the actual content.
+                try { DwmInterop.Cloak(_windowHandle); } catch { /* non-fatal */ }
 
                 AppWindow.Show();
                 Activate();
                 SetForegroundWindow(_windowHandle);
 
-                // Reset state for animation
+                // Reset state for animation. Stop any in-flight exit storyboard so it
+                // doesn't keep animating Opacity towards 0 while we fade in.
+                try { WindowExitAnimation.Stop(); } catch { }
+                _isHidingAnimating = false;
                 RootGrid.Opacity = 0;
-
-                // Trigger entrance animation - no delays, app opens instantly!
-                WindowEnterAnimation.Begin();
-
-                // Set focus and clear search box
                 SearchBox.Text = string.Empty;
-                SearchBox.Focus(FocusState.Programmatic);
-                SearchBox.SelectAll();
+
+                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+                {
+                    try { DwmInterop.Uncloak(_windowHandle); } catch { /* non-fatal */ }
+                    WindowEnterAnimation.Begin();
+                    SearchBox.Focus(FocusState.Programmatic);
+                    SearchBox.SelectAll();
+                });
             });
         }
         #endregion
@@ -463,133 +499,84 @@ namespace quickLink
         #endregion
 
         #region Filtering & Search
+        private sealed class UsageSnapshot : IUsageScoreProvider
+        {
+            private readonly Dictionary<IListItem, double> _scores;
+            public UsageSnapshot(IEnumerable<IListItem> items, UsageTrackingService service)
+            {
+                _scores = new Dictionary<IListItem, double>();
+                foreach (var item in items) _scores[item] = service.GetUsageScore(item);
+            }
+            public double GetUsageScore(IListItem item) => _scores.TryGetValue(item, out var s) ? s : 0;
+        }
+
         private async void FilterItems()
         {
-            var searchText = SearchBox.Text?.ToLowerInvariant() ?? string.Empty;
-            var isEmpty = string.IsNullOrWhiteSpace(searchText);
+            var rawText = SearchBox.Text ?? string.Empty;
+            var lowerText = rawText.ToLowerInvariant();
+            var trimmed = rawText.Trim();
+            var isEmpty = string.IsNullOrWhiteSpace(rawText);
 
-            // Check if it's a user command (keep on UI thread as it handles async IO)
-            if (!isEmpty && searchText.StartsWith(AppConstants.CommandPrefixes.UserCommandPrefix))
+            // User-command path is unchanged: it streams its own results via DirectoryCommandProvider.
+            if (!isEmpty && lowerText.StartsWith(AppConstants.CommandPrefixes.UserCommandPrefix))
             {
-                // Show command suggestions if just "/" typed or partial command
-                if (searchText == AppConstants.CommandPrefixes.UserCommandPrefix || !_userCommands.Any(c => c.Prefix.Equals(searchText.Split(' ')[0], StringComparison.OrdinalIgnoreCase)))
+                if (lowerText == AppConstants.CommandPrefixes.UserCommandPrefix ||
+                    !_userCommands.Any(c => c.Prefix.Equals(lowerText.Split(' ')[0], StringComparison.OrdinalIgnoreCase)))
                 {
-                    ShowCommandSuggestions(searchText);
+                    ShowCommandSuggestions(lowerText);
                     return;
                 }
 
-                await HandleUserCommandAsync(searchText);
+                await HandleUserCommandAsync(lowerText);
                 return;
             }
 
-            // Pre-calculate whether to include internal commands
             var includeInternalCommands = _hideFooter || !isEmpty;
 
-            // Snapshot data for background processing to avoid thread safety issues
+            // Snapshot collections + usage scores on the UI thread before going to background.
             var itemsSnapshot = _allItems.ToList();
-            var internalCommandsSnapshot = _internalCommands.ToList();
+            var internalSnapshot = _internalCommands.Cast<IListItem>().ToList();
+            var allForUsage = itemsSnapshot.Concat(internalSnapshot);
+            var usage = new UsageSnapshot(allForUsage, _usageTrackingService);
+            var ct = _searchDebounceTokenSource?.Token ?? CancellationToken.None;
 
-            // Snapshot scores to avoid accessing service from background thread
-            var scores = new Dictionary<IListItem, double>();
-            foreach (var item in itemsSnapshot)
+            var options = new FilterOptions
             {
-                scores[item] = _usageTrackingService.GetUsageScore(item);
+                MaxResults = 6,
+                IncludeInternalCommands = includeInternalCommands,
+                UsageWeight = 1.0,
+                FuzzyWeight = 1.0
+            };
+
+            List<IListItem> newItems;
+            try
+            {
+                newItems = await Task.Run(
+                    () => ItemFilter.Filter(itemsSnapshot, internalSnapshot, trimmed, usage, options, ct),
+                    ct);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
             }
 
-            // Run heavy filtering/sorting on background thread
-            var newItems = await Task.Run(() =>
-            {
-                var resultList = new List<IListItem>();
-
-                if (isEmpty)
-                {
-                    // No search - take first 6 items sorted by usage
-                    var sortedItems = itemsSnapshot
-                        .Select(item => new { Item = item, Score = scores.TryGetValue(item, out var s) ? s : 0 })
-                        .OrderByDescending(x => x.Score)
-                        .Take(6)
-                        .Select(x => x.Item);
-
-                    resultList.AddRange(sortedItems);
-
-                    if (includeInternalCommands)
-                    {
-                        foreach (var cmd in internalCommandsSnapshot)
-                        {
-                            if (resultList.Count >= 6) break;
-                            resultList.Add(cmd);
-                        }
-                    }
-                }
-                else
-                {
-                    // With search - filter, calculate combined score (text match + usage), and sort
-                    var capacity = Math.Min(itemsSnapshot.Count + (includeInternalCommands ? internalCommandsSnapshot.Count : 0), 7);
-                    var scoredItems = new List<(IListItem Item, double Score)>(capacity);
-
-                    // Search user items with scoring
-                    foreach (var item in itemsSnapshot)
-                    {
-                        if (item.MatchesSearch(searchText))
-                        {
-                            // Calculate text match score (1.0 for exact match, 0.5 for partial)
-                            // Use OrdinalIgnoreCase instead of allocating ToLowerInvariant() per item
-                            var textScore = item.DisplayValue?.StartsWith(searchText, StringComparison.OrdinalIgnoreCase) == true ? 1.0 : 0.5;
-
-                            // Add usage score boost
-                            var usageScore = scores.TryGetValue(item, out var s) ? s : 0;
-                            var combinedScore = textScore + usageScore;
-
-                            scoredItems.Add((item, combinedScore));
-                        }
-                    }
-
-                    // Search internal commands if needed
-                    if (includeInternalCommands)
-                    {
-                        foreach (var cmd in internalCommandsSnapshot)
-                        {
-                            if (cmd.MatchesSearch(searchText))
-                            {
-                                var textScore = cmd.DisplayValue?.StartsWith(searchText, StringComparison.OrdinalIgnoreCase) == true ? 1.0 : 0.5;
-                                scoredItems.Add((cmd, textScore));
-                            }
-                        }
-                    }
-
-                    // Sort by score descending and take top 6
-                    resultList = scoredItems
-                        .OrderByDescending(x => x.Score)
-                        .Take(6)
-                        .Select(x => x.Item)
-                        .ToList();
-                }
-
-                return resultList;
-            });
-
-            // If no results and not a command, show search suggestion (UI thread logic)
+            // Empty-result fallback: command-execute suggestion or web/AI search suggestion.
             if (newItems.Count == 0 && !isEmpty)
             {
-                if (searchText.StartsWith(AppConstants.CommandPrefixes.CommandPrefix))
+                if (lowerText.StartsWith(AppConstants.CommandPrefixes.CommandPrefix))
                 {
-                    // Show execute command suggestion - create a simple command item
-                    var executeCmd = new CommandItem("Execute command", searchText);
-                    newItems.Add(executeCmd);
+                    newItems.Add(new CommandItem("Execute command", lowerText));
                 }
                 else
                 {
-                    // Show search suggestion
-                    _searchSuggestionItem.SearchQuery = searchText;
+                    _searchSuggestionItem.SearchQuery = rawText;
                     _searchSuggestionItem.SearchUrl = _searchUrl;
                     newItems.Add(_searchSuggestionItem);
                 }
             }
 
-            // Update filtered items
             UpdateFilteredItems(newItems);
 
-            // Auto-select first item
             if (_filteredItems.Count > 0)
             {
                 ItemsList.SelectedIndex = 0;
@@ -693,9 +680,8 @@ namespace quickLink
 
         private void UpdateFilteredItems(List<IListItem> newItems)
         {
-            // Skip update if items haven't changed
-            if (ItemsAreEqual(newItems, _filteredItems))
-                return;
+            // Always re-assign each slot so ItemsControl re-evaluates bindings
+            // (TitleHighlights changes per query and IListItem doesn't raise INotifyPropertyChanged).
 
             // Remove items from the end that are no longer needed
             while (_filteredItems.Count > newItems.Count)
@@ -703,54 +689,28 @@ namespace quickLink
                 _filteredItems.RemoveAt(_filteredItems.Count - 1);
             }
 
-            // Update existing items or add new ones
             for (int i = 0; i < newItems.Count; i++)
             {
                 if (i < _filteredItems.Count)
                 {
-                    // Update existing slot if different
-                    if (!ReferenceEquals(_filteredItems[i], newItems[i]))
-                    {
-                        _filteredItems[i] = newItems[i];
-                    }
+                    _filteredItems[i] = newItems[i];
                 }
                 else
                 {
-                    // Add new item
                     _filteredItems.Add(newItems[i]);
                 }
             }
         }
 
-        private static bool ItemsAreEqual(List<IListItem> newItems, ObservableCollection<IListItem> currentItems)
-        {
-            if (newItems.Count != currentItems.Count)
-                return false;
-
-            for (int i = 0; i < newItems.Count; i++)
-            {
-                if (!ReferenceEquals(newItems[i], currentItems[i]))
-                    return false;
-            }
-
-            return true;
-        }
-
-        private static bool ItemMatchesSearch(IListItem item, string searchText)
-        {
-            return item.MatchesSearch(searchText);
-        }
-
         private async void OnSearchTextChanged(object sender, TextChangedEventArgs e)
         {
-            // Cancel previous debounce
+            // Cancel previous debounce + any in-flight filter (unified CTS).
             _searchDebounceTokenSource?.Cancel();
-            _searchDebounceTokenSource = new System.Threading.CancellationTokenSource();
+            _searchDebounceTokenSource = new CancellationTokenSource();
             var token = _searchDebounceTokenSource.Token;
 
             try
             {
-                // Small debounce to batch rapid keystrokes
                 await Task.Delay(SEARCH_DEBOUNCE_MS, token);
                 if (!token.IsCancellationRequested)
                 {
@@ -759,7 +719,11 @@ namespace quickLink
             }
             catch (TaskCanceledException)
             {
-                // Expected when typing quickly
+                // Expected when typing quickly.
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected when typing quickly.
             }
         }
 
@@ -874,10 +838,35 @@ namespace quickLink
             {
                 HideMarkdownPanel();
             }
-            
-            // Clear search box when hiding so it's fresh when app opens next time
-            SearchBox.Text = string.Empty;
-            AppWindow.Hide();
+
+            HideWithExitAnimation();
+        }
+
+        private void HideWithExitAnimation()
+        {
+            if (_isHidingAnimating) return;
+
+            // If the window isn't visible (or storyboard is unavailable), just hide.
+            if (WindowExitAnimation == null || !AppWindow.IsVisible)
+            {
+                SearchBox.Text = string.Empty;
+                AppWindow.Hide();
+                return;
+            }
+
+            _isHidingAnimating = true;
+
+            void OnCompleted(object? sender, object e)
+            {
+                WindowExitAnimation.Completed -= OnCompleted;
+                if (!_isHidingAnimating) return; // user re-opened window mid-exit
+                SearchBox.Text = string.Empty;
+                AppWindow.Hide();
+                _isHidingAnimating = false;
+            }
+
+            WindowExitAnimation.Completed += OnCompleted;
+            WindowExitAnimation.Begin();
         }
 
         void IExecutionContext.HideWindow()

@@ -64,6 +64,7 @@ namespace quickLink.Models.ListItems
         public bool UseEmojiIcon => false;
         public string EmojiIcon => string.Empty;
         public bool UseGlyphIcon => true; // Always use glyph for command items
+        public int[]? TitleHighlights { get; set; }
 
         public CommandItem() { }
 

@@ -29,6 +29,7 @@ namespace quickLink.Models.ListItems
         public bool HasFavicon => false;
         public string? FaviconUrl => null;
         public bool UseGlyphIcon => !UseEmojiIcon; // Show glyph only if no emoji
+        public int[]? TitleHighlights { get; set; }
 
         public CommandSuggestionItem() { }
 

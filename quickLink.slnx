@@ -7,6 +7,7 @@
     <Platform Project="x64" />
     <Deploy />
   </Project>
+  <Project Path="quickLink.Tests/quickLink.Tests.csproj" />
   <Project Path="WIX/quicklinkWixInstaller.wixproj" Id="5f089556-ef27-4a49-9803-3597340425b6">
     <Platform Project="x86" />
     <Build />

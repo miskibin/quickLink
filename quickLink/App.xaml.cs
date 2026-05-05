@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using Microsoft.UI.Xaml;
 using quickLink.Constants;
 using quickLink.Services.Helpers;
@@ -57,8 +58,39 @@ namespace quickLink
         /// <param name="args">Details about the launch request and process.</param>
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
-            _window = new MainWindow();
-            // Window will be hidden initially and shown via Ctrl+Space
+            var argv = Environment.GetCommandLineArgs();
+            bool isSmokeTest = argv.Any(a => string.Equals(a, "--smoke-test", StringComparison.OrdinalIgnoreCase));
+
+            try
+            {
+                _window = new MainWindow();
+            }
+            catch
+            {
+                if (isSmokeTest)
+                {
+                    Environment.ExitCode = 1;
+                    Exit();
+                    return;
+                }
+                throw;
+            }
+
+            if (isSmokeTest)
+            {
+                // Construct the window then exit cleanly after a short delay so CI / release
+                // scripts can verify that the app starts without crashing.
+                var dq = _window!.DispatcherQueue;
+                var timer = dq.CreateTimer();
+                timer.Interval = TimeSpan.FromMilliseconds(1500);
+                timer.IsRepeating = false;
+                timer.Tick += (_, _) =>
+                {
+                    Environment.ExitCode = 0;
+                    Exit();
+                };
+                timer.Start();
+            }
         }
 
         public void HideMainWindow()

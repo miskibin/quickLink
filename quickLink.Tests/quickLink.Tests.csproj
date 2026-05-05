@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>quickLink.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <!--
+    The main quickLink project depends on WinUI 3 / Windows App SDK and only builds on Windows.
+    The test project pulls in just the pure-C# files we want to test, so it can build and run on
+    any platform (including CI Linux runners) without WinUI dependencies.
+  -->
+  <ItemGroup>
+    <Compile Include="..\quickLink\Helpers\FuzzyMatcher.cs" Link="Source\FuzzyMatcher.cs" />
+    <Compile Include="..\quickLink\Helpers\ItemFilter.cs" Link="Source\ItemFilter.cs" />
+    <Compile Include="..\quickLink\Models\ListItems\IListItem.cs" Link="Source\IListItem.cs" />
+    <Compile Include="..\quickLink\Models\UserCommand.cs" Link="Source\UserCommand.cs" />
+  </ItemGroup>
+
+</Project>

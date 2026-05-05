@@ -56,6 +56,11 @@ namespace quickLink.Models.ListItems
         /// Check if the item matches the search query
         /// </summary>
         bool MatchesSearch(string searchText);
+
+        /// <summary>
+        /// Indexes within DisplayTitle that matched the latest fuzzy query, for highlight rendering. Null when not applicable.
+        /// </summary>
+        int[]? TitleHighlights { get; set; }
     }
 
     /// <summary>

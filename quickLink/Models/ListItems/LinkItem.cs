@@ -43,6 +43,7 @@ namespace quickLink.Models.ListItems
         public bool SupportsAutocomplete => false;
         public string AutocompleteText => string.Empty;
         public bool HasFavicon => !string.IsNullOrEmpty(FaviconUrl);
+        public int[]? TitleHighlights { get; set; }
 
         // Icon properties for XAML compatibility
         public bool UseEmojiIcon => false;

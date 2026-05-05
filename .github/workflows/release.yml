@@ -30,9 +30,7 @@ jobs:
       uses: microsoft/setup-msbuild@v2
 
     - name: Install winapp CLI
-      run: |
-        dotnet tool install --global Microsoft.WinAppCli
-      shell: pwsh
+      uses: microsoft/setup-WinAppCli@v1
 
     - name: Restore the application
       run: dotnet restore $env:Project_Path

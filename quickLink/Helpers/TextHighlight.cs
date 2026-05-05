@@ -23,10 +23,10 @@ namespace quickLink.Helpers
                 "Indexes", typeof(int[]), typeof(TextHighlight),
                 new PropertyMetadata(null, OnChanged));
 
-        public static string GetText(DependencyObject obj) => (string)obj.GetValue(TextProperty);
-        public static void SetText(DependencyObject obj, string value) => obj.SetValue(TextProperty, value);
+        public static string? GetText(DependencyObject obj) => obj.GetValue(TextProperty) as string;
+        public static void SetText(DependencyObject obj, string? value) => obj.SetValue(TextProperty, value);
 
-        public static int[]? GetIndexes(DependencyObject obj) => (int[]?)obj.GetValue(IndexesProperty);
+        public static int[]? GetIndexes(DependencyObject obj) => obj.GetValue(IndexesProperty) as int[];
         public static void SetIndexes(DependencyObject obj, int[]? value) => obj.SetValue(IndexesProperty, value);
 
         private static void OnChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

@@ -510,7 +510,12 @@ namespace quickLink
             public double GetUsageScore(IListItem item) => _scores.TryGetValue(item, out var s) ? s : 0;
         }
 
-        private async void FilterItems()
+        // Sync entrypoint for callers that don't drive a typing loop (LoadDataAsync,
+        // OnSaveEdit, OnDeleteClicked, OnHideFooterChanged, etc.). They just want a fresh
+        // filter run; cancellation isn't meaningful for them.
+        private async void FilterItems() => await FilterItemsCore(CancellationToken.None);
+
+        private async Task FilterItemsCore(CancellationToken ct)
         {
             var rawText = SearchBox.Text ?? string.Empty;
             var lowerText = rawText.ToLowerInvariant();
@@ -538,7 +543,6 @@ namespace quickLink
             var internalSnapshot = _internalCommands.Cast<IListItem>().ToList();
             var allForUsage = itemsSnapshot.Concat(internalSnapshot);
             var usage = new UsageSnapshot(allForUsage, _usageTrackingService);
-            var ct = _searchDebounceTokenSource?.Token ?? CancellationToken.None;
 
             var options = new FilterOptions
             {
@@ -559,6 +563,10 @@ namespace quickLink
             {
                 return;
             }
+
+            // Bail out if a newer keystroke superseded us between Task.Run finishing and
+            // the UI thread picking us back up.
+            if (ct.IsCancellationRequested) return;
 
             // Empty-result fallback: command-execute suggestion or web/AI search suggestion.
             if (newItems.Count == 0 && !isEmpty)
@@ -704,18 +712,28 @@ namespace quickLink
 
         private async void OnSearchTextChanged(object sender, TextChangedEventArgs e)
         {
-            // Cancel previous debounce + any in-flight filter (unified CTS).
-            _searchDebounceTokenSource?.Cancel();
+            // Swap CTS atomically so concurrent keystrokes always see consistent state, then
+            // cancel + dispose the previous one to avoid accumulating CancellationTokenSource
+            // instances (each registers a kernel timer when used with Task.Delay).
+            var oldCts = _searchDebounceTokenSource;
             _searchDebounceTokenSource = new CancellationTokenSource();
             var token = _searchDebounceTokenSource.Token;
+
+            if (oldCts != null)
+            {
+                try { oldCts.Cancel(); } catch (ObjectDisposedException) { }
+                oldCts.Dispose();
+            }
 
             try
             {
                 await Task.Delay(SEARCH_DEBOUNCE_MS, token);
-                if (!token.IsCancellationRequested)
-                {
-                    FilterItems();
-                }
+                if (token.IsCancellationRequested) return;
+
+                // Pass the captured token through explicitly so that even if
+                // _searchDebounceTokenSource is replaced again before FilterItemsCore reads it,
+                // this run is still cancelable.
+                await FilterItemsCore(token);
             }
             catch (TaskCanceledException)
             {
@@ -922,14 +940,14 @@ namespace quickLink
             else if (_isEditing)
                 HideEditPanel();
             else
-                AppWindow.Hide();
+                HideWindow(); // route through exit animation
 
             args.Handled = true;
         }
 
         private void OnToggleVisibility(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            AppWindow.Hide();
+            HideWindow(); // route through exit animation
             args.Handled = true;
         }
 
@@ -991,14 +1009,14 @@ namespace quickLink
             {
                 var command = searchText.TrimStart(AppConstants.CommandPrefixes.CommandPrefix[0]).Trim();
                 await ExecuteCommandInternalAsync(command);
-                AppWindow.Hide();
+                HideWindow();
             }
             else
             {
                 var query = Uri.EscapeDataString(searchText);
                 var url = _searchUrl.Replace(AppConstants.DefaultSettings.QueryPlaceholder, query);
                 await _clipboardService.OpenUrlAsync(url);
-                AppWindow.Hide();
+                HideWindow();
             }
         }
 
@@ -1469,7 +1487,7 @@ namespace quickLink
             _userCommands = await _commandService.LoadCommandsAsync();
 
             HideCommandPanel();
-            AppWindow.Hide();
+            HideWindow();
         }
         #endregion
 

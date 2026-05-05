@@ -30,7 +30,7 @@ jobs:
       uses: microsoft/setup-msbuild@v2
 
     - name: Install winapp CLI
-      uses: microsoft/setup-WinAppCli@v1
+      uses: microsoft/setup-WinAppCli@v0.1
 
     - name: Restore the application
       run: dotnet restore $env:Project_Path

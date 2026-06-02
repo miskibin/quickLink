@@ -29,6 +29,10 @@ namespace quickLink.Helpers
         public static int[]? GetIndexes(DependencyObject obj) => obj.GetValue(IndexesProperty) as int[];
         public static void SetIndexes(DependencyObject obj, int[]? value) => obj.SetValue(IndexesProperty, value);
 
+        // Resolved once; the accent brush is a stable theme resource. OnChanged runs
+        // for every visible row on every keystroke, so avoid the per-call resource lookup.
+        private static Microsoft.UI.Xaml.Media.Brush? _accentBrush;
+
         private static void OnChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is not TextBlock tb) return;
@@ -49,7 +53,8 @@ namespace quickLink.Helpers
                 return;
             }
 
-            var accentBrush = (Microsoft.UI.Xaml.Media.Brush?)Application.Current.Resources["AccentTextFillColorPrimaryBrush"];
+            var accentBrush = _accentBrush ??=
+                (Microsoft.UI.Xaml.Media.Brush?)Application.Current.Resources["AccentTextFillColorPrimaryBrush"];
 
             int cursor = 0;
             int idx = 0;

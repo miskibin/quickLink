@@ -2020,16 +2020,35 @@ namespace quickLink
         private async Task SimulateResponseAsync(string question)
         {
             _lastAssistantMessage = string.Empty;
-            
-            await _grokService.StreamResponseAsync(_apiKey, question, async chunk =>
+
+            // Setting MarkdownTextBlock.Text re-parses and rebuilds the entire document,
+            // which is O(n^2) if done on every streamed token. Throttle to ~10fps and
+            // always flush a final render so the complete response is shown.
+            var sinceRender = System.Diagnostics.Stopwatch.StartNew();
+            bool pendingRender = false;
+
+            await _grokService.StreamResponseAsync(_apiKey, question, chunk =>
             {
                 _lastAssistantMessage += chunk;
                 _markdownContent += chunk;
+                pendingRender = true;
+
+                if (sinceRender.ElapsedMilliseconds >= 100)
+                {
+                    MarkdownTextBlock.Text = _markdownContent;
+                    MarkdownScrollViewer.ChangeView(null, MarkdownScrollViewer.ScrollableHeight, null, false);
+                    sinceRender.Restart();
+                    pendingRender = false;
+                }
+                return Task.CompletedTask;
+            });
+
+            if (pendingRender)
+            {
                 MarkdownTextBlock.Text = _markdownContent;
                 MarkdownScrollViewer.ChangeView(null, MarkdownScrollViewer.ScrollableHeight, null, false);
-                await Task.Delay(10);
-            });
-            
+            }
+
             MarkdownInput.Focus(FocusState.Programmatic);
         }
 

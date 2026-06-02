@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  QuickLink MSI installer (WiX v5).
+
+  Builds a per-user installer (no admin/UAC prompt) that:
+    - Installs the self-contained app to %LocalAppData%\Programs\QuickLink
+    - Adds a Start Menu shortcut
+    - Enables "launch on every login" by writing the HKCU ...\Run key.
+      The in-app "Launch on system startup" checkbox reads/writes the same
+      value ("QuickLink"), so the two stay in sync and users can opt out.
+
+  Required build parameters:
+    -d Version=<x.y.z>        Product version (from the release tag)
+    -d PublishDir=<path>      Folder containing the published self-contained build
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="QuickLink"
+           Manufacturer="skibi"
+           Version="$(var.Version)"
+           UpgradeCode="6F3A2B91-7C84-4E0D-A1F5-9B2C6D8E4A37"
+           Scope="perUser"
+           Compressed="yes">
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of QuickLink is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Per-user install location: %LocalAppData%\Programs\QuickLink -->
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="LocalProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="QuickLink" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Start Menu shortcut folder -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppShortcutFolder" Name="QuickLink" />
+    </StandardDirectory>
+
+    <!-- All published files, harvested from the publish output at build time -->
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)\**" />
+    </ComponentGroup>
+
+    <!-- Start Menu shortcut -->
+    <Component Id="AppShortcuts" Directory="AppShortcutFolder" Guid="*">
+      <Shortcut Id="StartMenuShortcut"
+                Name="QuickLink"
+                Description="QuickLink launcher"
+                Target="[INSTALLFOLDER]quickLink.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="AppIcon" />
+      <RemoveFolder Id="RemoveAppShortcutFolder" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\QuickLink"
+                     Name="installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <!-- Autostart: launch QuickLink at every login (enabled by default) -->
+    <Component Id="AutoStart" Directory="INSTALLFOLDER" Guid="*">
+      <RegistryValue Root="HKCU"
+                     Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                     Name="QuickLink"
+                     Type="string"
+                     Value="&quot;[INSTALLFOLDER]quickLink.exe&quot;"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- Use the app's own icon for the shortcut -->
+    <Icon Id="AppIcon" SourceFile="$(var.PublishDir)\quickLink.exe" />
+
+    <Feature Id="Main" Title="QuickLink" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="AppShortcuts" />
+      <ComponentRef Id="AutoStart" />
+    </Feature>
+  </Package>
+</Wix>

@@ -10,7 +10,7 @@ QuickLink is a Windows desktop launcher application built with .NET 8 and WinUI 
 - .NET 8.0 (Target: Windows 10 19041+)
 - Windows App SDK 1.8 with WinUI 3
 - Self-contained deployment (single-file executable)
-- MSIX packaging for distribution
+- WiX MSI installer for distribution (per-user, autostart enabled by default)
 
 ## Build and Development
 

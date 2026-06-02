@@ -29,9 +29,6 @@ jobs:
     - name: Setup MSBuild.exe
       uses: microsoft/setup-msbuild@v2
 
-    - name: Install winapp CLI
-      uses: microsoft/setup-WinAppCli@v0.1
-
     - name: Restore the application
       run: dotnet restore $env:Project_Path
 
@@ -40,21 +37,8 @@ jobs:
       run: |
         $tag = "${{ github.ref_name }}"
         $version = $tag -replace '^v', ''
-        # Ensure 4-part version for MSIX
-        $parts = $version.Split('.')
-        while ($parts.Count -lt 4) { $parts += "0" }
-        $msixVersion = $parts[0..3] -join '.'
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
-        echo "MSIX_VERSION=$msixVersion" >> $env:GITHUB_OUTPUT
         echo "TAG=$tag" >> $env:GITHUB_OUTPUT
-      shell: pwsh
-
-    - name: Update manifest version
-      run: |
-        $manifest = "quickLink\Package.appxmanifest"
-        $xml = [xml](Get-Content $manifest -Raw)
-        $xml.Package.Identity.Version = "${{ steps.get_version.outputs.MSIX_VERSION }}"
-        $xml.Save($manifest)
       shell: pwsh
 
     - name: Generate release notes from commits
@@ -94,37 +78,22 @@ jobs:
         Compress-Archive -Path "quickLink/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish/*" -DestinationPath "quickLink-$version-win-x64.zip"
       shell: pwsh
 
-    - name: Build MSIX installer
+    - name: Build MSI installer (WiX)
       run: |
-        dotnet build $env:Project_Path -c Release -r win-x64 `
-          -p:Platform=x64 `
-          -p:PublishSingleFile=false `
-          -p:WindowsPackageType=MSIX `
-          -p:GenerateAppxPackageOnBuild=true `
-          -p:AppxPackageDir="$PWD\AppPackages\" `
-          -p:AppxBundle=Never `
-          -p:AppxPackageSigningEnabled=false `
-          --self-contained
-      shell: pwsh
-
-    - name: Sign MSIX
-      run: |
-        $msix = Get-ChildItem "AppPackages\*\*.msix" | Select-Object -First 1
-        Push-Location quickLink
-        winapp cert generate --manifest Package.appxmanifest --output devcert.pfx --if-exists Skip
-        Pop-Location
-        winapp sign $msix.FullName "quickLink\devcert.pfx" --password password
+        dotnet tool install --global wix --version 5.0.2
+        $env:PATH = "$env:USERPROFILE\.dotnet\tools;$env:PATH"
         $version = "${{ steps.get_version.outputs.VERSION }}"
-        Copy-Item $msix.FullName -Destination "QuickLink-$version-x64.msix"
+        $publishDir = "$PWD\quickLink\bin\x64\Release\net8.0-windows10.0.19041.0\win-x64\publish"
+        wix build installer\Package.wxs -arch x64 -d Version=$version -d PublishDir="$publishDir" -out "QuickLink-$version-x64.msi"
       shell: pwsh
 
     - name: Generate checksums
       run: |
         $version = "${{ steps.get_version.outputs.VERSION }}"
         $zipHash = (Get-FileHash -Path "quickLink-$version-win-x64.zip" -Algorithm SHA256).Hash
-        $msixHash = (Get-FileHash -Path "QuickLink-$version-x64.msix" -Algorithm SHA256).Hash
-        "$zipHash  quickLink-$version-win-x64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
-        "$msixHash  QuickLink-$version-x64.msix" | Out-File -FilePath "SHA256SUMS.txt" -Append -Encoding utf8
+        $msiHash = (Get-FileHash -Path "QuickLink-$version-x64.msi" -Algorithm SHA256).Hash
+        "$msiHash  QuickLink-$version-x64.msi" | Out-File -FilePath "SHA256SUMS.txt" -Encoding utf8
+        "$zipHash  quickLink-$version-win-x64.zip" | Out-File -FilePath "SHA256SUMS.txt" -Append -Encoding utf8
       shell: pwsh
 
     - name: Create Release
@@ -138,10 +107,10 @@ jobs:
 
           ### Installation
 
-          **Option 1: MSIX Installer (recommended)**
-          1. Download `QuickLink-${{ steps.get_version.outputs.VERSION }}-x64.msix`
-          2. Double-click to install
-          3. If prompted about untrusted certificate: right-click `.msix` > Properties > Digital Signatures > Details > View Certificate > Install Certificate > Local Machine > Trusted People
+          **Option 1: MSI Installer (recommended)**
+          1. Download `QuickLink-${{ steps.get_version.outputs.VERSION }}-x64.msi`
+          2. Double-click to install (per-user, no admin required, no certificate trust needed)
+          3. QuickLink is set to **launch automatically at every login** — toggle this anytime in Settings
           4. Launch from Start Menu, or press `Ctrl+Shift+A`
 
           **Option 2: Portable ZIP**
@@ -154,8 +123,8 @@ jobs:
           - x64 architecture
 
         files: |
+          QuickLink-${{ steps.get_version.outputs.VERSION }}-x64.msi
           quickLink-${{ steps.get_version.outputs.VERSION }}-win-x64.zip
-          QuickLink-${{ steps.get_version.outputs.VERSION }}-x64.msix
           SHA256SUMS.txt
         draft: false
         prerelease: false

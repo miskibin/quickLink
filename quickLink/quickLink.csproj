@@ -15,6 +15,11 @@
     <!-- Application Icon -->
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     
+    <!-- Startup/runtime performance: app uses only invariant/ordinal string ops,
+         so skipping ICU speeds cold start; TieredPGO improves steady-state JIT. -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TieredPGO>true</TieredPGO>
+
     <!-- Self-contained deployment settings -->
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>

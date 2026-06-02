@@ -24,8 +24,8 @@ QuickLink eliminates context-switching by putting your most-used resources one k
 
 ## 🚀 Quick Start
 
-1. Download the [latest release](https://github.com/miskibin/quickLink/releases/latest) and run QuickLink.exe
-2. It minimizes to system tray—wait a couple of seconds for startup
+1. Download the **MSI installer** from the [latest release](https://github.com/miskibin/quickLink/releases/latest) and double-click it (per-user, no admin required)
+2. QuickLink installs and is set to **launch automatically on every login** (toggle in Settings); it minimizes to the system tray
 3. Press <kbd>Ctrl+Shift+A</kbd> to open search
 4. Type to find items, press <kbd>Enter</kbd> to execute
 

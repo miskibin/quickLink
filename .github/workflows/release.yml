@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g. 1.3.0). The v-prefixed tag is created automatically.'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -35,8 +41,14 @@ jobs:
     - name: Get version from tag
       id: get_version
       run: |
-        $tag = "${{ github.ref_name }}"
-        $version = $tag -replace '^v', ''
+        if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+          $version = "${{ inputs.version }}" -replace '^v', ''
+          $tag = "v$version"
+        }
+        else {
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v', ''
+        }
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
         echo "TAG=$tag" >> $env:GITHUB_OUTPUT
       shell: pwsh
@@ -44,16 +56,24 @@ jobs:
     - name: Generate release notes from commits
       id: release_notes
       run: |
-        $currentTag = "${{ github.ref_name }}"
-        $previousTag = git describe --tags --abbrev=0 "$currentTag^" 2>$null
+        $currentTag = "${{ steps.get_version.outputs.TAG }}"
+        # On tag push HEAD is the tagged commit; on workflow_dispatch the tag
+        # does not exist yet (the release step creates it at HEAD).
+        $tagExists = git rev-parse -q --verify "refs/tags/$currentTag" 2>$null
+        if ($tagExists) {
+          $previousTag = git describe --tags --abbrev=0 "$currentTag^" 2>$null
+        }
+        else {
+          $previousTag = git describe --tags --abbrev=0 HEAD 2>$null
+        }
         if ($previousTag) {
           echo "PREVIOUS_TAG=$previousTag" >> $env:GITHUB_OUTPUT
-          $range = "$previousTag..$currentTag"
+          $range = "$previousTag..HEAD"
         }
         else {
           echo "PREVIOUS_TAG=" >> $env:GITHUB_OUTPUT
           $initial = git rev-list --max-parents=0 HEAD
-          $range = "$initial..$currentTag"
+          $range = "$initial..HEAD"
         }
         $commits = git log $range --pretty=format:"- %s" --no-merges | Where-Object { $_ -ne "" }
         if (-not $commits -or $commits.Count -eq 0) {
@@ -99,6 +119,7 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ steps.get_version.outputs.TAG }}
         name: QuickLink ${{ steps.get_version.outputs.TAG }}
         body: |
           ## QuickLink ${{ steps.get_version.outputs.VERSION }}

@@ -161,6 +161,7 @@ namespace quickLink.Services
                 UserCommandResultItem result => $"command|{result.Path}",
                 CommandSuggestionItem suggestion => $"suggestion|{suggestion.CommandPrefix}",
                 SearchSuggestionItem search => $"search|{search.SearchQuery}",
+                ChatHistoryItem chat => $"chat|{chat.Id}",
                 _ => string.Empty
             };
         }

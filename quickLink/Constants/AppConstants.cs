@@ -16,6 +16,7 @@ namespace quickLink.Constants
             public const string CommandsFile = "commands.json";
             public const string DataFile = "data.json";
             public const string SettingsFile = "settings.json";
+            public const string ChatsFile = "chats.json";
             public const string CrashLogFile = "crash.log";
         }
 

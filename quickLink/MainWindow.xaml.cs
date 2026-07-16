@@ -43,9 +43,12 @@ namespace quickLink
         private readonly DirectoryCommandProvider _directoryProvider;
         private readonly UsageTrackingService _usageTrackingService;
         private readonly GrokService _grokService;
+        private readonly ChatHistoryService _chatHistoryService;
         private readonly ObservableCollection<IListItem> _allItems;
         private readonly ObservableCollection<IListItem> _filteredItems;
         private readonly List<InternalCommandItem> _internalCommands;
+        // Up-to-3 persisted chats surfaced as searchable launcher items; refreshed on change.
+        private readonly List<ChatHistoryItem> _chatHistoryItems;
         private readonly SearchSuggestionItem _searchSuggestionItem;
         private List<UserCommand> _userCommands;
 
@@ -83,8 +86,11 @@ namespace quickLink
         private string _markdownContent = string.Empty;
         private string _apiKey = string.Empty;
         private string _lastAssistantMessage = string.Empty;
-        private string _savedMarkdownContent = string.Empty;
-        private List<(string role, string content)> _savedConversationHistory = new List<(string, string)>();
+
+        // The conversation currently shown in the markdown panel (persisted per exchange).
+        private ChatSession? _activeChat;
+        // Session ids whose auto-title has already been requested (avoids duplicate calls).
+        private readonly HashSet<string> _titleRequested = new HashSet<string>();
 
         // Window subclassing
         private WinProc? _newWndProc;
@@ -140,9 +146,11 @@ namespace quickLink
                 _directoryProvider = new DirectoryCommandProvider();
                 _usageTrackingService = new UsageTrackingService();
                 _grokService = new GrokService();
+                _chatHistoryService = new ChatHistoryService();
                 _allItems = new ObservableCollection<IListItem>();
                 _filteredItems = new ObservableCollection<IListItem>();
                 _internalCommands = new List<InternalCommandItem>();
+                _chatHistoryItems = new List<ChatHistoryItem>();
                 _userCommands = new List<UserCommand>();
                 _searchSuggestionItem = new SearchSuggestionItem();
                 LogPerf("Services created");
@@ -440,8 +448,9 @@ namespace quickLink
                 var itemsTask = _dataService.LoadItemsAsync();
                 var commandsTask = _commandService.LoadCommandsAsync();
                 var settingsTask = _dataService.LoadSettingsAsync();
+                var chatsTask = _chatHistoryService.LoadAsync();
 
-                await Task.WhenAll(usageTask, itemsTask, commandsTask, settingsTask);
+                await Task.WhenAll(usageTask, itemsTask, commandsTask, settingsTask, chatsTask);
                 LogPerf("All data loaded (parallel)");
 
                 // Process results
@@ -453,6 +462,8 @@ namespace quickLink
                 }
 
                 _userCommands = await commandsTask;
+
+                RefreshChatHistoryItems();
 
                 // Own the loaded settings via SettingsService and configure dependent state.
                 var settings = await settingsTask;
@@ -532,8 +543,10 @@ namespace quickLink
             var includeInternalCommands = _hideFooter || !isEmpty;
 
             // Snapshot collections + usage scores on the UI thread before going to background.
+            // Chat history items ride along with internal commands so they behave identically
+            // (findable by typing part of their title; hidden in the empty-query state).
             var itemsSnapshot = _allItems.ToList();
-            var internalSnapshot = _internalCommands.Cast<IListItem>().ToList();
+            var internalSnapshot = _internalCommands.Cast<IListItem>().Concat(_chatHistoryItems).ToList();
             var allForUsage = itemsSnapshot.Concat(internalSnapshot);
             var usage = new UsageSnapshot(allForUsage, _usageTrackingService);
 
@@ -914,6 +927,11 @@ namespace quickLink
         void IExecutionContext.RestoreLastConversation()
         {
             RestoreLastConversationInternal();
+        }
+
+        void IExecutionContext.OpenChatSession(string sessionId)
+        {
+            OpenChatSessionInternal(sessionId);
         }
 
         public bool HasApiKey() => !string.IsNullOrEmpty(_apiKey);
@@ -1567,6 +1585,7 @@ namespace quickLink
             _markdownContent = string.Empty;
             _lastAssistantMessage = string.Empty;
             _grokService.ClearHistory();
+            _activeChat = _chatHistoryService.StartNew();
             HideAllPanels();
             MarkdownPanel.Visibility = Visibility.Visible;
             MarkdownTextBlock.Text = "Ask me anything...";
@@ -1592,13 +1611,9 @@ namespace quickLink
 
         private void HideMarkdownPanel()
         {
-            // Save the current conversation before hiding
-            if (!string.IsNullOrEmpty(_markdownContent))
-            {
-                _savedMarkdownContent = _markdownContent;
-                _savedConversationHistory = _grokService.GetConversationHistory();
-            }
-            
+            // Persist the active conversation before hiding.
+            PersistActiveChat();
+
             MarkdownPanel.Visibility = Visibility.Collapsed;
             SearchBox.Visibility = Visibility.Visible;
             ItemsList.Visibility = Visibility.Visible;
@@ -1608,22 +1623,56 @@ namespace quickLink
 
         private void RestoreLastConversationInternal()
         {
-            if (string.IsNullOrEmpty(_savedMarkdownContent))
+            // Reopen the most recent persisted session, or start fresh if there is none.
+            var latest = _chatHistoryService.Sessions.FirstOrDefault();
+            if (latest == null)
             {
-                // If there's no saved conversation, just open a fresh markdown panel
                 ShowMarkdownPanelInternal();
                 return;
             }
 
-            // Restore the saved conversation
-            _markdownContent = _savedMarkdownContent;
-            _grokService.RestoreHistory(_savedConversationHistory);
-            
+            OpenChatSessionInternal(latest.Id);
+        }
+
+        private void OpenChatSessionInternal(string sessionId)
+        {
+            var session = _chatHistoryService.GetById(sessionId);
+            if (session == null)
+            {
+                ShowMarkdownPanelInternal();
+                return;
+            }
+
+            _activeChat = session;
+
+            // Restore the model's conversation history (incl. system prompt) and rebuild the
+            // rendered markdown in the exact "> user \n\n assistant" format the panel produces.
+            _grokService.RestoreHistory(session.Messages.Select(m => (m.Role, m.Content)).ToList());
+            _markdownContent = BuildMarkdownFromMessages(session.Messages);
+            _lastAssistantMessage = session.Messages.LastOrDefault(m => m.Role == "assistant")?.Content ?? string.Empty;
+
             HideAllPanels();
             MarkdownPanel.Visibility = Visibility.Visible;
             MarkdownTextBlock.Text = _markdownContent;
             MarkdownScrollViewer.ChangeView(null, MarkdownScrollViewer.ScrollableHeight, null, false);
             MarkdownInput.Focus(FocusState.Programmatic);
+        }
+
+        // Reconstructs the panel markdown from stored messages, matching the format produced
+        // by SendInitialQueryAsync / OnSendMarkdownInput / SimulateResponseAsync.
+        private static string BuildMarkdownFromMessages(System.Collections.Generic.List<ChatMessageRecord> messages)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (var m in messages)
+            {
+                if (m.Role == "system") continue;
+
+                if (m.Role == "user")
+                    sb.Append(sb.Length == 0 ? $"> {m.Content}\n\n" : $"\n\n> {m.Content}\n\n");
+                else
+                    sb.Append(m.Content);
+            }
+            return sb.ToString();
         }
 
         private async void OnSendMarkdownInput(object sender, RoutedEventArgs e)
@@ -1677,6 +1726,100 @@ namespace quickLink
             }
 
             MarkdownInput.Focus(FocusState.Programmatic);
+
+            // Persist the completed exchange (and auto-title on the first reply).
+            PersistActiveChat();
+        }
+
+        // Syncs the active session from the model's conversation history, saves it, and (once
+        // per session) kicks off background auto-titling. Fire-and-forget, UI-thread safe.
+        private void PersistActiveChat()
+        {
+            if (_activeChat == null) return;
+
+            var messages = _grokService.GetConversationHistory()
+                .Select(m => new ChatMessageRecord { Role = m.role, Content = m.content })
+                .ToList();
+
+            if (messages.Count == 0) return;
+
+            _activeChat.Messages = messages;
+            _activeChat.UpdatedUtc = DateTime.UtcNow;
+
+            var session = _activeChat;
+            bool generateTitle = string.IsNullOrWhiteSpace(session.Title) && _titleRequested.Add(session.Id);
+
+            _ = SaveSessionAndRefreshAsync(session, generateTitle);
+        }
+
+        private async Task SaveSessionAndRefreshAsync(ChatSession session, bool generateTitle)
+        {
+            try
+            {
+                await _chatHistoryService.SaveSessionAsync(session);
+                RefreshChatHistoryItems();
+
+                if (generateTitle)
+                {
+                    await GenerateAndApplyTitleAsync(session);
+                }
+            }
+            catch
+            {
+                // Never surface persistence/titling failures to the UI.
+            }
+        }
+
+        private async Task GenerateAndApplyTitleAsync(ChatSession session)
+        {
+            try
+            {
+                var userMessage = session.Messages.FirstOrDefault(m => m.Role == "user")?.Content ?? string.Empty;
+                var assistantReply = session.Messages.FirstOrDefault(m => m.Role == "assistant")?.Content ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(userMessage)) return;
+
+                string? title = null;
+                try
+                {
+                    title = await _grokService.GenerateTitleAsync(userMessage, assistantReply);
+                }
+                catch
+                {
+                    // Fall through to the truncated-message fallback.
+                }
+
+                if (string.IsNullOrWhiteSpace(title))
+                {
+                    title = BuildFallbackTitle(userMessage);
+                }
+
+                await _chatHistoryService.SetTitleAsync(session.Id, title);
+                RefreshChatHistoryItems();
+            }
+            catch
+            {
+                // Titling is best-effort; ignore failures.
+            }
+        }
+
+        private static string BuildFallbackTitle(string message)
+        {
+            var trimmed = message.Trim();
+            if (trimmed.Length <= 40) return trimmed;
+
+            var slice = trimmed.Substring(0, 40);
+            var lastSpace = slice.LastIndexOf(' ');
+            if (lastSpace > 0) slice = slice.Substring(0, lastSpace);
+            return slice.TrimEnd() + "…";
+        }
+
+        private void RefreshChatHistoryItems()
+        {
+            _chatHistoryItems.Clear();
+            foreach (var session in _chatHistoryService.Sessions)
+            {
+                _chatHistoryItems.Add(new ChatHistoryItem(session));
+            }
         }
 
         private void OnCopyPlainText(object sender, RoutedEventArgs e)

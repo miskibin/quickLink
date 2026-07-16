@@ -23,6 +23,7 @@ namespace quickLink.Services
         };
 
         private const string SystemPrompt = "Answer directly and concisely. No greetings, no filler phrases like 'of course' or 'here's what you need'. Just provide the answer.";
+        private const string TitlePrompt = "Generate a concise 3-6 word title for this conversation. Reply with only the title, no quotes or punctuation.";
 
         private readonly HttpClient _client = new();
         private readonly List<ChatMessage> _conversationHistory = new();
@@ -273,6 +274,113 @@ namespace quickLink.Services
             }
 
             _conversationHistory.Add(new ChatMessage { Role = "assistant", Content = fullResponse.ToString() });
+        }
+
+        /// <summary>
+        /// Produces a short conversation title via a small non-streaming completion using the
+        /// active provider config. Never touches <see cref="_conversationHistory"/>. Returns null
+        /// on any failure or empty result so the caller can fall back to a truncated message.
+        /// </summary>
+        public async Task<string?> GenerateTitleAsync(string userMessage, string assistantReply, CancellationToken ct = default)
+        {
+            try
+            {
+                var apiKeyOptional = _provider == AiProvider.Ollama || _provider == AiProvider.Custom;
+                if (string.IsNullOrEmpty(_apiKey) && !apiKeyOptional)
+                    return null;
+
+                if (_provider == AiProvider.Custom &&
+                    (string.IsNullOrWhiteSpace(_baseUrl) || string.IsNullOrWhiteSpace(GetEffectiveModel())))
+                    return null;
+
+                var conversation = $"User: {userMessage}\nAssistant: {assistantReply}";
+
+                return _provider == AiProvider.Claude
+                    ? await GenerateTitleClaudeAsync(conversation, ct)
+                    : await GenerateTitleOpenAICompatibleAsync(conversation, ct);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private async Task<string?> GenerateTitleOpenAICompatibleAsync(string conversation, CancellationToken ct)
+        {
+            var payload = new
+            {
+                model = GetEffectiveModel(),
+                messages = new[]
+                {
+                    new { role = "system", content = TitlePrompt },
+                    new { role = "user", content = conversation }
+                },
+                stream = false,
+                temperature = 0.3,
+                max_tokens = 20
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, GetEffectiveEndpoint())
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload, _jsonOptions), Encoding.UTF8, "application/json")
+            };
+
+            if (!string.IsNullOrEmpty(_apiKey))
+                request.Headers.Add("Authorization", $"Bearer {_apiKey}");
+
+            var response = await _client.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var body = await response.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(body);
+            var content = doc.RootElement
+                .GetProperty("choices")[0]
+                .GetProperty("message")
+                .GetProperty("content")
+                .GetString();
+
+            return CleanTitle(content);
+        }
+
+        private async Task<string?> GenerateTitleClaudeAsync(string conversation, CancellationToken ct)
+        {
+            var payload = new
+            {
+                model = GetEffectiveModel(),
+                system = TitlePrompt,
+                messages = new[] { new { role = "user", content = conversation } },
+                max_tokens = 20
+            };
+
+            var request = new HttpRequestMessage(HttpMethod.Post, Providers[_provider].Endpoint)
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload, _jsonOptions), Encoding.UTF8, "application/json")
+            };
+            request.Headers.Add("x-api-key", _apiKey);
+            request.Headers.Add("anthropic-version", "2023-06-01");
+
+            var response = await _client.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            var body = await response.Content.ReadAsStringAsync(ct);
+            using var doc = JsonDocument.Parse(body);
+            var content = doc.RootElement
+                .GetProperty("content")[0]
+                .GetProperty("text")
+                .GetString();
+
+            return CleanTitle(content);
+        }
+
+        private static string? CleanTitle(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return null;
+
+            var title = raw.Trim().Trim('"').Trim();
+            return string.IsNullOrWhiteSpace(title) ? null : title;
         }
 
         private sealed class ChatMessage

@@ -80,6 +80,7 @@ namespace quickLink.Models.ListItems
         void ShowMarkdownPanel();
         void ShowMarkdownPanelWithQuery(string query);
         void RestoreLastConversation();
+        void OpenChatSession(string sessionId);
         bool HasApiKey();
         void ExitApplication();
     }

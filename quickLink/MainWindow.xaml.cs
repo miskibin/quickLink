@@ -414,10 +414,19 @@ namespace quickLink
                 RootGrid.Opacity = 0;
                 SearchBox.Text = string.Empty;
 
-                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+                // Focus immediately so keystrokes register the moment the window appears.
+                SearchBox.Focus(FocusState.Programmatic);
+                SearchBox.SelectAll();
+
+                // Uncloak + animate after the current render batch. This used to run at
+                // DispatcherQueuePriority.Low, which gets starved by show-time layout/filter
+                // work — leaving the window cloaked and unfocused for ~1s, so typing didn't
+                // register on almost every open. Normal priority can't be starved that way.
+                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
                 {
                     try { DwmInterop.Uncloak(_windowHandle); } catch { /* non-fatal */ }
                     WindowEnterAnimation.Begin();
+                    // Re-focus in case the immediate focus above lost the race with activation.
                     SearchBox.Focus(FocusState.Programmatic);
                     SearchBox.SelectAll();
                 });

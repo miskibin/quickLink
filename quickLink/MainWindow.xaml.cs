@@ -30,20 +30,9 @@ namespace quickLink
         private const int WM_HOTKEY = 0x0312;
         private const int GWLP_WNDPROC = -4;
 
-        // Win32 modifier flags
-        private const uint MOD_ALT = 0x0001;
-        private const uint MOD_CONTROL = 0x0002;
-        private const uint MOD_SHIFT = 0x0004;
-
         // Window dimensions - 1.2x bigger
         private const int WINDOW_WIDTH = 720;  // 600 * 1.2
         private const int WINDOW_HEIGHT = 360; // 300 * 1.2
-
-        // Default hotkey
-        private static readonly Windows.System.VirtualKeyModifiers DefaultHotkeyModifiers =
-            Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift;
-        private static readonly Windows.System.VirtualKey DefaultHotkeyKey =
-            Windows.System.VirtualKey.A;
         #endregion
 
         #region Fields
@@ -64,20 +53,21 @@ namespace quickLink
         private IntPtr _windowHandle;
         private IListItem? _editingItem;
         private bool _isEditing;
-        private bool _isInSettings;
         private bool _hideFooter;
         private string _searchUrl = AppConstants.DefaultSettings.DefaultSearchUrl;
-        private Windows.System.VirtualKeyModifiers _newHotkeyModifiers = DefaultHotkeyModifiers;
-        private Windows.System.VirtualKey _newHotkeyKey = DefaultHotkeyKey;
+
+        // Settings are owned by SettingsService; MainWindow reacts to SettingsChanged.
+        private SettingsService? _settingsService;
+
+        // Tracks the currently registered global hotkey so we only re-register on change.
+        private uint _registeredHotkeyModifiers;
+        private uint _registeredHotkeyKey;
 
         // Performance optimization: cache the last search to avoid redundant filtering
         private string _lastSearchText = string.Empty;
 
         // Cached DPI scale (P/Invoke is expensive to call repeatedly)
         private double _cachedDpiScale;
-
-        // Cached settings to avoid redundant file I/O
-        private AppSettings? _cachedSettings;
 
         // Startup performance tracking
         private static readonly Stopwatch _startupStopwatch = Stopwatch.StartNew();
@@ -464,14 +454,12 @@ namespace quickLink
 
                 _userCommands = await commandsTask;
 
-                // Cache settings to avoid redundant LoadSettingsAsync calls later
+                // Own the loaded settings via SettingsService and configure dependent state.
                 var settings = await settingsTask;
-                _cachedSettings = settings;
                 _hideFooter = settings.HideFooter;
                 _searchUrl = settings.SearchUrl;
-                _apiKey = settings.ApiKey ?? string.Empty;
-                _grokService.Provider = settings.AiProvider;
-                _grokService.ModelOverride = settings.AiModel;
+                EnsureSettingsService(settings);
+                ConfigureGrokFromSettings(settings);
                 UpdateFooterVisibility();
 
                 FilterItems();
@@ -492,12 +480,8 @@ namespace quickLink
         {
             try
             {
-                // Use cached settings if available (avoids redundant file I/O)
-                var settings = _cachedSettings ?? await _dataService.LoadSettingsAsync();
-                (_newHotkeyModifiers, _newHotkeyKey) = ConvertFromWin32Modifiers(
-                    settings.HotkeyModifiers, settings.HotkeyKey);
-
-                _hotkeyService?.RegisterHotkey(_windowHandle, settings.HotkeyModifiers, settings.HotkeyKey);
+                var settings = _settingsService?.Current ?? await _dataService.LoadSettingsAsync();
+                TryRegisterHotkey(settings.HotkeyModifiers, settings.HotkeyKey);
             }
             catch
             {
@@ -913,7 +897,7 @@ namespace quickLink
 
         void IExecutionContext.ShowSettingsPanel()
         {
-            ShowSettingsPanelInternal();
+            OpenSettingsWindow();
         }
 
         void IExecutionContext.ShowMarkdownPanel()
@@ -944,9 +928,7 @@ namespace quickLink
         #region Keyboard Accelerators
         private void OnEscapePressed(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            if (_isInSettings)
-                HideSettingsPanel();
-            else if (_isEditing)
+            if (_isEditing)
                 HideEditPanel();
             else
                 HideWindow(); // route through exit animation
@@ -1322,7 +1304,6 @@ namespace quickLink
             ItemsList.Visibility = Visibility.Collapsed;
             FooterPanel.Visibility = Visibility.Collapsed;
             EditPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
             CommandPanel.Visibility = Visibility.Visible;
             CommandPrefix.Focus(FocusState.Programmatic);
         }
@@ -1501,243 +1482,71 @@ namespace quickLink
         #endregion
 
         #region Settings Panel
-        private void OnSettingsClicked(object sender, RoutedEventArgs e) => ShowSettingsPanelInternal();
+        private void OnSettingsClicked(object sender, RoutedEventArgs e) => OpenSettingsWindow();
 
-        private void ShowSettingsPanelInternal()
+        private void EnsureSettingsService(AppSettings settings)
         {
-            _isInSettings = true;
-            LoadSettings();
-            ApplyHotkeyButton.IsEnabled = false;
+            if (_settingsService != null) return;
 
-            SearchBox.Visibility = Visibility.Collapsed;
-            ItemsList.Visibility = Visibility.Collapsed;
-            FooterPanel.Visibility = Visibility.Collapsed;
-            EditPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Visible;
-
-            // Set focus to the first interactive element
-            StartWithSystemCheckBox.Focus(FocusState.Programmatic);
+            _settingsService = new SettingsService(_dataService, settings);
+            _settingsService.HotkeyReapplyCallback = TryRegisterHotkey;
+            _settingsService.SettingsChanged += OnSettingsChanged;
         }
 
-        private void HideSettingsPanel()
+        private void ConfigureGrokFromSettings(AppSettings settings)
         {
-            _isInSettings = false;
-            SearchBox.Visibility = Visibility.Visible;
-            SettingsPanel.Visibility = Visibility.Collapsed;
-            ItemsList.Visibility = Visibility.Visible;
-            UpdateFooterVisibility();
-            SearchBox.Focus(FocusState.Programmatic);
+            var config = settings.GetActiveProviderConfig();
+            _grokService.Configure(settings.AiProvider, config);
+            _apiKey = config.ApiKey ?? string.Empty;
         }
 
-        private async void LoadSettings()
+        private async void OpenSettingsWindow()
         {
-            // Load settings once instead of per-field
-            _cachedSettings ??= await _dataService.LoadSettingsAsync();
-            var settings = _cachedSettings;
+            // Settings normally load during startup; ensure they exist if the window is
+            // opened before LoadDataAsync completes.
+            if (_settingsService == null)
+            {
+                var settings = await _dataService.LoadSettingsAsync();
+                EnsureSettingsService(settings);
+                ConfigureGrokFromSettings(settings);
+            }
 
-            _searchUrl = settings.SearchUrl;
-            SearchUrlTextBox.Text = settings.SearchUrl;
+            HideWindow(); // hide the overlay for determinism (deactivation would hide it anyway)
+            SettingsWindow.ShowOrActivate(_settingsService!);
+        }
 
-            _apiKey = settings.ApiKey ?? string.Empty;
-            ApiKeyTextBox.Text = _apiKey;
+        // Invoked by SettingsService (and startup) to (re-)register the global hotkey.
+        // Returns whether registration succeeded so the settings UI can report status.
+        private bool TryRegisterHotkey(uint modifiers, uint key)
+        {
+            var ok = _hotkeyService?.RegisterHotkey(_windowHandle, modifiers, key) ?? false;
+            if (ok)
+            {
+                _registeredHotkeyModifiers = modifiers;
+                _registeredHotkeyKey = key;
+            }
+            return ok;
+        }
 
+        // Runs on the UI thread whenever the settings window saves a change.
+        private void OnSettingsChanged()
+        {
+            if (_settingsService == null) return;
+
+            var settings = _settingsService.Current;
             _hideFooter = settings.HideFooter;
-            HideFooterCheckBox.IsChecked = settings.HideFooter;
+            _searchUrl = settings.SearchUrl;
             UpdateFooterVisibility();
-
-            // Set AI provider dropdown + model
-            _grokService.Provider = settings.AiProvider;
-            _grokService.ModelOverride = settings.AiModel;
-            SetProviderDropdown(settings.AiProvider);
-            UpdateApiKeyVisibility(settings.AiProvider);
-            UpdateModelField(settings.AiProvider, settings.AiModel);
-
-            await LoadStartupSettingAsync();
-            UpdateHotkeyDisplay();
-        }
-
-        private void SetProviderDropdown(AiProvider provider)
-        {
-            var tag = provider.ToString();
-            for (int i = 0; i < AiProviderComboBox.Items.Count; i++)
-            {
-                if (AiProviderComboBox.Items[i] is ComboBoxItem item && item.Tag as string == tag)
-                {
-                    AiProviderComboBox.SelectedIndex = i;
-                    return;
-                }
-            }
-        }
-
-        private void UpdateApiKeyVisibility(AiProvider provider)
-        {
-            // Ollama is local and doesn't need an API key
-            ApiKeyPanel.Visibility = provider == AiProvider.Ollama
-                ? Visibility.Collapsed
-                : Visibility.Visible;
-
-            ApiKeyLabel.Text = provider switch
-            {
-                AiProvider.XAI => "xAI API Key",
-                AiProvider.OpenAI => "OpenAI API Key",
-                AiProvider.Claude => "Anthropic API Key",
-                _ => "API Key"
-            };
-        }
-
-        private void UpdateModelField(AiProvider provider, string savedModel)
-        {
-            var defaultModel = GrokService.GetDefaultModel(provider);
-            AiModelTextBox.PlaceholderText = defaultModel;
-            AiModelTextBox.Text = string.IsNullOrWhiteSpace(savedModel) ? string.Empty : savedModel;
-        }
-
-        private async void OnAiProviderChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (AiProviderComboBox.SelectedItem is not ComboBoxItem selected) return;
-            var tag = selected.Tag as string;
-            if (tag == null || !Enum.TryParse<AiProvider>(tag, out var provider)) return;
-
-            _grokService.Provider = provider;
-            UpdateApiKeyVisibility(provider);
-
-            // Reset model to default when switching providers
-            _grokService.ModelOverride = string.Empty;
-            UpdateModelField(provider, string.Empty);
-
-            _cachedSettings ??= await _dataService.LoadSettingsAsync();
-            _cachedSettings.AiProvider = provider;
-            _cachedSettings.AiModel = string.Empty;
-            await _dataService.SaveSettingsAsync(_cachedSettings);
-        }
-
-        private async void OnAiModelChanged(object sender, TextChangedEventArgs e)
-        {
-            var model = AiModelTextBox.Text?.Trim() ?? string.Empty;
-            _grokService.ModelOverride = model;
-
-            _cachedSettings ??= await _dataService.LoadSettingsAsync();
-            _cachedSettings.AiModel = model;
-            await _dataService.SaveSettingsAsync(_cachedSettings);
-        }
-
-        private async void OnApiKeyChanged(object sender, TextChangedEventArgs e)
-        {
-            var newKey = ApiKeyTextBox.Text?.Trim() ?? string.Empty;
-            _apiKey = newKey;
-
-            _cachedSettings ??= await _dataService.LoadSettingsAsync();
-            _cachedSettings.ApiKey = _apiKey;
-            await _dataService.SaveSettingsAsync(_cachedSettings);
-        }
-
-        private async void OnSearchUrlChanged(object sender, TextChangedEventArgs e)
-        {
-            var newUrl = SearchUrlTextBox.Text?.Trim();
-            if (string.IsNullOrWhiteSpace(newUrl) || !newUrl.Contains("{query}"))
-                return;
-
-            _searchUrl = newUrl;
-
-            _cachedSettings ??= await _dataService.LoadSettingsAsync();
-            _cachedSettings.SearchUrl = _searchUrl;
-            await _dataService.SaveSettingsAsync(_cachedSettings);
-        }
-
-        private async Task LoadStartupSettingAsync()
-        {
-            try
-            {
-                var startupTask = await Windows.ApplicationModel.StartupTask.GetAsync("QuickLinkStartup");
-                System.Diagnostics.Debug.WriteLine($"StartupTask state: {startupTask.State}");
-                StartWithSystemCheckBox.IsChecked =
-                    startupTask.State == Windows.ApplicationModel.StartupTaskState.Enabled;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"StartupTask load error: {ex.Message}");
-                // StartupTask API only works in packaged (MSIX) apps.
-                // For unpackaged mode, fall back to registry-based startup.
-                try
-                {
-                    using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
-                        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false);
-                    StartWithSystemCheckBox.IsChecked = key?.GetValue("QuickLink") != null;
-                }
-                catch
-                {
-                    StartWithSystemCheckBox.IsChecked = false;
-                    StartWithSystemCheckBox.IsEnabled = false;
-                }
-            }
-        }
-
-        private async void OnStartWithSystemChanged(object sender, RoutedEventArgs e)
-        {
-            var enable = StartWithSystemCheckBox.IsChecked == true;
-
-            // Try MSIX StartupTask API first (works for packaged apps)
-            try
-            {
-                var startupTask = await Windows.ApplicationModel.StartupTask.GetAsync("QuickLinkStartup");
-
-                if (enable)
-                {
-                    var state = await startupTask.RequestEnableAsync();
-                    System.Diagnostics.Debug.WriteLine($"StartupTask enable result: {state}");
-                    if (state != Windows.ApplicationModel.StartupTaskState.Enabled)
-                    {
-                        StartWithSystemCheckBox.IsChecked = false;
-                    }
-                }
-                else
-                {
-                    startupTask.Disable();
-                }
-                return;
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"StartupTask API failed, using registry: {ex.Message}");
-            }
-
-            // Fallback: registry-based startup for unpackaged mode
-            try
-            {
-                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
-                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
-                if (key == null) return;
-
-                if (enable)
-                {
-                    var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
-                    if (!string.IsNullOrEmpty(exePath))
-                    {
-                        key.SetValue("QuickLink", $"\"{exePath}\"");
-                    }
-                }
-                else
-                {
-                    key.DeleteValue("QuickLink", false);
-                }
-            }
-            catch
-            {
-                StartWithSystemCheckBox.IsChecked = false;
-            }
-        }
-
-        private async void OnHideFooterChanged(object sender, RoutedEventArgs e)
-        {
-            _hideFooter = HideFooterCheckBox.IsChecked ?? false;
-            UpdateFooterVisibility();
-
-            _cachedSettings ??= await _dataService.LoadSettingsAsync();
-            _cachedSettings.HideFooter = _hideFooter;
-            await _dataService.SaveSettingsAsync(_cachedSettings);
-
-            // Refresh filtered items to include/exclude internal commands
             FilterItems();
+            ConfigureGrokFromSettings(settings);
+
+            // Re-register the hotkey only when it actually changed. The Apply path already
+            // registers it directly through TryApplyHotkey, so this is usually a no-op.
+            if (settings.HotkeyModifiers != _registeredHotkeyModifiers ||
+                settings.HotkeyKey != _registeredHotkeyKey)
+            {
+                TryRegisterHotkey(settings.HotkeyModifiers, settings.HotkeyKey);
+            }
         }
 
         private void UpdateFooterVisibility()
@@ -1745,200 +1554,10 @@ namespace quickLink
             FooterPanel.Visibility = _hideFooter ? Visibility.Collapsed : Visibility.Visible;
         }
 
-        private void OnCloseSettings(object sender, RoutedEventArgs e) => HideSettingsPanel();
-
-        private void OnCloseSettingsKey(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
-        {
-            HideSettingsPanel();
-            args.Handled = true;
-        }
-
         private void OnExitClicked(object sender, RoutedEventArgs e)
         {
             _hotkeyService?.Dispose();
             Application.Current.Exit();
-        }
-        #endregion
-
-        #region Hotkey Configuration
-        private void OnHotkeyKeyDown(object sender, KeyRoutedEventArgs e)
-        {
-            // Allow Tab key to navigate away
-            if (e.Key == Windows.System.VirtualKey.Tab)
-            {
-                e.Handled = false;
-                return;
-            }
-
-            e.Handled = true;
-            var key = e.Key;
-
-            if (IsModifierKey(key))
-            {
-                UpdateHotkeyDisplay();
-                HotkeyStatusText.Text = "Add a regular key (letters, numbers, F-keys, etc.)";
-                ApplyHotkeyButton.IsEnabled = false;
-                return;
-            }
-
-            var modifiers = GetCurrentModifiers();
-
-            if (modifiers == Windows.System.VirtualKeyModifiers.None)
-            {
-                HotkeyStatusText.Text = "⚠ Must include at least one modifier (Ctrl, Shift, or Alt)";
-                ApplyHotkeyButton.IsEnabled = false;
-                return;
-            }
-
-            _newHotkeyModifiers = modifiers;
-            _newHotkeyKey = key;
-
-            UpdateHotkeyDisplay();
-            HotkeyStatusText.Text = "✓ Ready to apply — click the Apply button";
-            ApplyHotkeyButton.IsEnabled = true;
-        }
-
-        private void OnHotkeyTextBoxLostFocus(object sender, RoutedEventArgs e)
-        {
-            // Reset the new hotkey values when losing focus without applying
-            // This ensures that if user tabs away, they don't accidentally keep pending changes
-            if (!ApplyHotkeyButton.IsEnabled)
-            {
-                _newHotkeyModifiers = Windows.System.VirtualKeyModifiers.None;
-                _newHotkeyKey = Windows.System.VirtualKey.None;
-            }
-        }
-
-        private static bool IsModifierKey(Windows.System.VirtualKey key)
-        {
-            return key is Windows.System.VirtualKey.Control or
-                   Windows.System.VirtualKey.Shift or
-                   Windows.System.VirtualKey.Menu or
-                   Windows.System.VirtualKey.LeftControl or
-                   Windows.System.VirtualKey.RightControl or
-                   Windows.System.VirtualKey.LeftShift or
-                   Windows.System.VirtualKey.RightShift or
-                   Windows.System.VirtualKey.LeftMenu or
-                   Windows.System.VirtualKey.RightMenu;
-        }
-
-        private static Windows.System.VirtualKeyModifiers GetCurrentModifiers()
-        {
-            var modifiers = Windows.System.VirtualKeyModifiers.None;
-
-            try
-            {
-                if (IsKeyDown(Windows.System.VirtualKey.Control))
-                    modifiers |= Windows.System.VirtualKeyModifiers.Control;
-
-                if (IsKeyDown(Windows.System.VirtualKey.Shift))
-                    modifiers |= Windows.System.VirtualKeyModifiers.Shift;
-
-                if (IsKeyDown(Windows.System.VirtualKey.Menu))
-                    modifiers |= Windows.System.VirtualKeyModifiers.Menu;
-            }
-            catch
-            {
-                // If we can't get key states, return None
-            }
-
-            return modifiers;
-        }
-
-        private static bool IsKeyDown(Windows.System.VirtualKey key)
-        {
-            var state = Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(key);
-            return (state & Windows.UI.Core.CoreVirtualKeyStates.Down) ==
-                   Windows.UI.Core.CoreVirtualKeyStates.Down;
-        }
-
-        private void UpdateHotkeyDisplay()
-        {
-            var parts = new List<string>();
-
-            if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control))
-                parts.Add("Ctrl");
-            if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Shift))
-                parts.Add("Shift");
-            if (_newHotkeyModifiers.HasFlag(Windows.System.VirtualKeyModifiers.Menu))
-                parts.Add("Alt");
-
-            if (_newHotkeyKey != Windows.System.VirtualKey.None)
-                parts.Add(_newHotkeyKey.ToString());
-
-            HotkeyTextBox.Text = parts.Count > 0
-                ? string.Join(" + ", parts)
-                : "Ctrl + Space (default)";
-        }
-
-        private void OnResetHotkey(object sender, RoutedEventArgs e)
-        {
-            _newHotkeyModifiers = DefaultHotkeyModifiers;
-            _newHotkeyKey = DefaultHotkeyKey;
-            UpdateHotkeyDisplay();
-            ApplyHotkeyChange();
-            HotkeyStatusText.Text = "Reset to default (Ctrl + Space) and applied";
-            ApplyHotkeyButton.IsEnabled = false;
-        }
-
-        private void OnApplyHotkey(object sender, RoutedEventArgs e)
-        {
-            ApplyHotkeyChange();
-            ApplyHotkeyButton.IsEnabled = false;
-        }
-
-        private async void ApplyHotkeyChange()
-        {
-            try
-            {
-                var (modifiers, vKey) = ConvertToWin32Modifiers(_newHotkeyModifiers, _newHotkeyKey);
-
-                _hotkeyService?.RegisterHotkey(_windowHandle, modifiers, vKey);
-
-                _cachedSettings ??= await _dataService.LoadSettingsAsync();
-                _cachedSettings.HotkeyModifiers = modifiers;
-                _cachedSettings.HotkeyKey = vKey;
-                await _dataService.SaveSettingsAsync(_cachedSettings);
-
-                HotkeyStatusText.Text = "Hotkey updated and saved!";
-            }
-            catch (Exception ex)
-            {
-                HotkeyStatusText.Text = $"Failed to update hotkey: {ex.Message}";
-            }
-        }
-        #endregion
-
-        #region Hotkey Conversion Helpers
-        private static (uint modifiers, uint key) ConvertToWin32Modifiers(
-            Windows.System.VirtualKeyModifiers modifiers,
-            Windows.System.VirtualKey key)
-        {
-            uint win32Modifiers = 0;
-
-            if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Control))
-                win32Modifiers |= MOD_CONTROL;
-            if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Shift))
-                win32Modifiers |= MOD_SHIFT;
-            if (modifiers.HasFlag(Windows.System.VirtualKeyModifiers.Menu))
-                win32Modifiers |= MOD_ALT;
-
-            return (win32Modifiers, (uint)key);
-        }
-
-        private static (Windows.System.VirtualKeyModifiers modifiers, Windows.System.VirtualKey key)
-            ConvertFromWin32Modifiers(uint win32Modifiers, uint vKey)
-        {
-            var modifiers = Windows.System.VirtualKeyModifiers.None;
-
-            if ((win32Modifiers & MOD_CONTROL) != 0)
-                modifiers |= Windows.System.VirtualKeyModifiers.Control;
-            if ((win32Modifiers & MOD_SHIFT) != 0)
-                modifiers |= Windows.System.VirtualKeyModifiers.Shift;
-            if ((win32Modifiers & MOD_ALT) != 0)
-                modifiers |= Windows.System.VirtualKeyModifiers.Menu;
-
-            return (modifiers, (Windows.System.VirtualKey)vKey);
         }
         #endregion
 
@@ -1968,7 +1587,6 @@ namespace quickLink
             FooterPanel.Visibility = Visibility.Collapsed;
             EditPanel.Visibility = Visibility.Collapsed;
             CommandPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
             MarkdownPanel.Visibility = Visibility.Collapsed;
         }
 
@@ -2036,7 +1654,7 @@ namespace quickLink
             var sinceRender = System.Diagnostics.Stopwatch.StartNew();
             bool pendingRender = false;
 
-            await _grokService.StreamResponseAsync(_apiKey, question, chunk =>
+            await _grokService.StreamResponseAsync(question, chunk =>
             {
                 _lastAssistantMessage += chunk;
                 _markdownContent += chunk;

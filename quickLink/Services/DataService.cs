@@ -124,7 +124,20 @@ namespace quickLink.Services
             {
                 var json = await File.ReadAllTextAsync(_settingsFilePath);
                 var settings = JsonSerializer.Deserialize<AppSettings>(json, _jsonOptions) ?? new AppSettings();
-                settings.ApiKey = _encryptionService.Decrypt(settings.ApiKey);
+
+                // Decrypt per-provider keys.
+                foreach (var config in settings.Providers.Values)
+                {
+                    config.ApiKey = _encryptionService.Decrypt(config.ApiKey);
+                }
+
+                // Decrypt the legacy key so migration seeds a usable value.
+                if (!string.IsNullOrEmpty(settings.ApiKey))
+                {
+                    settings.ApiKey = _encryptionService.Decrypt(settings.ApiKey);
+                }
+
+                settings.MigrateLegacy();
                 return settings;
             }
             catch
@@ -137,14 +150,30 @@ namespace quickLink.Services
         {
             try
             {
+                // Clone into a copy with encrypted keys so we never mutate the caller's live object.
                 var toSave = new AppSettings
                 {
                     HotkeyModifiers = settings.HotkeyModifiers,
                     HotkeyKey = settings.HotkeyKey,
                     HideFooter = settings.HideFooter,
                     SearchUrl = settings.SearchUrl,
-                    ApiKey = _encryptionService.Encrypt(settings.ApiKey)
+                    AiProvider = settings.AiProvider,
+                    Providers = new Dictionary<AiProvider, ProviderConfig>()
+                    // Legacy ApiKey/AiModel intentionally left null so new files omit them.
                 };
+
+                foreach (var (provider, config) in settings.Providers)
+                {
+                    toSave.Providers[provider] = new ProviderConfig
+                    {
+                        ApiKey = string.IsNullOrEmpty(config.ApiKey)
+                            ? string.Empty
+                            : _encryptionService.Encrypt(config.ApiKey),
+                        Model = config.Model,
+                        BaseUrl = config.BaseUrl
+                    };
+                }
+
                 var json = JsonSerializer.Serialize(toSave, _jsonOptions);
                 await File.WriteAllTextAsync(_settingsFilePath, json);
             }

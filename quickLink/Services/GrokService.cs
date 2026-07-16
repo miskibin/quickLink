@@ -12,12 +12,14 @@ namespace quickLink.Services
 {
     public sealed class GrokService
     {
-        private static readonly Dictionary<AiProvider, ProviderConfig> Providers = new()
+        private static readonly Dictionary<AiProvider, ProviderDefaults> Providers = new()
         {
             [AiProvider.XAI] = new("https://api.x.ai/v1/chat/completions", "grok-4-1-fast-non-reasoning"),
             [AiProvider.OpenAI] = new("https://api.openai.com/v1/chat/completions", "gpt-4o-mini"),
             [AiProvider.Claude] = new("https://api.anthropic.com/v1/messages", "claude-sonnet-4-20250514"),
             [AiProvider.Ollama] = new("http://localhost:11434/v1/chat/completions", "llama3"),
+            // Custom is OpenAI-compatible; endpoint comes from the user-supplied base URL and there is no default model.
+            [AiProvider.Custom] = new(string.Empty, string.Empty),
         };
 
         private const string SystemPrompt = "Answer directly and concisely. No greetings, no filler phrases like 'of course' or 'here's what you need'. Just provide the answer.";
@@ -28,17 +30,18 @@ namespace quickLink.Services
 
         private AiProvider _provider = AiProvider.XAI;
         private string _modelOverride = string.Empty;
+        private string _apiKey = string.Empty;
+        private string _baseUrl = string.Empty;
 
-        public AiProvider Provider
+        /// <summary>
+        /// Pushes the full active provider configuration into the service.
+        /// </summary>
+        public void Configure(AiProvider provider, ProviderConfig config)
         {
-            get => _provider;
-            set => _provider = value;
-        }
-
-        public string ModelOverride
-        {
-            get => _modelOverride;
-            set => _modelOverride = value ?? string.Empty;
+            _provider = provider;
+            _modelOverride = config?.Model ?? string.Empty;
+            _apiKey = config?.ApiKey ?? string.Empty;
+            _baseUrl = config?.BaseUrl ?? string.Empty;
         }
 
         public string GetEffectiveModel()
@@ -46,6 +49,11 @@ namespace quickLink.Services
             if (!string.IsNullOrWhiteSpace(_modelOverride))
                 return _modelOverride;
             return Providers[_provider].Model;
+        }
+
+        private string GetEffectiveEndpoint()
+        {
+            return _provider == AiProvider.Custom ? _baseUrl : Providers[_provider].Endpoint;
         }
 
         public static string GetDefaultModel(AiProvider provider) => Providers[provider].Model;
@@ -66,27 +74,42 @@ namespace quickLink.Services
             }
         }
 
-        public async Task StreamResponseAsync(string apiKey, string userMessage, Func<string, Task> onChunk, CancellationToken ct = default)
+        public async Task StreamResponseAsync(string userMessage, Func<string, Task> onChunk, CancellationToken ct = default)
         {
-            // Ollama doesn't need API key
-            if (string.IsNullOrEmpty(apiKey) && _provider != AiProvider.Ollama)
+            // Ollama and Custom are local/self-hosted friendly and don't require an API key.
+            var apiKeyOptional = _provider == AiProvider.Ollama || _provider == AiProvider.Custom;
+            if (string.IsNullOrEmpty(_apiKey) && !apiKeyOptional)
             {
                 await onChunk("Error: API key not configured. Please set your API key in Settings.");
                 return;
             }
 
+            if (_provider == AiProvider.Custom)
+            {
+                if (string.IsNullOrWhiteSpace(_baseUrl))
+                {
+                    await onChunk("Error: Base URL not configured for the custom provider. Set it in Settings.");
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(GetEffectiveModel()))
+                {
+                    await onChunk("Error: Model not configured for the custom provider. Set it in Settings.");
+                    return;
+                }
+            }
+
             if (_provider == AiProvider.Claude)
             {
-                await StreamClaudeResponseAsync(apiKey, userMessage, onChunk, ct);
+                await StreamClaudeResponseAsync(userMessage, onChunk, ct);
                 return;
             }
 
-            await StreamOpenAICompatibleAsync(apiKey, userMessage, onChunk, ct);
+            await StreamOpenAICompatibleAsync(userMessage, onChunk, ct);
         }
 
-        private async Task StreamOpenAICompatibleAsync(string apiKey, string userMessage, Func<string, Task> onChunk, CancellationToken ct)
+        private async Task StreamOpenAICompatibleAsync(string userMessage, Func<string, Task> onChunk, CancellationToken ct)
         {
-            var config = Providers[_provider];
+            var endpoint = GetEffectiveEndpoint();
 
             if (_conversationHistory.Count == 0)
             {
@@ -104,14 +127,14 @@ namespace quickLink.Services
                 max_tokens = 500
             };
 
-            var request = new HttpRequestMessage(HttpMethod.Post, config.Endpoint)
+            var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = new StringContent(JsonSerializer.Serialize(payload, _jsonOptions), Encoding.UTF8, "application/json")
             };
 
-            if (!string.IsNullOrEmpty(apiKey))
+            if (!string.IsNullOrEmpty(_apiKey))
             {
-                request.Headers.Add("Authorization", $"Bearer {apiKey}");
+                request.Headers.Add("Authorization", $"Bearer {_apiKey}");
             }
 
             HttpResponseMessage response;
@@ -164,9 +187,9 @@ namespace quickLink.Services
             _conversationHistory.Add(new ChatMessage { Role = "assistant", Content = fullResponse.ToString() });
         }
 
-        private async Task StreamClaudeResponseAsync(string apiKey, string userMessage, Func<string, Task> onChunk, CancellationToken ct)
+        private async Task StreamClaudeResponseAsync(string userMessage, Func<string, Task> onChunk, CancellationToken ct)
         {
-            var config = Providers[_provider];
+            var endpoint = Providers[_provider].Endpoint;
 
             // Claude uses a different message format - system prompt is a top-level field
             var messages = new List<object>();
@@ -192,11 +215,11 @@ namespace quickLink.Services
                 max_tokens = 500
             };
 
-            var request = new HttpRequestMessage(HttpMethod.Post, config.Endpoint)
+            var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
             {
                 Content = new StringContent(JsonSerializer.Serialize(payload, _jsonOptions), Encoding.UTF8, "application/json")
             };
-            request.Headers.Add("x-api-key", apiKey);
+            request.Headers.Add("x-api-key", _apiKey);
             request.Headers.Add("anthropic-version", "2023-06-01");
 
             HttpResponseMessage response;
@@ -258,6 +281,6 @@ namespace quickLink.Services
             public string Content { get; set; } = "";
         }
 
-        private sealed record ProviderConfig(string Endpoint, string Model);
+        private sealed record ProviderDefaults(string Endpoint, string Model);
     }
 }
